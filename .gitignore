@@ -1,5 +1,6 @@
 # Environment variables
 .env
+.env.*
 
 # Python
 __pycache__/
@@ -24,6 +25,7 @@ wheels/
 *.egg
 
 # Virtual Environment
+.venv/
 venv/
 env/
 ENV/
@@ -33,6 +35,10 @@ ENV/
 .vscode/
 *.swp
 *.swo
+
+# Logs
+logs/
+*.log
 
 # OS specific files
 .DS_Store
