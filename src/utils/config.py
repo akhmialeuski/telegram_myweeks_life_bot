@@ -8,7 +8,6 @@ load_dotenv()
 
 # Bot Configuration
 TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN")
-DATE_OF_BIRTH: str = os.getenv("DATE_OF_BIRTH")  # Format: YYYY-MM-DD
 CHAT_ID: str = os.getenv("CHAT_ID")  # User's Telegram ID
 
 # Visualization Constants

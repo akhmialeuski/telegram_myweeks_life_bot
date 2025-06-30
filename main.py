@@ -8,7 +8,6 @@ The bot provides functionality for:
 
 Required environment variables:
     - TELEGRAM_BOT_TOKEN: Your Telegram bot token
-    - DATE_OF_BIRTH: Birth date in YYYY-MM-DD format
     - CHAT_ID: Your Telegram chat ID for notifications
 
 Example:

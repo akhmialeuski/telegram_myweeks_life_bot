@@ -2,35 +2,39 @@
 
 import datetime
 from typing import Tuple
-from ..utils.config import DATE_OF_BIRTH
 
-def get_weeks_lived() -> int:
+def get_weeks_lived(birth_date: str) -> int:
     """Calculate the number of weeks lived since birth date.
 
+    :param birth_date: Birth date in YYYY-MM-DD format
+    :type birth_date: str
     :returns: The number of complete weeks lived since birth date.
     :rtype: int
-    :note: Uses the DATE_OF_BIRTH environment variable for calculation.
     """
-    birth_date = datetime.datetime.strptime(DATE_OF_BIRTH, "%Y-%m-%d").date()
+    birth_date_obj = datetime.datetime.strptime(birth_date, "%Y-%m-%d").date()
     today = datetime.date.today()
-    return (today - birth_date).days // 7
+    return (today - birth_date_obj).days // 7
 
-def get_months_lived() -> int:
+def get_months_lived(birth_date: str) -> int:
     """Calculate the number of months lived since birth date.
 
+    :param birth_date: Birth date in YYYY-MM-DD format
+    :type birth_date: str
     :returns: The number of complete months lived since birth date.
     :rtype: int
     """
-    weeks_lived = get_weeks_lived()
+    weeks_lived = get_weeks_lived(birth_date)
     return weeks_lived // 4
 
-def get_years_lived() -> Tuple[int, int]:
+def get_years_lived(birth_date: str) -> Tuple[int, int]:
     """Calculate years and remaining weeks lived.
 
+    :param birth_date: Birth date in YYYY-MM-DD format
+    :type birth_date: str
     :returns: Tuple of (years, remaining_weeks)
     :rtype: Tuple[int, int]
     """
-    weeks_lived = get_weeks_lived()
+    weeks_lived = get_weeks_lived(birth_date)
     years = weeks_lived // 52
     remaining_weeks = weeks_lived % 52
     return years, remaining_weeks

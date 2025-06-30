@@ -19,7 +19,7 @@ def calculate_grid_dimensions() -> Tuple[int, int]:
     height = (MAX_YEARS * CELL_SIZE) + (2 * PADDING)
     return width, height
 
-def generate_visualization() -> BytesIO:
+def generate_visualization(birth_date: str) -> BytesIO:
     """Generate a visual representation of weeks lived.
 
     Creates a grid where:
@@ -31,6 +31,8 @@ def generate_visualization() -> BytesIO:
     - Weeks are labeled on the horizontal axis (every 4th week)
     - A legend is included at the bottom
 
+    :param birth_date: Birth date in YYYY-MM-DD format
+    :type birth_date: str
     :returns: BytesIO object containing the generated image.
     :rtype: BytesIO
     """
@@ -39,7 +41,7 @@ def generate_visualization() -> BytesIO:
     draw = ImageDraw.Draw(image)
 
     # Draw grid and cells
-    weeks_lived = get_weeks_lived()
+    weeks_lived = get_weeks_lived(birth_date)
     current_week = 0
 
     # Prepare font

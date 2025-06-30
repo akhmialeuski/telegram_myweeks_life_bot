@@ -207,7 +207,8 @@ async def visualize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
 
-        img_byte_arr = generate_visualization()
+        birth_date_str = user_profile.settings.birth_date.strftime('%Y-%m-%d')
+        img_byte_arr = generate_visualization(birth_date_str)
         await update.message.reply_photo(
             photo=img_byte_arr,
             caption="Visual representation of your life in weeks.\n"
