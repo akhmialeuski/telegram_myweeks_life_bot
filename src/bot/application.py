@@ -11,11 +11,14 @@ and provide a clean interface for bot management.
 """
 
 from typing import Optional, Dict, Callable
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
 
 from ..utils.config import TOKEN
 from ..utils.logger import get_logger
-from .handlers import weeks, visualize
+from .handlers import (
+    start, handle_birth_date, cancel, weeks, visualize, help_command,
+    WAITING_BIRTH_DATE
+)
 
 logger = get_logger("LifeWeeksBot")
 
@@ -23,6 +26,7 @@ logger = get_logger("LifeWeeksBot")
 COMMAND_HANDLERS: Dict[str, Callable] = {
     "weeks": weeks,
     "visualize": visualize,
+    "help": help_command,
 }
 
 class LifeWeeksBot:
@@ -35,8 +39,10 @@ class LifeWeeksBot:
         - Application lifecycle
 
     The bot provides commands:
+        - /start - User registration and setup
         - /weeks - Show current life weeks
         - /visualize - Generate week visualization
+        - /help - Show help information
 
     :ivar _app: The telegram.ext.Application instance
     :type _app: Optional[Application]
@@ -58,7 +64,7 @@ class LifeWeeksBot:
 
         This method:
             - Creates the telegram.ext.Application instance
-            - Registers all command handlers from COMMAND_HANDLERS mapping
+            - Registers all command handlers including conversation handler for /start
             - Configures the bot for operation
 
         :returns: None
@@ -67,12 +73,27 @@ class LifeWeeksBot:
         logger.info("Setting up bot application")
         self._app = Application.builder().token(TOKEN).build()
 
-        # Register command handlers from mapping
+        # Create conversation handler for /start command
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler("start", start)],
+            states={
+                WAITING_BIRTH_DATE: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birth_date)
+                ]
+            },
+            fallbacks=[CommandHandler("cancel", cancel)]
+        )
+
+        # Register conversation handler first
+        self._app.add_handler(conv_handler)
+        logger.debug("Registered conversation handler for /start command")
+
+        # Register other command handlers from mapping
         for command, handler in COMMAND_HANDLERS.items():
             self._app.add_handler(CommandHandler(command, handler))
             logger.debug(f"Registered command handler: /{command}")
 
-        logger.info(f"Command handlers registered: {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}")
+        logger.info(f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}")
 
     def start(self) -> None:
         """Start the life weeks bot in polling mode.

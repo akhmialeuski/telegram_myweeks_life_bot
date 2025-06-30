@@ -1,59 +1,141 @@
-# Life Weeks Bot
+# LifeWeeksBot
 
-Telegram bot for tracking and visualizing your life in weeks. This bot helps you understand how many weeks of your life have passed and how many are left, providing a unique perspective on time management and life planning.
+Telegram bot that tracks and visualizes the number of weeks lived since birth.
 
 ## Features
 
-- Track your life weeks with `/weeks` command
-- Visualize your life progress with `/visualize` command
-- Clean and intuitive interface
-- Detailed logging system
-- Configurable through environment variables
+- Track weeks lived since birth
+- Visualize life progress
+- Set birth date and preferences
+- Weekly notifications
+- Multi-user support
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/akhmialeuski/telegram_myweeks_life_bot.git
+git clone <repository-url>
 cd telegram_myweeks_life_bot
 ```
 
-2. Create and activate virtual environment:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Create `.env` file with your configuration:
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-DATE_OF_BIRTH=YYYY-MM-DD
-CHAT_ID=your_chat_id
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
 ```
+
+4. Set up the database:
+```bash
+python scripts/setup_database.py
+```
+
+## Database Setup
+
+The project uses SQLAlchemy 2.0 with Alembic for database migrations.
+
+### Initial Setup
+
+Run the setup script to create the database and apply migrations:
+
+```bash
+python scripts/setup_database.py
+```
+
+### Manual Migration Commands
+
+If you need to manage migrations manually:
+
+```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Rollback to previous migration
+alembic downgrade -1
+
+# Check current migration status
+alembic current
+
+# View migration history
+alembic history
+```
+
+### Database Configuration
+
+Database settings can be configured via environment variables:
+
+- `DATABASE_URL` - Full database URL (overrides default SQLite)
+- `DATABASE_PATH` - Path to SQLite database file (default: `lifeweeks.db`)
 
 ## Usage
 
 1. Start the bot:
 ```bash
-python main.py
+python src/main.py
 ```
 
-2. Available commands:
-   - `/weeks` - Show how many weeks of your life have passed
-   - `/visualize` - Generate a visualization of your life weeks
+2. In Telegram, send `/start` to begin using the bot
 
-## Environment Variables
+## Commands
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token from @BotFather | Yes |
-| `DATE_OF_BIRTH` | Your birth date in YYYY-MM-DD format | Yes |
-| `CHAT_ID` | Your Telegram chat ID for notifications | Yes |
+- `/start` - Start the bot
+- `/weeks` - Show weeks lived
+- `/visualize` - Show life visualization
+- `/setbirthdate` - Set your birth date
+- `/help` - Show help information
+
+## Project Structure
+
+```
+├── src/
+│   ├── database/           # Database layer
+│   │   ├── models.py       # SQLAlchemy models
+│   │   ├── constants.py    # Database constants
+│   │   ├── abstract_repository.py  # Repository interface
+│   │   └── sqlite_repository.py    # SQLite implementation
+│   ├── visualization/      # Visualization module
+│   └── main.py            # Main application
+├── alembic/               # Database migrations
+│   ├── versions/          # Migration files
+│   ├── env.py            # Alembic environment
+│   └── script.py.mako    # Migration template
+├── scripts/              # Utility scripts
+│   └── setup_database.py # Database setup script
+├── requirements.txt      # Python dependencies
+├── alembic.ini          # Alembic configuration
+└── README.md           # This file
+```
+
+## Development
+
+### Adding New Migrations
+
+When you modify the database models:
+
+1. Update the models in `src/database/models.py`
+2. Generate a new migration:
+   ```bash
+   alembic revision --autogenerate -m "Add new feature"
+   ```
+3. Review the generated migration file
+4. Apply the migration:
+   ```bash
+   alembic upgrade head
+   ```
+
+### Database Schema
+
+The database contains two main tables:
+
+- `users` - User information (Telegram ID, username, etc.)
+- `user_settings` - User preferences and settings (birth date, notifications, etc.)
 
 ## License
 
