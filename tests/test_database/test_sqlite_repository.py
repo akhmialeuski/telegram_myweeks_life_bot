@@ -4,20 +4,18 @@ Tests all methods of the SQLAlchemyUserRepository class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-import pytest
-import tempfile
 import os
-from datetime import datetime, date, time, UTC
-from unittest.mock import Mock, patch, MagicMock
+import tempfile
+from datetime import UTC, date, datetime, time
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
-from src.database.sqlite_repository import SQLAlchemyUserRepository
-from src.database.models import User, UserSettings
 from src.database.constants import DEFAULT_DATABASE_PATH
+from src.database.models import User, UserSettings
+from src.database.sqlite_repository import SQLAlchemyUserRepository
 
 
 class TestSQLAlchemyUserRepository:
@@ -30,7 +28,7 @@ class TestSQLAlchemyUserRepository:
         :returns: Path to temporary database file
         :rtype: str
         """
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
             db_path = tmp.name
         yield db_path
         # Cleanup
@@ -62,7 +60,7 @@ class TestSQLAlchemyUserRepository:
             username="test_user",
             first_name="Test",
             last_name="User",
-            created_at=datetime.now(UTC)
+            created_at=datetime.now(UTC),
         )
 
     @pytest.fixture
@@ -80,7 +78,7 @@ class TestSQLAlchemyUserRepository:
             notifications_time=time(9, 0),
             timezone="UTC",
             life_expectancy=80,
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
 
     def test_init_default_path(self):
@@ -192,7 +190,7 @@ class TestSQLAlchemyUserRepository:
             username="duplicate_user",
             first_name="Duplicate",
             last_name="User",
-            created_at=datetime.now(UTC)
+            created_at=datetime.now(UTC),
         )
         result2 = repository.create_user(duplicate_user)
         assert result2 is False
@@ -204,7 +202,7 @@ class TestSQLAlchemyUserRepository:
         :param sample_user: Sample user object
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.add.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -243,7 +241,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -287,7 +285,7 @@ class TestSQLAlchemyUserRepository:
         :param sample_user: Sample user object
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -328,7 +326,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -371,7 +369,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -415,7 +413,7 @@ class TestSQLAlchemyUserRepository:
             notifications_time=time(10, 30),
             timezone="UTC",
             life_expectancy=85,
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
         result2 = repository.create_user_settings(duplicate_settings)
         assert result2 is False
@@ -427,7 +425,7 @@ class TestSQLAlchemyUserRepository:
         :param sample_settings: Sample settings object
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.add.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -466,7 +464,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -510,7 +508,7 @@ class TestSQLAlchemyUserRepository:
         :param sample_settings: Sample settings object
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -551,7 +549,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -592,7 +590,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.refresh.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -600,7 +598,9 @@ class TestSQLAlchemyUserRepository:
             result = repository.get_user_profile(123)
             assert result is None
 
-    def test_create_user_profile_success(self, repository, sample_user, sample_settings):
+    def test_create_user_profile_success(
+        self, repository, sample_user, sample_settings
+    ):
         """Test successful user profile creation.
 
         :param repository: Repository instance
@@ -618,7 +618,9 @@ class TestSQLAlchemyUserRepository:
         assert profile.settings is not None
         assert profile.settings.birth_date == sample_settings.birth_date
 
-    def test_create_user_profile_database_error(self, repository, sample_user, sample_settings):
+    def test_create_user_profile_database_error(
+        self, repository, sample_user, sample_settings
+    ):
         """Test user profile creation with database error.
 
         :param repository: Repository instance
@@ -626,7 +628,7 @@ class TestSQLAlchemyUserRepository:
         :param sample_settings: Sample settings object
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.add.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -634,7 +636,9 @@ class TestSQLAlchemyUserRepository:
             result = repository.create_user_profile(sample_user, sample_settings)
             assert result is False
 
-    def test_update_user_profile_success(self, repository, sample_user, sample_settings):
+    def test_update_user_profile_success(
+        self, repository, sample_user, sample_settings
+    ):
         """Test successful user profile update.
 
         :param repository: Repository instance
@@ -657,7 +661,9 @@ class TestSQLAlchemyUserRepository:
         assert profile.username == "updated_username"
         assert profile.settings.birth_date == date(1995, 5, 15)
 
-    def test_update_user_profile_user_not_found(self, repository, sample_user, sample_settings):
+    def test_update_user_profile_user_not_found(
+        self, repository, sample_user, sample_settings
+    ):
         """Test user profile update when user doesn't exist.
 
         :param repository: Repository instance
@@ -708,7 +714,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.commit.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -754,7 +760,7 @@ class TestSQLAlchemyUserRepository:
             sample_settings.telegram_id,
             notifications=False,
             notifications_day="tue",
-            notifications_time=time(10, 30)
+            notifications_time=time(10, 30),
         )
         assert result is True
 
@@ -774,7 +780,7 @@ class TestSQLAlchemyUserRepository:
             123456,
             notifications=True,
             notifications_day="wed",
-            notifications_time=time(8, 0)
+            notifications_time=time(8, 0),
         )
         assert result is True
 
@@ -791,7 +797,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.commit.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -810,9 +816,15 @@ class TestSQLAlchemyUserRepository:
         user2 = User(telegram_id=2, username="user2", created_at=datetime.now(UTC))
         user3 = User(telegram_id=3, username="user3", created_at=datetime.now(UTC))
 
-        settings1 = UserSettings(telegram_id=1, notifications=True, updated_at=datetime.now(UTC))
-        settings2 = UserSettings(telegram_id=2, notifications=False, updated_at=datetime.now(UTC))
-        settings3 = UserSettings(telegram_id=3, notifications=True, updated_at=datetime.now(UTC))
+        settings1 = UserSettings(
+            telegram_id=1, notifications=True, updated_at=datetime.now(UTC)
+        )
+        settings2 = UserSettings(
+            telegram_id=2, notifications=False, updated_at=datetime.now(UTC)
+        )
+        settings3 = UserSettings(
+            telegram_id=3, notifications=True, updated_at=datetime.now(UTC)
+        )
 
         repository.create_user_profile(user1, settings1)
         repository.create_user_profile(user2, settings2)
@@ -840,7 +852,7 @@ class TestSQLAlchemyUserRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, '_get_session') as mock_get_session:
+        with patch.object(repository, "_get_session") as mock_get_session:
             mock_session = Mock()
             mock_session.execute.side_effect = SQLAlchemyError("Database error")
             mock_get_session.return_value = mock_session
@@ -860,7 +872,7 @@ class TestSQLAlchemyUserRepository:
             telegram_id=123,
             birth_date=date(1990, 1, 1),
             notifications=True,
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
 
         # Test creation

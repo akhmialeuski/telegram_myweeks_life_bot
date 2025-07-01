@@ -5,20 +5,19 @@ for storing user data in SQLite database.
 """
 
 import logging
-from typing import Optional, List
-from datetime import datetime, date, time, UTC
+from datetime import UTC, date, datetime, time
 from pathlib import Path
+from typing import List, Optional
 
-from sqlalchemy import create_engine, select, update, delete
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session, sessionmaker
 
 from .abstract_repository import AbstractUserRepository
-from .models import Base, User, UserSettings
 from .constants import DEFAULT_DATABASE_PATH, SQLITE_ECHO, SQLITE_POOL_PRE_PING
+from .models import Base, User, UserSettings
 
-
-logger = logging.getLogger('myweeks_bot')
+logger = logging.getLogger("myweeks_bot")
 
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
@@ -48,14 +47,12 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             self.engine = create_engine(
                 f"sqlite:///{self.db_path}",
                 echo=SQLITE_ECHO,  # Use constant for SQL logging
-                pool_pre_ping=SQLITE_POOL_PRE_PING
+                pool_pre_ping=SQLITE_POOL_PRE_PING,
             )
 
             # Create session factory
             self.SessionLocal = sessionmaker(
-                bind=self.engine,
-                autocommit=False,
-                autoflush=False
+                bind=self.engine, autocommit=False, autoflush=False
             )
 
             # Create tables
@@ -139,7 +136,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 .values(
                     username=user.username,
                     first_name=user.first_name,
-                    last_name=user.last_name
+                    last_name=user.last_name,
                 )
             )
             result = session.execute(stmt)
@@ -254,7 +251,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                     timezone=settings.timezone,
                     notifications=settings.notifications,
                     notifications_time=settings.notifications_time,
-                    updated_at=datetime.now(UTC)
+                    updated_at=datetime.now(UTC),
                 )
             )
             result = session.execute(stmt)
@@ -309,7 +306,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         # Load settings relationship
         session = self._get_session()
         try:
-            session.refresh(user, ['settings'])
+            session.refresh(user, ["settings"])
             return user
         except SQLAlchemyError as e:
             logger.error(f"Failed to load user profile {telegram_id}: {e}")
@@ -384,7 +381,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 new_settings = UserSettings(
                     telegram_id=telegram_id,
                     birth_date=birth_date,
-                    updated_at=datetime.now(UTC)
+                    updated_at=datetime.now(UTC),
                 )
                 return self.create_user_settings(new_settings)
 
@@ -407,7 +404,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         telegram_id: int,
         notifications: bool,
         notifications_day: Optional[str] = None,
-        notifications_time: Optional[time] = None
+        notifications_time: Optional[time] = None,
     ) -> bool:
         """Set notification settings.
 
@@ -435,7 +432,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                     notifications=notifications,
                     notifications_day=notifications_day,
                     notifications_time=notifications_time,
-                    updated_at=datetime.now(UTC)
+                    updated_at=datetime.now(UTC),
                 )
                 return self.create_user_settings(new_settings)
 
@@ -454,14 +451,14 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             stmt = (
                 select(User)
                 .join(UserSettings)
-                .where(UserSettings.notifications == True)
+                .where(UserSettings.notifications == True)  # noqa: E712
             )
             result = session.execute(stmt)
             users = result.scalars().all()
 
             # Load settings for each user
             for user in users:
-                session.refresh(user, ['settings'])
+                session.refresh(user, ["settings"])
 
             return list(users)
 

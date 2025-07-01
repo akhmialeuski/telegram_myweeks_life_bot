@@ -1,16 +1,19 @@
 """Command handlers for the Telegram bot."""
 
-from datetime import datetime, date, time
+from datetime import date, datetime
+
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
-from ..core.life_tracker import get_weeks_lived, get_months_lived
-from ..visualization.grid import generate_visualization
-from ..utils.logger import get_logger
+from telegram.ext import ContextTypes, ConversationHandler
+
 from ..database import SQLAlchemyUserRepository, User, UserSettings
 from ..database.constants import (
-    DEFAULT_NOTIFICATIONS_ENABLED, DEFAULT_TIMEZONE,
-    DEFAULT_NOTIFICATIONS_DAY, DEFAULT_NOTIFICATIONS_TIME
+    DEFAULT_NOTIFICATIONS_DAY,
+    DEFAULT_NOTIFICATIONS_ENABLED,
+    DEFAULT_NOTIFICATIONS_TIME,
+    DEFAULT_TIMEZONE,
 )
+from ..utils.logger import get_logger
+from ..visualization.grid import generate_visualization
 
 logger = get_logger("LifeWeeksBot")
 
@@ -19,6 +22,7 @@ WAITING_BIRTH_DATE = 1
 
 # Global repository instance
 repository = SQLAlchemyUserRepository()
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle /start command - ask for birth date and register user.
@@ -51,6 +55,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return WAITING_BIRTH_DATE
 
+
 async def handle_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle birth date input from user.
 
@@ -82,7 +87,9 @@ async def handle_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return WAITING_BIRTH_DATE
 
         # Parse default notifications time
-        notifications_time = datetime.strptime(DEFAULT_NOTIFICATIONS_TIME, "%H:%M:%S").time()
+        notifications_time = datetime.strptime(
+            DEFAULT_NOTIFICATIONS_TIME, "%H:%M:%S"
+        ).time()
 
         # Create user and settings
         new_user = User(
@@ -90,7 +97,7 @@ async def handle_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
         new_settings = UserSettings(
@@ -100,7 +107,7 @@ async def handle_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             timezone=DEFAULT_TIMEZONE,
             notifications_day=DEFAULT_NOTIFICATIONS_DAY,
             notifications_time=notifications_time,
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         # Save to database
@@ -134,6 +141,7 @@ async def handle_birth_date(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return WAITING_BIRTH_DATE
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle /cancel command to cancel registration.
 
@@ -142,10 +150,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     :returns: Conversation state
     """
     await update.message.reply_text(
-        "❌ Регистрация отменена.\n"
-        "Используй /start чтобы начать заново."
+        "❌ Регистрация отменена.\n" "Используй /start чтобы начать заново."
     )
     return ConversationHandler.END
+
 
 async def weeks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /weeks command to display weeks and months lived.
@@ -183,6 +191,7 @@ async def weeks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"📅 Возраст: {age} лет"
     )
 
+
 async def visualize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /visualize command to show a visual representation of weeks lived.
 
@@ -207,19 +216,20 @@ async def visualize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
 
-        birth_date_str = user_profile.settings.birth_date.strftime('%Y-%m-%d')
+        birth_date_str = user_profile.settings.birth_date.strftime("%Y-%m-%d")
         img_byte_arr = generate_visualization(birth_date_str)
         await update.message.reply_photo(
             photo=img_byte_arr,
             caption="Visual representation of your life in weeks.\n"
-                   "🟩 Green cells: weeks lived\n"
-                   "⬜ Empty cells: weeks to come"
+            "🟩 Green cells: weeks lived\n"
+            "⬜ Empty cells: weeks to come",
         )
     except Exception as error:  # pylint: disable=broad-exception-caught
         logger.error(f"Error generating visualization: {error}")
         await update.message.reply_text(
             "Sorry, there was an error generating the visualization."
         )
+
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command - show help information.
@@ -244,6 +254,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await update.message.reply_text(help_text)
 
+
 def calculate_weeks_lived(birth_date: date) -> int:
     """Calculate weeks lived since birth date.
 
@@ -254,6 +265,7 @@ def calculate_weeks_lived(birth_date: date) -> int:
     days_lived = (today - birth_date).days
     return days_lived // 7
 
+
 def calculate_age(birth_date: date) -> int:
     """Calculate age in years.
 
@@ -262,6 +274,8 @@ def calculate_age(birth_date: date) -> int:
     """
     today = date.today()
     age = today.year - birth_date.year
-    if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
+    if today.month < birth_date.month or (
+        today.month == birth_date.month and today.day < birth_date.day
+    ):
         age -= 1
     return age

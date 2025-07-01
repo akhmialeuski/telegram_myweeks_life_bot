@@ -5,8 +5,8 @@ that can be implemented by different database backends.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List
 from datetime import date, time
+from typing import List, Optional
 
 from .models import User, UserSettings
 
@@ -28,8 +28,7 @@ class AbstractUserRepository(ABC):
 
     @abstractmethod
     def close(self) -> None:
-        """Close database connection and cleanup resources
-        """
+        """Close database connection and cleanup resources"""
         pass
 
     # User operations
@@ -174,7 +173,7 @@ class AbstractUserRepository(ABC):
         telegram_id: int,
         notifications: bool,
         notifications_day: Optional[str] = None,
-        notifications_time: Optional[time] = None
+        notifications_time: Optional[time] = None,
     ) -> bool:
         """Set notification settings
 

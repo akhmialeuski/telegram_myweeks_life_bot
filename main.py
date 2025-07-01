@@ -17,6 +17,7 @@ Example:
 
 from src.bot.application import LifeWeeksBot
 
+
 def main() -> None:
     """Initialize and run the Telegram bot.
 
@@ -30,6 +31,7 @@ def main() -> None:
     """
     bot = LifeWeeksBot()
     bot.start()
+
 
 if __name__ == "__main__":
     main()

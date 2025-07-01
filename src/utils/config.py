@@ -1,6 +1,7 @@
 """Configuration settings and constants for the application."""
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,11 +20,11 @@ WEEKS_PER_YEAR = 52
 
 # Colors
 COLORS = {
-    'background': (255, 255, 255),  # White
-    'grid': (200, 200, 200),        # Light gray
-    'lived': (76, 175, 80),         # Green
-    'text': (0, 0, 0),              # Black
-    'axis': (100, 100, 100),        # Dark gray
+    "background": (255, 255, 255),  # White
+    "grid": (200, 200, 200),  # Light gray
+    "lived": (76, 175, 80),  # Green
+    "text": (0, 0, 0),  # Black
+    "axis": (100, 100, 100),  # Dark gray
 }
 
 # Scheduler Configuration

@@ -35,14 +35,18 @@ def check_schema():
         users_columns = cursor.fetchall()
         print("\n👥 Users table:")
         for col in users_columns:
-            print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'} {'PRIMARY KEY' if col[5] else ''}")
+            print(
+                f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'} {'PRIMARY KEY' if col[5] else ''}"
+            )
 
         # Check user_settings table
         cursor.execute("PRAGMA table_info(user_settings);")
         settings_columns = cursor.fetchall()
         print("\n⚙️ User Settings table:")
         for col in settings_columns:
-            print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'} {'PRIMARY KEY' if col[5] else ''}")
+            print(
+                f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'} {'PRIMARY KEY' if col[5] else ''}"
+            )
 
         # Check indexes
         cursor.execute("PRAGMA index_list(user_settings);")

@@ -4,20 +4,26 @@ Defines the data structures for user information and user settings
 used by the storage and service layers of the LifeWeeksBot project.
 """
 
-from datetime import datetime, date, time, UTC
+from datetime import UTC, date, datetime, time
 from typing import Optional
-from sqlalchemy import String, Integer, Boolean, DateTime, Date, Time, ForeignKey
+
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from .constants import (
-    USERS_TABLE, USER_SETTINGS_TABLE,
-    MAX_USERNAME_LENGTH, MAX_FIRST_NAME_LENGTH, MAX_LAST_NAME_LENGTH,
-    MAX_NOTIFICATIONS_DAY_LENGTH, MAX_TIMEZONE_LENGTH
+    MAX_FIRST_NAME_LENGTH,
+    MAX_LAST_NAME_LENGTH,
+    MAX_NOTIFICATIONS_DAY_LENGTH,
+    MAX_TIMEZONE_LENGTH,
+    MAX_USERNAME_LENGTH,
+    USER_SETTINGS_TABLE,
+    USERS_TABLE,
 )
 
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     pass
 
 
@@ -30,16 +36,27 @@ class User(Base):
     :param last_name: User's last name (if available)
     :param created_at: Registration date in the system
     """
+
     __tablename__ = USERS_TABLE
 
     telegram_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[Optional[str]] = mapped_column(String(MAX_USERNAME_LENGTH), nullable=True)
-    first_name: Mapped[Optional[str]] = mapped_column(String(MAX_FIRST_NAME_LENGTH), nullable=True)
-    last_name: Mapped[Optional[str]] = mapped_column(String(MAX_LAST_NAME_LENGTH), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    username: Mapped[Optional[str]] = mapped_column(
+        String(MAX_USERNAME_LENGTH), nullable=True
+    )
+    first_name: Mapped[Optional[str]] = mapped_column(
+        String(MAX_FIRST_NAME_LENGTH), nullable=True
+    )
+    last_name: Mapped[Optional[str]] = mapped_column(
+        String(MAX_LAST_NAME_LENGTH), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
     # Relationship
-    settings: Mapped["UserSettings"] = relationship(back_populates="user", uselist=False)
+    settings: Mapped["UserSettings"] = relationship(
+        back_populates="user", uselist=False
+    )
 
 
 class UserSettings(Base):
@@ -54,17 +71,29 @@ class UserSettings(Base):
     :param notifications_time: Time of day for notifications
     :param updated_at: Last update timestamp
     """
+
     __tablename__ = USER_SETTINGS_TABLE
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{USERS_TABLE}.telegram_id", ondelete="CASCADE"), nullable=False, unique=True)
+    telegram_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey(f"{USERS_TABLE}.telegram_id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    notifications_day: Mapped[Optional[str]] = mapped_column(String(MAX_NOTIFICATIONS_DAY_LENGTH), nullable=True)
+    notifications_day: Mapped[Optional[str]] = mapped_column(
+        String(MAX_NOTIFICATIONS_DAY_LENGTH), nullable=True
+    )
     life_expectancy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    timezone: Mapped[Optional[str]] = mapped_column(String(MAX_TIMEZONE_LENGTH), nullable=True)
+    timezone: Mapped[Optional[str]] = mapped_column(
+        String(MAX_TIMEZONE_LENGTH), nullable=True
+    )
     notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     notifications_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="settings")

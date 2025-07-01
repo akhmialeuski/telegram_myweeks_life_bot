@@ -49,4 +49,10 @@ logs/
 
 # OS specific files
 .DS_Store
-Thumbs.db.coverage
+Thumbs.db
+
+# Coverage
+.coverage
+*.coverage
+coverage.xml
+htmlcov/

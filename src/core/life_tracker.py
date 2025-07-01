@@ -3,6 +3,7 @@
 import datetime
 from typing import Tuple
 
+
 def get_weeks_lived(birth_date: str) -> int:
     """Calculate the number of weeks lived since birth date.
 
@@ -15,6 +16,7 @@ def get_weeks_lived(birth_date: str) -> int:
     today = datetime.date.today()
     return (today - birth_date_obj).days // 7
 
+
 def get_months_lived(birth_date: str) -> int:
     """Calculate the number of months lived since birth date.
 
@@ -25,6 +27,7 @@ def get_months_lived(birth_date: str) -> int:
     """
     weeks_lived = get_weeks_lived(birth_date)
     return weeks_lived // 4
+
 
 def get_years_lived(birth_date: str) -> Tuple[int, int]:
     """Calculate years and remaining weeks lived.

@@ -18,7 +18,7 @@ Example:
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Dict
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
@@ -44,6 +44,7 @@ DEFAULT_LOG_LEVELS: Dict[str, int] = {
     "urllib3": logging.WARNING,
 }
 
+
 def set_log_level(module_name: str, level: int) -> None:
     """Set log level for a specific module.
 
@@ -61,14 +62,19 @@ def set_log_level(module_name: str, level: int) -> None:
         >>> set_log_level("LifeWeeksBot", logging.DEBUG)
         >>> set_log_level("httpx", logging.INFO)
     """
-    if not isinstance(level, int) or level not in [logging.DEBUG, logging.INFO,
-                                                 logging.WARNING, logging.ERROR,
-                                                 logging.CRITICAL]:
+    if not isinstance(level, int) or level not in [
+        logging.DEBUG,
+        logging.INFO,
+        logging.WARNING,
+        logging.ERROR,
+        logging.CRITICAL,
+    ]:
         raise ValueError(f"Invalid logging level: {level}")
 
     logger = logging.getLogger(module_name)
     logger.setLevel(level)
     DEFAULT_LOG_LEVELS[module_name] = level
+
 
 def _setup_root_logger() -> None:
     """Set up the root logger with file and console handlers.
@@ -89,7 +95,7 @@ def _setup_root_logger() -> None:
     formatter = logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT)
 
     # File handler - log everything to file
-    file_handler = logging.FileHandler(LOG_FILE, encoding='utf-8')
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)  # Log all levels to file
     file_handler.setFormatter(formatter)
 
@@ -106,8 +112,10 @@ def _setup_root_logger() -> None:
     for module_name, level in DEFAULT_LOG_LEVELS.items():
         logging.getLogger(module_name).setLevel(level)
 
+
 # Initialize root logger
 _setup_root_logger()
+
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger instance for a specific module.

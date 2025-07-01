@@ -10,14 +10,26 @@ The module uses a class-based approach to encapsulate all bot functionality
 and provide a clean interface for bot management.
 """
 
-from typing import Optional, Dict, Callable
-from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters
+from typing import Callable, Dict, Optional
+
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
 from ..utils.config import TOKEN
 from ..utils.logger import get_logger
 from .handlers import (
-    start, handle_birth_date, cancel, weeks, visualize, help_command,
-    WAITING_BIRTH_DATE
+    WAITING_BIRTH_DATE,
+    cancel,
+    handle_birth_date,
+    help_command,
+    start,
+    visualize,
+    weeks,
 )
 
 logger = get_logger("LifeWeeksBot")
@@ -28,6 +40,7 @@ COMMAND_HANDLERS: Dict[str, Callable] = {
     "visualize": visualize,
     "help": help_command,
 }
+
 
 class LifeWeeksBot:
     """Telegram bot for tracking and visualizing life weeks.
@@ -81,7 +94,7 @@ class LifeWeeksBot:
                     MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birth_date)
                 ]
             },
-            fallbacks=[CommandHandler("cancel", cancel)]
+            fallbacks=[CommandHandler("cancel", cancel)],
         )
 
         # Register conversation handler first
@@ -93,7 +106,9 @@ class LifeWeeksBot:
             self._app.add_handler(CommandHandler(command, handler))
             logger.debug(f"Registered command handler: /{command}")
 
-        logger.info(f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}")
+        logger.info(
+            f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"
+        )
 
     def start(self) -> None:
         """Start the life weeks bot in polling mode.
