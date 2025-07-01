@@ -74,6 +74,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
 
         if self.engine:
             self.engine.dispose()
+            self.engine = None
             logger.info("SQLAlchemy database connection closed")
 
     def _get_session(self) -> Session:

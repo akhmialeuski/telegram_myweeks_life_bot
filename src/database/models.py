@@ -57,7 +57,7 @@ class UserSettings(Base):
     __tablename__ = USER_SETTINGS_TABLE
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{USERS_TABLE}.telegram_id", ondelete="CASCADE"), nullable=False)
+    telegram_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{USERS_TABLE}.telegram_id", ondelete="CASCADE"), nullable=False, unique=True)
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     notifications_day: Mapped[Optional[str]] = mapped_column(String(MAX_NOTIFICATIONS_DAY_LENGTH), nullable=True)
     life_expectancy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
