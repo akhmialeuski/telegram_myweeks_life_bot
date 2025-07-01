@@ -6,7 +6,7 @@ for storing user data in SQLite database.
 
 import logging
 from typing import Optional, List
-from datetime import datetime, date, time
+from datetime import datetime, date, time, UTC
 from pathlib import Path
 
 from sqlalchemy import create_engine, select, update, delete
@@ -254,7 +254,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                     timezone=settings.timezone,
                     notifications=settings.notifications,
                     notifications_time=settings.notifications_time,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(UTC)
                 )
             )
             result = session.execute(stmt)
@@ -376,7 +376,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
             existing_settings = self.get_user_settings(telegram_id)
             if existing_settings:
                 existing_settings.birth_date = birth_date
-                existing_settings.updated_at = datetime.utcnow()
+                existing_settings.updated_at = datetime.now(UTC)
                 session.commit()
                 return True
             else:
@@ -384,7 +384,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 new_settings = UserSettings(
                     telegram_id=telegram_id,
                     birth_date=birth_date,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(UTC)
                 )
                 return self.create_user_settings(new_settings)
 
@@ -425,7 +425,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                 existing_settings.notifications = notifications
                 existing_settings.notifications_day = notifications_day
                 existing_settings.notifications_time = notifications_time
-                existing_settings.updated_at = datetime.utcnow()
+                existing_settings.updated_at = datetime.now(UTC)
                 session.commit()
                 return True
             else:
@@ -435,7 +435,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
                     notifications=notifications,
                     notifications_day=notifications_day,
                     notifications_time=notifications_time,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.now(UTC)
                 )
                 return self.create_user_settings(new_settings)
 

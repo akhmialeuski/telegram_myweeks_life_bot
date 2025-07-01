@@ -7,7 +7,7 @@ with proper fixtures, mocking, and edge case coverage.
 import pytest
 import tempfile
 import os
-from datetime import datetime, date, time
+from datetime import datetime, date, time, UTC
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
@@ -62,7 +62,7 @@ class TestSQLAlchemyUserRepository:
             username="test_user",
             first_name="Test",
             last_name="User",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(UTC)
         )
 
     @pytest.fixture
@@ -80,7 +80,7 @@ class TestSQLAlchemyUserRepository:
             notifications_time=time(9, 0),
             timezone="UTC",
             life_expectancy=80,
-            updated_at=datetime.utcnow()
+            updated_at=datetime.now(UTC)
         )
 
     def test_init_default_path(self):
@@ -184,14 +184,15 @@ class TestSQLAlchemyUserRepository:
         # Create user first time
         result1 = repository.create_user(sample_user)
         assert result1 is True
-
+        # Clear session to avoid identity conflict warning
+        repository._session.expunge_all()
         # Try to create duplicate with same telegram_id
         duplicate_user = User(
             telegram_id=sample_user.telegram_id,
             username="duplicate_user",
             first_name="Duplicate",
             last_name="User",
-            created_at=datetime.utcnow()
+            created_at=datetime.now(UTC)
         )
         result2 = repository.create_user(duplicate_user)
         assert result2 is False
@@ -343,8 +344,8 @@ class TestSQLAlchemyUserRepository:
         :returns: None
         """
         # Create multiple users
-        user1 = User(telegram_id=1, username="user1", created_at=datetime.utcnow())
-        user2 = User(telegram_id=2, username="user2", created_at=datetime.utcnow())
+        user1 = User(telegram_id=1, username="user1", created_at=datetime.now(UTC))
+        user2 = User(telegram_id=2, username="user2", created_at=datetime.now(UTC))
 
         repository.create_user(user1)
         repository.create_user(user2)
@@ -414,7 +415,7 @@ class TestSQLAlchemyUserRepository:
             notifications_time=time(10, 30),
             timezone="UTC",
             life_expectancy=85,
-            updated_at=datetime.utcnow()
+            updated_at=datetime.now(UTC)
         )
         result2 = repository.create_user_settings(duplicate_settings)
         assert result2 is False
@@ -805,13 +806,13 @@ class TestSQLAlchemyUserRepository:
         :returns: None
         """
         # Create users with different notification settings
-        user1 = User(telegram_id=1, username="user1", created_at=datetime.utcnow())
-        user2 = User(telegram_id=2, username="user2", created_at=datetime.utcnow())
-        user3 = User(telegram_id=3, username="user3", created_at=datetime.utcnow())
+        user1 = User(telegram_id=1, username="user1", created_at=datetime.now(UTC))
+        user2 = User(telegram_id=2, username="user2", created_at=datetime.now(UTC))
+        user3 = User(telegram_id=3, username="user3", created_at=datetime.now(UTC))
 
-        settings1 = UserSettings(telegram_id=1, notifications=True, updated_at=datetime.utcnow())
-        settings2 = UserSettings(telegram_id=2, notifications=False, updated_at=datetime.utcnow())
-        settings3 = UserSettings(telegram_id=3, notifications=True, updated_at=datetime.utcnow())
+        settings1 = UserSettings(telegram_id=1, notifications=True, updated_at=datetime.now(UTC))
+        settings2 = UserSettings(telegram_id=2, notifications=False, updated_at=datetime.now(UTC))
+        settings3 = UserSettings(telegram_id=3, notifications=True, updated_at=datetime.now(UTC))
 
         repository.create_user_profile(user1, settings1)
         repository.create_user_profile(user2, settings2)
@@ -854,12 +855,12 @@ class TestSQLAlchemyUserRepository:
         :returns: None
         """
         # Create user and settings
-        user = User(telegram_id=123, username="test", created_at=datetime.utcnow())
+        user = User(telegram_id=123, username="test", created_at=datetime.now(UTC))
         settings = UserSettings(
             telegram_id=123,
             birth_date=date(1990, 1, 1),
             notifications=True,
-            updated_at=datetime.utcnow()
+            updated_at=datetime.now(UTC)
         )
 
         # Test creation

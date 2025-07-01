@@ -4,7 +4,7 @@ Defines the data structures for user information and user settings
 used by the storage and service layers of the LifeWeeksBot project.
 """
 
-from datetime import datetime, date, time
+from datetime import datetime, date, time, UTC
 from typing import Optional
 from sqlalchemy import String, Integer, Boolean, DateTime, Date, Time, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -36,7 +36,7 @@ class User(Base):
     username: Mapped[Optional[str]] = mapped_column(String(MAX_USERNAME_LENGTH), nullable=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(MAX_FIRST_NAME_LENGTH), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(MAX_LAST_NAME_LENGTH), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationship
     settings: Mapped["UserSettings"] = relationship(back_populates="user", uselist=False)
@@ -64,7 +64,7 @@ class UserSettings(Base):
     timezone: Mapped[Optional[str]] = mapped_column(String(MAX_TIMEZONE_LENGTH), nullable=True)
     notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     notifications_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="settings")
