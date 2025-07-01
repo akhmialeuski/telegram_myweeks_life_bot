@@ -5,7 +5,8 @@ from typing import Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
-from ..core.life_tracker import get_weeks_lived
+from ..core.life_calculator import LifeCalculatorEngine
+from ..database.models import User
 from ..utils.config import (
     CELL_SIZE,
     COLORS,
@@ -14,6 +15,7 @@ from ..utils.config import (
     PADDING,
     WEEKS_PER_YEAR,
 )
+from ..utils.localization import get_message
 
 
 def calculate_grid_dimensions() -> Tuple[int, int]:
@@ -27,7 +29,7 @@ def calculate_grid_dimensions() -> Tuple[int, int]:
     return width, height
 
 
-def generate_visualization(birth_date: str) -> BytesIO:
+def generate_visualization(user: User, lang: str) -> BytesIO:
     """Generate a visual representation of weeks lived.
 
     Creates a grid where:
@@ -39,17 +41,22 @@ def generate_visualization(birth_date: str) -> BytesIO:
     - Weeks are labeled on the horizontal axis (every 4th week)
     - A legend is included at the bottom
 
-    :param birth_date: Birth date in YYYY-MM-DD format
-    :type birth_date: str
+    :param user: User profile object with birth date
+    :type user: User
+    :param lang: Language code
+    :type lang: str
     :returns: BytesIO object containing the generated image.
     :rtype: BytesIO
     """
+    # Create calculator instance
+    calculator = LifeCalculatorEngine(user=user)
+    weeks_lived = calculator.calculate_weeks_lived()
+
     width, height = calculate_grid_dimensions()
     image = Image.new("RGB", (width, height), COLORS["background"])
     draw = ImageDraw.Draw(image)
 
     # Draw grid and cells
-    weeks_lived = get_weeks_lived(birth_date)
     current_week = 0
 
     # Prepare font
@@ -73,27 +80,31 @@ def generate_visualization(birth_date: str) -> BytesIO:
         for week in range(WEEKS_PER_YEAR):
             x = PADDING + (week * CELL_SIZE)
             y = PADDING + (year * CELL_SIZE)
-            # Draw cell border
-            draw.rectangle(
-                [x, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1], outline=COLORS["grid"]
-            )
-            # Fill cell if week has been lived
+
+            # Color cell based on whether week has been lived
             if current_week < weeks_lived:
                 draw.rectangle(
-                    [x + 1, y + 1, x + CELL_SIZE - 2, y + CELL_SIZE - 2],
+                    [x, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1],
                     fill=COLORS["lived"],
+                    outline=COLORS["grid"],
                 )
+            else:
+                draw.rectangle(
+                    [x, y, x + CELL_SIZE - 1, y + CELL_SIZE - 1],
+                    fill=COLORS["background"],
+                    outline=COLORS["grid"],
+                )
+
             current_week += 1
 
     # Add legend
-    legend_y = height - PADDING + 10
-    draw.rectangle(
-        [PADDING, legend_y, PADDING + 20, legend_y + 20], fill=COLORS["lived"]
-    )
-    draw.text((PADDING + 30, legend_y), "Weeks Lived", fill=COLORS["text"], font=font)
+    legend_y = height - 30
+    legend_text = get_message("command_visualize", "legend", lang)
+    draw.text((PADDING, legend_y), legend_text, fill=COLORS["text"], font=font)
 
-    # Save to BytesIO
+    # Convert to BytesIO
     img_byte_arr = BytesIO()
     image.save(img_byte_arr, format="PNG")
     img_byte_arr.seek(0)
+
     return img_byte_arr

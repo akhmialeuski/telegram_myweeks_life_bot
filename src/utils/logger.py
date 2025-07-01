@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 from typing import Dict
 
+from .config import BOT_NAME
+
 # Create logs directory if it doesn't exist
 LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
@@ -34,7 +36,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 # Default log levels for different modules
 DEFAULT_LOG_LEVELS: Dict[str, int] = {
     # Our application modules
-    "LifeWeeksBot": logging.INFO,
+    BOT_NAME: logging.INFO,
     "handlers": logging.INFO,
     "utils": logging.INFO,
     # Third-party modules to suppress

@@ -14,27 +14,23 @@ The bot handlers are responsible for:
     - Handling the /help command
 """
 
+# Initialize database service when module is imported
+from ..database.service import user_service
 from .application import LifeWeeksBot
 from .handlers import (
-    cancel,
-    handle_birth_date,
-    help_command,
-    repository,
-    start,
-    visualize,
-    weeks,
+    command_cancel,
+    command_help,
+    command_start,
+    command_visualize,
+    command_weeks,
 )
 
-# Initialize database when module is imported
-repository.initialize()
+user_service.repository.initialize()
 
 __all__ = [
     "LifeWeeksBot",
-    "start",
-    "handle_birth_date",
-    "cancel",
-    "weeks",
-    "visualize",
-    "help_command",
-    "repository",
+    "command_start",
+    "command_weeks",
+    "command_visualize",
+    "command_help",
 ]

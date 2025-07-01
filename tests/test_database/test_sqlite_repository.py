@@ -598,6 +598,28 @@ class TestSQLAlchemyUserRepository:
             result = repository.get_user_profile(123)
             assert result is None
 
+    def test_get_user_profile_database_error_with_existing_user(
+        self, repository, sample_user
+    ):
+        """Test user profile retrieval with database error when user exists.
+
+        :param repository: Repository instance
+        :param sample_user: Sample user object
+        :returns: None
+        """
+        # Create user first
+        repository.create_user(sample_user)
+
+        # Mock get_user to return the user, but refresh to fail
+        with patch.object(repository, "get_user", return_value=sample_user):
+            with patch.object(repository, "_get_session") as mock_get_session:
+                mock_session = Mock()
+                mock_session.refresh.side_effect = SQLAlchemyError("Database error")
+                mock_get_session.return_value = mock_session
+
+                result = repository.get_user_profile(sample_user.telegram_id)
+                assert result is None
+
     def test_create_user_profile_success(
         self, repository, sample_user, sample_settings
     ):
@@ -673,6 +695,23 @@ class TestSQLAlchemyUserRepository:
         """
         result = repository.update_user_profile(sample_user, sample_settings)
         assert result is False
+
+    def test_update_user_profile_exception(
+        self, repository, sample_user, sample_settings
+    ):
+        """Test user profile update when exception occurs.
+
+        :param repository: Repository instance
+        :param sample_user: Sample user object
+        :param sample_settings: Sample settings object
+        :returns: None
+        """
+        # Mock update_user to raise exception
+        with patch.object(
+            repository, "update_user", side_effect=Exception("Update error")
+        ):
+            result = repository.update_user_profile(sample_user, sample_settings)
+            assert result is False
 
     def test_set_birth_date_existing_settings(self, repository, sample_settings):
         """Test setting birth date for existing settings.

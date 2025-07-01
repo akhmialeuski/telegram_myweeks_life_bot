@@ -11,6 +11,12 @@ load_dotenv()
 TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID: str = os.getenv("CHAT_ID")  # User's Telegram ID
 
+# Bot name for logging
+BOT_NAME: str = "LifeWeeksBot"
+
+# Localization
+DEFAULT_LANGUAGE: str = "ru"
+
 # Visualization Constants
 CELL_SIZE = 10
 PADDING = 40

@@ -13,11 +13,12 @@ from sqlalchemy import create_engine, delete, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from ..utils.config import BOT_NAME
 from .abstract_repository import AbstractUserRepository
 from .constants import DEFAULT_DATABASE_PATH, SQLITE_ECHO, SQLITE_POOL_PRE_PING
 from .models import Base, User, UserSettings
 
-logger = logging.getLogger("myweeks_bot")
+logger = logging.getLogger(BOT_NAME)
 
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
@@ -162,12 +163,15 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         """
         session = self._get_session()
         try:
+            # Delete user (settings will be deleted automatically due to CASCADE)
             stmt = delete(User).where(User.telegram_id == telegram_id)
             result = session.execute(stmt)
             session.commit()
 
             if result.rowcount > 0:
-                logger.info(f"Deleted user with telegram_id: {telegram_id}")
+                logger.info(
+                    f"Deleted user and all associated data for telegram_id: {telegram_id}"
+                )
                 return True
             else:
                 logger.warning(f"User with telegram_id {telegram_id} not found")

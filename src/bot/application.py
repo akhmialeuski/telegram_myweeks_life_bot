@@ -20,25 +20,26 @@ from telegram.ext import (
     filters,
 )
 
-from ..utils.config import TOKEN
+from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .handlers import (
     WAITING_BIRTH_DATE,
-    cancel,
-    handle_birth_date,
-    help_command,
-    start,
-    visualize,
-    weeks,
+    command_cancel,
+    command_help,
+    command_start,
+    command_start_handle_birth_date,
+    command_visualize,
+    command_weeks,
 )
 
-logger = get_logger("LifeWeeksBot")
+logger = get_logger(BOT_NAME)
 
 # Command handlers mapping
 COMMAND_HANDLERS: Dict[str, Callable] = {
-    "weeks": weeks,
-    "visualize": visualize,
-    "help": help_command,
+    "weeks": command_weeks,
+    "visualize": command_visualize,
+    "help": command_help,
+    "cancel": command_cancel,
 }
 
 
@@ -88,13 +89,15 @@ class LifeWeeksBot:
 
         # Create conversation handler for /start command
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("start", start)],
+            entry_points=[CommandHandler("start", command_start)],
             states={
                 WAITING_BIRTH_DATE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_birth_date)
+                    MessageHandler(
+                        filters.TEXT & ~filters.COMMAND, command_start_handle_birth_date
+                    )
                 ]
             },
-            fallbacks=[CommandHandler("cancel", cancel)],
+            fallbacks=[CommandHandler("cancel", command_cancel)],
         )
 
         # Register conversation handler first

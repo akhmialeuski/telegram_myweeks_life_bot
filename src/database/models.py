@@ -55,7 +55,7 @@ class User(Base):
 
     # Relationship
     settings: Mapped["UserSettings"] = relationship(
-        back_populates="user", uselist=False
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
 
