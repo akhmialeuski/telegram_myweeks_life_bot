@@ -21,27 +21,26 @@ from typing import Any, Callable
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-
 from ..core.messages import (
-    generate_message_week,
-    generate_message_visualize,
-    generate_message_help,
-    generate_message_cancel_success,
-    generate_message_cancel_error,
-    generate_message_start_welcome_existing,
-    generate_message_start_welcome_new,
-    generate_message_registration_success,
-    generate_message_registration_error,
+    generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
     generate_message_birth_date_old_error,
-    generate_message_birth_date_format_error,
+    generate_message_cancel_error,
+    generate_message_cancel_success,
+    generate_message_help,
+    generate_message_registration_error,
+    generate_message_registration_success,
+    generate_message_start_welcome_existing,
+    generate_message_start_welcome_new,
+    generate_message_visualize,
+    generate_message_week,
 )
 from ..database.service import (
-    user_service,
-    UserDeletionError,
-    UserServiceError,
-    UserRegistrationError,
     UserAlreadyExistsError,
+    UserDeletionError,
+    UserRegistrationError,
+    UserServiceError,
+    user_service,
 )
 from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
 from ..utils.localization import get_message
@@ -239,7 +238,9 @@ async def command_start_handle_birth_date(
                 text=generate_message_start_welcome_existing(user_info=user),
                 parse_mode="HTML",
             )
-            logger.info(f"User {user.id} already exists, showing welcome message")
+            logger.info(
+                f"User {user.id} already exists, showing welcome message: {error}"
+            )
             return ConversationHandler.END
 
         except UserRegistrationError as error:
@@ -319,7 +320,9 @@ async def command_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=generate_message_cancel_error(user_info=user),
             parse_mode="HTML",
         )
-        logger.error(f"Failed to delete user {user_id} data via /cancel command: {error}")
+        logger.error(
+            f"Failed to delete user {user_id} data via /cancel command: {error}"
+        )
 
     except UserServiceError as error:
         # Handle general service errors
@@ -327,7 +330,9 @@ async def command_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text=generate_message_cancel_error(user_info=user),
             parse_mode="HTML",
         )
-        logger.error(f"Service error during user {user_id} deletion via /cancel command: {error}")
+        logger.error(
+            f"Service error during user {user_id} deletion via /cancel command: {error}"
+        )
 
     # Always end conversation after cancel attempt
     return ConversationHandler.END
@@ -414,7 +419,7 @@ async def command_visualize(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_photo(
         photo=generate_visualization(user_info=user),
         caption=generate_message_visualize(user_info=user),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
 
 
