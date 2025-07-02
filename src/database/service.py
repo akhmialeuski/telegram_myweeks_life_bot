@@ -5,7 +5,9 @@ working with models and repositories to handle complex operations.
 """
 
 from datetime import UTC, date, datetime
-from typing import Optional, Tuple
+from typing import Optional
+
+from telegram import User as TelegramUser
 
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
@@ -13,6 +15,66 @@ from .models import User, UserSettings
 from .sqlite_repository import SQLAlchemyUserRepository
 
 logger = get_logger(f"{BOT_NAME}.DatabaseService")
+
+
+class UserServiceError(Exception):
+    """Base exception for user service operations.
+
+    This exception is raised when user service operations fail
+    due to database errors, validation issues, or other problems.
+    """
+
+    pass
+
+
+class UserNotFoundError(UserServiceError):
+    """Exception raised when a user is not found in the database.
+
+    This exception is raised when trying to perform operations
+    on a user that doesn't exist in the database.
+    """
+
+    pass
+
+
+class UserDeletionError(UserServiceError):
+    """Exception raised when user deletion fails.
+
+    This exception is raised when the system fails to delete
+    a user profile from the database.
+    """
+
+    pass
+
+
+class UserProfileError(UserServiceError):
+    """Exception raised when user profile operations fail.
+
+    This exception is raised when operations on user profiles
+    fail due to database errors or invalid data.
+    """
+
+    pass
+
+
+class UserRegistrationError(UserServiceError):
+    """Exception raised when user registration fails.
+
+    This exception is raised when the system fails to register
+    a new user in the database.
+    """
+
+    pass
+
+
+class UserAlreadyExistsError(UserServiceError):
+    """Exception raised when trying to register an existing user.
+
+    This exception is raised when attempting to register a user
+    that already exists in the database.
+    """
+
+    pass
 
 
 class UserService:
@@ -32,26 +94,17 @@ class UserService:
 
     def create_user_with_settings(
         self,
-        telegram_id: int,
-        username: Optional[str],
-        first_name: str,
-        last_name: Optional[str],
+        user_info: TelegramUser,
         birth_date: date,
         notifications_enabled: bool = True,
         timezone: str = "UTC",
         notifications_day: str = "monday",
         notifications_time: str = "09:00:00",
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> None:
         """Create a new user with settings.
 
-        :param telegram_id: Telegram user ID
-        :type telegram_id: int
-        :param username: Telegram username
-        :type username: Optional[str]
-        :param first_name: User's first name
-        :type first_name: str
-        :param last_name: User's last name
-        :type last_name: Optional[str]
+        :param user_info: Telegram user object
+        :type user_info: TelegramUser
         :param birth_date: User's birth date
         :type birth_date: date
         :param notifications_enabled: Whether notifications are enabled
@@ -62,25 +115,33 @@ class UserService:
         :type notifications_day: str
         :param notifications_time: Time for notifications
         :type notifications_time: str
-        :returns: Tuple of (success, error_message)
-        :rtype: Tuple[bool, Optional[str]]
+        :raises UserRegistrationError: If user registration fails
+        :raises UserAlreadyExistsError: If user already exists
+        :raises UserServiceError: If any other service operation fails
         """
         try:
+            # Check if user already exists
+            existing_user = self.repository.get_user_profile(user_info.id)
+            if existing_user:
+                error_msg = f"User with telegram_id {user_info.id} already exists"
+                logger.warning(error_msg)
+                raise UserAlreadyExistsError(error_msg)
+
             # Parse notifications time
             parsed_time = datetime.strptime(notifications_time, "%H:%M:%S").time()
 
             # Create user object
             user = User(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
+                telegram_id=user_info.id,
+                username=user_info.username,
+                first_name=user_info.first_name,
+                last_name=user_info.last_name,
                 created_at=datetime.now(UTC),
             )
 
             # Create settings object
             settings = UserSettings(
-                telegram_id=telegram_id,
+                telegram_id=user_info.id,
                 birth_date=birth_date,
                 notifications=notifications_enabled,
                 timezone=timezone,
@@ -93,17 +154,22 @@ class UserService:
             success = self.repository.create_user_profile(user, settings)
 
             if success:
-                logger.info(f"Created user profile for telegram_id: {telegram_id}")
-                return True, None
+                logger.info(f"Created user profile for telegram_id: {user_info.id}")
             else:
-                error_msg = "Failed to create user profile in database"
-                logger.error(f"{error_msg} for telegram_id: {telegram_id}")
-                return False, error_msg
+                error_msg = f"Failed to create user profile in database for telegram_id: {user_info.id}"
+                logger.error(error_msg)
+                raise UserRegistrationError(error_msg)
 
-        except Exception as e:
-            error_msg = f"Error creating user profile: {str(e)}"
-            logger.error(f"{error_msg} for telegram_id: {telegram_id}")
-            return False, error_msg
+        except UserAlreadyExistsError:
+            # Re-raise UserAlreadyExistsError as-is
+            raise
+        except UserRegistrationError:
+            # Re-raise UserRegistrationError as-is
+            raise
+        except Exception as error:
+            error_msg = f"Error creating user profile for telegram_id {user_info.id}: {str(error)}"
+            logger.error(error_msg)
+            raise UserServiceError(error_msg) from error
 
     def get_user_profile(self, telegram_id: int) -> Optional[User]:
         """Get user profile with settings.
@@ -232,7 +298,7 @@ class UserService:
             logger.error(f"Error deleting user {telegram_id}: {e}")
             return False
 
-    def delete_user_profile(self, telegram_id: int) -> bool:
+    def delete_user_profile(self, telegram_id: int) -> None:
         """Delete user profile by first removing settings, then user.
 
         This method ensures complete removal of user data by:
@@ -241,8 +307,8 @@ class UserService:
 
         :param telegram_id: Telegram user ID
         :type telegram_id: int
-        :returns: True if successful, False otherwise
-        :rtype: bool
+        :raises UserDeletionError: If user deletion fails
+        :raises UserServiceError: If any other service operation fails
         """
         try:
             logger.info(f"Starting complete profile deletion for user {telegram_id}")
@@ -268,16 +334,20 @@ class UserService:
                 logger.info(
                     f"Successfully completed profile deletion for user {telegram_id}"
                 )
-                return True
             else:
-                logger.warning(f"Failed to delete user record for {telegram_id}")
-                return False
+                error_msg = f"Failed to delete user record for {telegram_id}"
+                logger.error(error_msg)
+                raise UserDeletionError(error_msg)
 
+        except UserDeletionError:
+            # Re-raise UserDeletionError as-is
+            raise
         except Exception as e:
-            logger.error(
+            error_msg = (
                 f"Error during complete profile deletion for user {telegram_id}: {e}"
             )
-            return False
+            logger.error(error_msg)
+            raise UserServiceError(error_msg) from e
 
     def close(self) -> None:
         """Close database connection."""

@@ -23,7 +23,7 @@ from telegram.ext import (
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .handlers import (
-    WAITING_BIRTH_DATE,
+    WAITING_USER_INPUT,
     command_cancel,
     command_help,
     command_start,
@@ -91,7 +91,7 @@ class LifeWeeksBot:
         conv_handler = ConversationHandler(
             entry_points=[CommandHandler("start", command_start)],
             states={
-                WAITING_BIRTH_DATE: [
+                WAITING_USER_INPUT: [
                     MessageHandler(
                         filters.TEXT & ~filters.COMMAND, command_start_handle_birth_date
                     )

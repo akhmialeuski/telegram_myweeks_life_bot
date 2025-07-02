@@ -7,9 +7,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 from ..core.life_calculator import LifeCalculatorEngine
 from ..database.models import User
+from ..database.service import user_service
 from ..utils.config import (
     CELL_SIZE,
     COLORS,
+    DEFAULT_LANGUAGE,
     FONT_SIZE,
     MAX_YEARS,
     PADDING,
@@ -29,7 +31,7 @@ def calculate_grid_dimensions() -> Tuple[int, int]:
     return width, height
 
 
-def generate_visualization(user: User, lang: str) -> BytesIO:
+def generate_visualization(user_info: User) -> BytesIO:
     """Generate a visual representation of weeks lived.
 
     Creates a grid where:
@@ -48,8 +50,12 @@ def generate_visualization(user: User, lang: str) -> BytesIO:
     :returns: BytesIO object containing the generated image.
     :rtype: BytesIO
     """
+    user_id = user_info.id
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+
     # Create calculator instance
-    calculator = LifeCalculatorEngine(user=user)
+    user_profile = user_service.get_user_profile(user_id)
+    calculator = LifeCalculatorEngine(user=user_profile)
     weeks_lived = calculator.calculate_weeks_lived()
 
     width, height = calculate_grid_dimensions()
@@ -99,7 +105,7 @@ def generate_visualization(user: User, lang: str) -> BytesIO:
 
     # Add legend
     legend_y = height - 30
-    legend_text = get_message("command_visualize", "legend", lang)
+    legend_text = get_message("command_visualize", "legend", user_lang)
     draw.text((PADDING, legend_y), legend_text, fill=COLORS["text"], font=font)
 
     # Convert to BytesIO

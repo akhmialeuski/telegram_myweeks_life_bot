@@ -10,7 +10,13 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.database.models import User, UserSettings
-from src.database.service import UserService, user_service
+from src.database.service import (
+    UserDeletionError,
+    UserRegistrationError,
+    UserService,
+    UserServiceError,
+    user_service,
+)
 from src.database.sqlite_repository import SQLAlchemyUserRepository
 
 
@@ -98,16 +104,24 @@ class TestUserService:
         :returns: None
         """
         # Setup
+        from unittest.mock import Mock
+
+        from telegram import User as TelegramUser
+
+        mock_user = Mock(spec=TelegramUser)
+        mock_user.id = 123456789
+        mock_user.username = "test_user"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "User"
+
         mock_datetime.utcnow.return_value = datetime(2023, 1, 1, 12, 0, 0)
         mock_datetime.strptime.return_value = datetime(2023, 1, 1, 9, 0, 0)
+        mock_repository.get_user_profile.return_value = None  # User doesn't exist
         mock_repository.create_user_profile.return_value = True
 
         # Execute
-        success, error = service.create_user_with_settings(
-            telegram_id=123456789,
-            username="test_user",
-            first_name="Test",
-            last_name="User",
+        service.create_user_with_settings(
+            user_info=mock_user,
             birth_date=date(1990, 1, 1),
             notifications_enabled=True,
             timezone="UTC",
@@ -116,8 +130,6 @@ class TestUserService:
         )
 
         # Assert
-        assert success is True
-        assert error is None
         mock_repository.create_user_profile.assert_called_once()
 
     def test_create_user_with_settings_invalid_time_format(
@@ -129,19 +141,28 @@ class TestUserService:
         :param mock_repository: Mock repository instance
         :returns: None
         """
-        # Execute
-        success, error = service.create_user_with_settings(
-            telegram_id=123456789,
-            username="test_user",
-            first_name="Test",
-            last_name="User",
-            birth_date=date(1990, 1, 1),
-            notifications_time="invalid_time",
-        )
+        # Setup
+        from unittest.mock import Mock
 
-        # Assert
-        assert success is False
-        assert "Error creating user profile" in error
+        from telegram import User as TelegramUser
+
+        mock_user = Mock(spec=TelegramUser)
+        mock_user.id = 123456789
+        mock_user.username = "test_user"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "User"
+
+        mock_repository.get_user_profile.return_value = None  # User doesn't exist
+
+        # Execute and Assert
+        with pytest.raises(UserServiceError) as exc_info:
+            service.create_user_with_settings(
+                user_info=mock_user,
+                birth_date=date(1990, 1, 1),
+                notifications_time="invalid_time",
+            )
+
+        assert "Error creating user profile" in str(exc_info.value)
         mock_repository.create_user_profile.assert_not_called()
 
     def test_create_user_with_settings_repository_failure(
@@ -154,20 +175,27 @@ class TestUserService:
         :returns: None
         """
         # Setup
+        from unittest.mock import Mock
+
+        from telegram import User as TelegramUser
+
+        mock_user = Mock(spec=TelegramUser)
+        mock_user.id = 123456789
+        mock_user.username = "test_user"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "User"
+
+        mock_repository.get_user_profile.return_value = None  # User doesn't exist
         mock_repository.create_user_profile.return_value = False
 
-        # Execute
-        success, error = service.create_user_with_settings(
-            telegram_id=123456789,
-            username="test_user",
-            first_name="Test",
-            last_name="User",
-            birth_date=date(1990, 1, 1),
-        )
+        # Execute and Assert
+        with pytest.raises(UserRegistrationError) as exc_info:
+            service.create_user_with_settings(
+                user_info=mock_user,
+                birth_date=date(1990, 1, 1),
+            )
 
-        # Assert
-        assert success is False
-        assert "Failed to create user profile in database" in error
+        assert "Failed to create user profile in database" in str(exc_info.value)
 
     def test_create_user_with_settings_exception(self, service, mock_repository):
         """Test user creation when exception occurs.
@@ -177,20 +205,27 @@ class TestUserService:
         :returns: None
         """
         # Setup
+        from unittest.mock import Mock
+
+        from telegram import User as TelegramUser
+
+        mock_user = Mock(spec=TelegramUser)
+        mock_user.id = 123456789
+        mock_user.username = "test_user"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "User"
+
+        mock_repository.get_user_profile.return_value = None  # User doesn't exist
         mock_repository.create_user_profile.side_effect = Exception("Database error")
 
-        # Execute
-        success, error = service.create_user_with_settings(
-            telegram_id=123456789,
-            username="test_user",
-            first_name="Test",
-            last_name="User",
-            birth_date=date(1990, 1, 1),
-        )
+        # Execute and Assert
+        with pytest.raises(UserServiceError) as exc_info:
+            service.create_user_with_settings(
+                user_info=mock_user,
+                birth_date=date(1990, 1, 1),
+            )
 
-        # Assert
-        assert success is False
-        assert "Error creating user profile" in error
+        assert "Error creating user profile" in str(exc_info.value)
 
     def test_get_user_profile_success(self, service, mock_repository, sample_user):
         """Test successful user profile retrieval.
@@ -593,10 +628,9 @@ class TestUserService:
         mock_repository.delete_user.return_value = True
 
         # Execute
-        result = service.delete_user_profile(123456789)
+        service.delete_user_profile(123456789)
 
         # Assert
-        assert result is True
         mock_repository.delete_user_settings.assert_called_once_with(123456789)
         mock_repository.delete_user.assert_called_once_with(123456789)
 
@@ -612,10 +646,9 @@ class TestUserService:
         mock_repository.delete_user.return_value = True
 
         # Execute
-        result = service.delete_user_profile(123456789)
+        service.delete_user_profile(123456789)
 
-        # Assert
-        assert result is True
+        # Assert - should complete without raising exception
 
     def test_delete_user_profile_failure(self, service, mock_repository):
         """Test user profile deletion failure.
@@ -628,11 +661,11 @@ class TestUserService:
         mock_repository.delete_user_settings.return_value = True
         mock_repository.delete_user.return_value = False
 
-        # Execute
-        result = service.delete_user_profile(123456789)
+        # Execute and Assert
+        with pytest.raises(UserDeletionError) as exc_info:
+            service.delete_user_profile(123456789)
 
-        # Assert
-        assert result is False
+        assert "Failed to delete user record" in str(exc_info.value)
 
     def test_delete_user_profile_exception(self, service, mock_repository):
         """Test user profile deletion when exception occurs.
@@ -644,11 +677,11 @@ class TestUserService:
         # Setup
         mock_repository.delete_user_settings.side_effect = Exception("Database error")
 
-        # Execute
-        result = service.delete_user_profile(123456789)
+        # Execute and Assert
+        with pytest.raises(UserServiceError) as exc_info:
+            service.delete_user_profile(123456789)
 
-        # Assert
-        assert result is False
+        assert "Error during complete profile deletion" in str(exc_info.value)
 
     def test_close_with_repository(self, service, mock_repository):
         """Test service closure with repository.
