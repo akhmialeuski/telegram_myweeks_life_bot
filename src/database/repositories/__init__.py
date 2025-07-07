@@ -1,23 +1,21 @@
-"""Database package initialization.
+"""Repository interfaces and implementations.
 
-Exports database models, repositories and services.
+This package provides repository interfaces and their implementations
+for different database backends.
 """
 
-from .models import User, UserSettings, UserSubscription
-from .repositories import (
+from .abstract import (
     AbstractUserRepository,
     AbstractUserSettingsRepository,
     AbstractUserSubscriptionRepository,
+)
+from .sqlite import (
     SQLiteUserRepository,
     SQLiteUserSettingsRepository,
     SQLiteUserSubscriptionRepository,
 )
 
 __all__ = [
-    # Models
-    "User",
-    "UserSettings",
-    "UserSubscription",
     # Abstract repositories
     "AbstractUserRepository",
     "AbstractUserSettingsRepository",

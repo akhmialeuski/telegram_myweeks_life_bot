@@ -1,62 +1,22 @@
-"""Data models for user profile and settings.
+"""User settings model for the application.
 
-Defines the data structures for user information and user settings
-used by the storage and service layers of the LifeWeeksBot project.
+This module defines the UserSettings model which stores user preferences
+and configuration data, including notification settings and personal information.
 """
 
 from datetime import UTC, date, datetime, time
 from typing import Optional
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Time
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .constants import (
-    MAX_FIRST_NAME_LENGTH,
-    MAX_LAST_NAME_LENGTH,
+from ..constants import (
     MAX_NOTIFICATIONS_DAY_LENGTH,
     MAX_TIMEZONE_LENGTH,
-    MAX_USERNAME_LENGTH,
     USER_SETTINGS_TABLE,
     USERS_TABLE,
 )
-
-
-class Base(DeclarativeBase):
-    """Base class for all database models."""
-
-    pass
-
-
-class User(Base):
-    """User model representing a Telegram user.
-
-    :param telegram_id: Unique Telegram user ID
-    :param username: Telegram username (if available)
-    :param first_name: User's first name
-    :param last_name: User's last name (if available)
-    :param created_at: Registration date in the system
-    """
-
-    __tablename__ = USERS_TABLE
-
-    telegram_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[Optional[str]] = mapped_column(
-        String(MAX_USERNAME_LENGTH), nullable=True
-    )
-    first_name: Mapped[Optional[str]] = mapped_column(
-        String(MAX_FIRST_NAME_LENGTH), nullable=True
-    )
-    last_name: Mapped[Optional[str]] = mapped_column(
-        String(MAX_LAST_NAME_LENGTH), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
-    )
-
-    # Relationship
-    settings: Mapped["UserSettings"] = relationship(
-        back_populates="user", uselist=False, cascade="all, delete-orphan"
-    )
+from .base import Base
 
 
 class UserSettings(Base):

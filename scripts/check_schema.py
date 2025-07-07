@@ -4,10 +4,13 @@
 import sqlite3
 from pathlib import Path
 
+from src.database.constants import DEFAULT_DATABASE_PATH
+
 
 def check_schema():
     """Check database schema and constraints."""
-    db_path = Path("lifeweeks.db")
+    db_path = Path(DEFAULT_DATABASE_PATH)
+    print(f"Checking database at: {db_path}")
 
     if not db_path.exists():
         print("❌ Database file not found!")

@@ -4,43 +4,135 @@ Tests all methods of the UserService class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-from datetime import UTC, date, datetime, time
-from unittest.mock import Mock, patch
+import os
+import tempfile
+from datetime import UTC, date, datetime
+from unittest.mock import Mock
 
 import pytest
 
 from src.database.models import User, UserSettings
+from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
+from src.database.repositories.sqlite.user_settings_repository import (
+    SQLiteUserSettingsRepository,
+)
 from src.database.service import (
+    UserAlreadyExistsError,
     UserDeletionError,
+    UserNotFoundError,
+    UserProfileError,
     UserRegistrationError,
     UserService,
     UserServiceError,
-    user_service,
 )
-from src.database.sqlite_repository import SQLAlchemyUserRepository
+
+
+class TestUserServiceExceptions:
+    """Test suite for UserService exception classes."""
+
+    def test_user_service_error_inheritance(self):
+        """Test UserServiceError inheritance.
+
+        :returns: None
+        """
+        error = UserServiceError("Test error")
+        assert isinstance(error, Exception)
+        assert str(error) == "Test error"
+
+    def test_user_not_found_error_inheritance(self):
+        """Test UserNotFoundError inheritance.
+
+        :returns: None
+        """
+        error = UserNotFoundError("User not found")
+        assert isinstance(error, UserServiceError)
+        assert str(error) == "User not found"
+
+    def test_user_deletion_error_inheritance(self):
+        """Test UserDeletionError inheritance.
+
+        :returns: None
+        """
+        error = UserDeletionError("Deletion failed")
+        assert isinstance(error, UserServiceError)
+        assert str(error) == "Deletion failed"
+
+    def test_user_profile_error_inheritance(self):
+        """Test UserProfileError inheritance.
+
+        :returns: None
+        """
+        error = UserProfileError("Profile error")
+        assert isinstance(error, UserServiceError)
+        assert str(error) == "Profile error"
+
+    def test_user_registration_error_inheritance(self):
+        """Test UserRegistrationError inheritance.
+
+        :returns: None
+        """
+        error = UserRegistrationError("Registration failed")
+        assert isinstance(error, UserServiceError)
+        assert str(error) == "Registration failed"
+
+    def test_user_already_exists_error_inheritance(self):
+        """Test UserAlreadyExistsError inheritance.
+
+        :returns: None
+        """
+        error = UserAlreadyExistsError("User exists")
+        assert isinstance(error, UserServiceError)
+        assert str(error) == "User exists"
 
 
 class TestUserService:
     """Test suite for UserService class."""
 
     @pytest.fixture
-    def mock_repository(self):
-        """Create a mock repository for testing.
+    def temp_db_path(self):
+        """Create a temporary database path for testing.
 
-        :returns: Mock repository instance
-        :rtype: Mock
+        :returns: Path to temporary database file
+        :rtype: str
         """
-        return Mock(spec=SQLAlchemyUserRepository)
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            db_path = tmp.name
+        yield db_path
+        # Cleanup
+        if os.path.exists(db_path):
+            os.unlink(db_path)
 
     @pytest.fixture
-    def service(self, mock_repository):
-        """Create service instance with mock repository.
+    def mock_user_repository(self):
+        """Create mock user repository.
 
-        :param mock_repository: Mock repository instance
+        :returns: Mock user repository
+        :rtype: Mock
+        """
+        return Mock(spec=SQLiteUserRepository)
+
+    @pytest.fixture
+    def mock_settings_repository(self):
+        """Create mock settings repository.
+
+        :returns: Mock settings repository
+        :rtype: Mock
+        """
+        return Mock(spec=SQLiteUserSettingsRepository)
+
+    @pytest.fixture
+    def user_service(self, mock_user_repository, mock_settings_repository):
+        """Create UserService instance with mocked repositories.
+
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: UserService instance
         :rtype: UserService
         """
-        return UserService(mock_repository)
+        return UserService(
+            user_repository=mock_user_repository,
+            settings_repository=mock_settings_repository,
+        )
 
     @pytest.fixture
     def sample_user(self):
@@ -51,7 +143,7 @@ class TestUserService:
         """
         return User(
             telegram_id=123456789,
-            username="test_user",
+            username="testuser",
             first_name="Test",
             last_name="User",
             created_at=datetime.now(UTC),
@@ -68,665 +160,695 @@ class TestUserService:
             telegram_id=123456789,
             birth_date=date(1990, 1, 1),
             notifications=True,
-            notifications_day="monday",
-            notifications_time=time(9, 0),
-            timezone="UTC",
-            life_expectancy=80,
             updated_at=datetime.now(UTC),
         )
 
-    def test_init_with_repository(self, mock_repository):
-        """Test service initialization with provided repository.
-
-        :param mock_repository: Mock repository instance
-        :returns: None
-        """
-        service = UserService(mock_repository)
-        assert service.repository is mock_repository
-
-    def test_init_without_repository(self):
-        """Test service initialization without repository.
+    def test_init_with_default_repositories(self):
+        """Test UserService initialization with default repositories.
 
         :returns: None
         """
         service = UserService()
-        assert isinstance(service.repository, SQLAlchemyUserRepository)
+        assert isinstance(service.user_repository, SQLiteUserRepository)
+        assert isinstance(service.settings_repository, SQLiteUserSettingsRepository)
 
-    @patch("src.database.service.datetime")
+    def test_init_with_custom_repositories(
+        self, mock_user_repository, mock_settings_repository
+    ):
+        """Test UserService initialization with custom repositories.
+
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        service = UserService(
+            user_repository=mock_user_repository,
+            settings_repository=mock_settings_repository,
+        )
+        assert service.user_repository == mock_user_repository
+        assert service.settings_repository == mock_settings_repository
+
+    def test_initialize(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test service initialization.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        user_service.initialize()
+        mock_user_repository.initialize.assert_called_once()
+        mock_settings_repository.initialize.assert_called_once()
+
+    def test_close(self, user_service, mock_user_repository, mock_settings_repository):
+        """Test service closure.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        user_service.close()
+        mock_user_repository.close.assert_called_once()
+        mock_settings_repository.close.assert_called_once()
+
     def test_create_user_with_settings_success(
-        self, mock_datetime, service, mock_repository
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        sample_user,
+        sample_settings,
     ):
         """Test successful user creation with settings.
 
-        :param mock_datetime: Mock datetime module
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param sample_user: Sample user object
+        :param sample_settings: Sample settings object
         :returns: None
         """
-        # Setup
-        from unittest.mock import Mock
+        # Mock get_user_profile to return None (user doesn't exist)
+        user_service.get_user_profile = Mock(return_value=None)
+        mock_user_repository.create_user.return_value = True
+        mock_settings_repository.create_user_settings.return_value = True
 
-        from telegram import User as TelegramUser
+        # Mock get_user_profile to return user after creation
+        created_user = User(
+            telegram_id=123456789,
+            username="testuser",
+            first_name="Test",
+            last_name="User",
+            created_at=datetime.now(UTC),
+        )
+        created_user.settings = sample_settings
+        user_service.get_user_profile = Mock(side_effect=[None, created_user])
 
-        mock_user = Mock(spec=TelegramUser)
-        mock_user.id = 123456789
-        mock_user.username = "test_user"
-        mock_user.first_name = "Test"
-        mock_user.last_name = "User"
-
-        mock_datetime.utcnow.return_value = datetime(2023, 1, 1, 12, 0, 0)
-        mock_datetime.strptime.return_value = datetime(2023, 1, 1, 9, 0, 0)
-        mock_repository.get_user_profile.return_value = None  # User doesn't exist
-        mock_repository.create_user_profile.return_value = True
-
-        # Execute
-        service.create_user_with_settings(
-            user_info=mock_user,
-            birth_date=date(1990, 1, 1),
-            notifications_enabled=True,
-            timezone="UTC",
-            notifications_day="monday",
-            notifications_time="09:00:00",
+        result = user_service.create_user_with_settings(
+            telegram_id=123456789,
+            username="testuser",
+            first_name="Test",
+            last_name="User",
         )
 
-        # Assert
-        mock_repository.create_user_profile.assert_called_once()
+        assert result is not None
+        assert result.telegram_id == 123456789
+        mock_user_repository.create_user.assert_called_once()
+        mock_settings_repository.create_user_settings.assert_called_once()
 
-    def test_create_user_with_settings_invalid_time_format(
-        self, service, mock_repository
+    def test_create_user_with_settings_user_exists(self, user_service, sample_user):
+        """Test user creation when user already exists.
+
+        :param user_service: UserService instance
+        :param sample_user: Sample user object
+        :returns: None
+        """
+        user_service.get_user_profile = Mock(return_value=sample_user)
+
+        result = user_service.create_user_with_settings(
+            telegram_id=123456789,
+            username="testuser",
+        )
+
+        assert result == sample_user
+
+    def test_create_user_with_settings_user_creation_fails(
+        self, user_service, mock_user_repository, mock_settings_repository
     ):
-        """Test user creation with invalid time format.
+        """Test user creation when user creation fails.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        from unittest.mock import Mock
+        user_service.get_user_profile = Mock(return_value=None)
+        mock_user_repository.create_user.return_value = False
 
-        from telegram import User as TelegramUser
+        result = user_service.create_user_with_settings(
+            telegram_id=123456789,
+            username="testuser",
+        )
 
-        mock_user = Mock(spec=TelegramUser)
-        mock_user.id = 123456789
-        mock_user.username = "test_user"
-        mock_user.first_name = "Test"
-        mock_user.last_name = "User"
+        assert result is None
+        mock_user_repository.create_user.assert_called_once()
+        mock_settings_repository.create_user_settings.assert_not_called()
 
-        mock_repository.get_user_profile.return_value = None  # User doesn't exist
-
-        # Execute and Assert
-        with pytest.raises(UserServiceError) as exc_info:
-            service.create_user_with_settings(
-                user_info=mock_user,
-                birth_date=date(1990, 1, 1),
-                notifications_time="invalid_time",
-            )
-
-        assert "Error creating user profile" in str(exc_info.value)
-        mock_repository.create_user_profile.assert_not_called()
-
-    def test_create_user_with_settings_repository_failure(
-        self, service, mock_repository
+    def test_create_user_with_settings_settings_creation_fails(
+        self, user_service, mock_user_repository, mock_settings_repository
     ):
-        """Test user creation when repository fails.
+        """Test user creation when settings creation fails.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        from unittest.mock import Mock
+        user_service.get_user_profile = Mock(return_value=None)
+        mock_user_repository.create_user.return_value = True
+        mock_settings_repository.create_user_settings.return_value = False
+        mock_user_repository.delete_user.return_value = True
 
-        from telegram import User as TelegramUser
+        result = user_service.create_user_with_settings(
+            telegram_id=123456789,
+            username="testuser",
+        )
 
-        mock_user = Mock(spec=TelegramUser)
-        mock_user.id = 123456789
-        mock_user.username = "test_user"
-        mock_user.first_name = "Test"
-        mock_user.last_name = "User"
+        assert result is None
+        mock_user_repository.create_user.assert_called_once()
+        mock_settings_repository.create_user_settings.assert_called_once()
+        mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-        mock_repository.get_user_profile.return_value = None  # User doesn't exist
-        mock_repository.create_user_profile.return_value = False
+    def test_create_user_with_settings_exception(self, user_service):
+        """Test user creation with exception.
 
-        # Execute and Assert
-        with pytest.raises(UserRegistrationError) as exc_info:
-            service.create_user_with_settings(
-                user_info=mock_user,
-                birth_date=date(1990, 1, 1),
-            )
-
-        assert "Failed to create user profile in database" in str(exc_info.value)
-
-    def test_create_user_with_settings_exception(self, service, mock_repository):
-        """Test user creation when exception occurs.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
         :returns: None
         """
-        # Setup
-        from unittest.mock import Mock
+        user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
 
-        from telegram import User as TelegramUser
+        result = user_service.create_user_with_settings(
+            telegram_id=123456789,
+            username="testuser",
+        )
 
-        mock_user = Mock(spec=TelegramUser)
-        mock_user.id = 123456789
-        mock_user.username = "test_user"
-        mock_user.first_name = "Test"
-        mock_user.last_name = "User"
+        assert result is None
 
-        mock_repository.get_user_profile.return_value = None  # User doesn't exist
-        mock_repository.create_user_profile.side_effect = Exception("Database error")
-
-        # Execute and Assert
-        with pytest.raises(UserServiceError) as exc_info:
-            service.create_user_with_settings(
-                user_info=mock_user,
-                birth_date=date(1990, 1, 1),
-            )
-
-        assert "Error creating user profile" in str(exc_info.value)
-
-    def test_get_user_profile_success(self, service, mock_repository, sample_user):
+    def test_get_user_profile_success(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        sample_user,
+        sample_settings,
+    ):
         """Test successful user profile retrieval.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :param sample_user: Sample user object
+        :param sample_settings: Sample settings object
         :returns: None
         """
-        # Setup
-        mock_repository.get_user_profile.return_value = sample_user
+        mock_user_repository.get_user.return_value = sample_user
+        mock_settings_repository.get_user_settings.return_value = sample_settings
 
-        # Execute
-        result = service.get_user_profile(123456789)
+        result = user_service.get_user_profile(123456789)
 
-        # Assert
-        assert result == sample_user
-        mock_repository.get_user_profile.assert_called_once_with(123456789)
+        assert result is not None
+        assert result.telegram_id == 123456789
+        assert result.settings == sample_settings
+        mock_user_repository.get_user.assert_called_once_with(123456789)
+        mock_settings_repository.get_user_settings.assert_called_once_with(123456789)
 
-    def test_get_user_profile_not_found(self, service, mock_repository):
+    def test_get_user_profile_user_not_found(self, user_service, mock_user_repository):
         """Test user profile retrieval when user not found.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
         :returns: None
         """
-        # Setup
-        mock_repository.get_user_profile.return_value = None
+        mock_user_repository.get_user.return_value = None
 
-        # Execute
-        result = service.get_user_profile(123456789)
+        result = user_service.get_user_profile(123456789)
 
-        # Assert
         assert result is None
 
-    def test_get_user_profile_exception(self, service, mock_repository):
-        """Test user profile retrieval when exception occurs.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
-        :returns: None
-        """
-        # Setup
-        mock_repository.get_user_profile.side_effect = Exception("Database error")
-
-        # Execute
-        result = service.get_user_profile(123456789)
-
-        # Assert
-        assert result is None
-
-    def test_is_valid_user_profile_valid(
-        self, service, mock_repository, sample_user, sample_settings
+    def test_get_user_profile_settings_not_found(
+        self, user_service, mock_user_repository, mock_settings_repository, sample_user
     ):
-        """Test valid user profile check with complete profile.
+        """Test user profile retrieval when settings not found.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :param sample_user: Sample user object
-        :param sample_settings: Sample settings object
         :returns: None
         """
-        # Setup
-        sample_user.settings = sample_settings
-        mock_repository.get_user_profile.return_value = sample_user
+        mock_user_repository.get_user.return_value = sample_user
+        mock_settings_repository.get_user_settings.return_value = None
 
-        # Execute
-        result = service.is_valid_user_profile(123456789)
+        result = user_service.get_user_profile(123456789)
 
-        # Assert
+        assert result is None
+
+    def test_get_user_profile_exception(self, user_service, mock_user_repository):
+        """Test user profile retrieval with exception.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :returns: None
+        """
+        mock_user_repository.get_user.side_effect = Exception("Test error")
+
+        result = user_service.get_user_profile(123456789)
+
+        assert result is None
+
+    def test_user_exists_true(self, user_service, sample_user):
+        """Test user_exists returns True when user exists.
+
+        :param user_service: UserService instance
+        :param sample_user: Sample user object
+        :returns: None
+        """
+        sample_user.settings = UserSettings(telegram_id=123456789)
+        user_service.get_user_profile = Mock(return_value=sample_user)
+
+        result = user_service.user_exists(123456789)
+
         assert result is True
 
-    def test_is_valid_user_profile_no_user(self, service, mock_repository):
-        """Test valid user profile check when user not found.
+    def test_user_exists_false_no_user(self, user_service):
+        """Test user_exists returns False when user doesn't exist.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
         :returns: None
         """
-        # Setup
-        mock_repository.get_user_profile.return_value = None
+        user_service.get_user_profile = Mock(return_value=None)
 
-        # Execute
-        result = service.is_valid_user_profile(123456789)
+        result = user_service.user_exists(123456789)
 
-        # Assert
         assert result is False
 
-    def test_is_valid_user_profile_no_settings(
-        self, service, mock_repository, sample_user
-    ):
-        """Test valid user profile check when user has no settings.
+    def test_user_exists_false_no_settings(self, user_service, sample_user):
+        """Test user_exists returns False when user has no settings.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
         :param sample_user: Sample user object
         :returns: None
         """
-        # Setup
         sample_user.settings = None
-        mock_repository.get_user_profile.return_value = sample_user
+        user_service.get_user_profile = Mock(return_value=sample_user)
 
-        # Execute
-        result = service.is_valid_user_profile(123456789)
+        result = user_service.user_exists(123456789)
 
-        # Assert
         assert result is False
 
-    def test_is_valid_user_profile_no_birth_date(
-        self, service, mock_repository, sample_user, sample_settings
-    ):
-        """Test valid user profile check when user has no birth date.
+    def test_user_exists_exception(self, user_service):
+        """Test user_exists with exception.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
-        :param sample_user: Sample user object
+        :param user_service: UserService instance
+        :returns: None
+        """
+        user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
+
+        result = user_service.user_exists(123456789)
+
+        assert result is False
+
+    def test_is_valid_user_profile_true(
+        self, user_service, mock_settings_repository, sample_settings
+    ):
+        """Test is_valid_user_profile returns True for valid profile.
+
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :param sample_settings: Sample settings object
         :returns: None
         """
-        # Setup
-        sample_settings.birth_date = None
-        sample_user.settings = sample_settings
-        mock_repository.get_user_profile.return_value = sample_user
+        mock_settings_repository.get_user_settings.return_value = sample_settings
 
-        # Execute
-        result = service.is_valid_user_profile(123456789)
+        result = user_service.is_valid_user_profile(123456789)
 
-        # Assert
-        assert result is False
+        assert result is True
 
-    def test_is_valid_user_profile_exception(self, service, mock_repository):
-        """Test valid user profile check when exception occurs.
+    def test_is_valid_user_profile_false_no_settings(
+        self, user_service, mock_settings_repository
+    ):
+        """Test is_valid_user_profile returns False when no settings.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.get_user_profile.side_effect = Exception("Database error")
+        mock_settings_repository.get_user_settings.return_value = None
 
-        # Execute
-        result = service.is_valid_user_profile(123456789)
+        result = user_service.is_valid_user_profile(123456789)
 
-        # Assert
         assert result is False
 
-    def test_update_user_birth_date_success(self, service, mock_repository):
+    def test_is_valid_user_profile_false_no_birth_date(
+        self, user_service, mock_settings_repository
+    ):
+        """Test is_valid_user_profile returns False when no birth date.
+
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        settings = UserSettings(telegram_id=123456789, birth_date=None)
+        mock_settings_repository.get_user_settings.return_value = settings
+
+        result = user_service.is_valid_user_profile(123456789)
+
+        assert result is False
+
+    def test_is_valid_user_profile_exception(
+        self, user_service, mock_settings_repository
+    ):
+        """Test is_valid_user_profile with exception.
+
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        mock_settings_repository.get_user_settings.side_effect = Exception("Test error")
+
+        result = user_service.is_valid_user_profile(123456789)
+
+        assert result is False
+
+    def test_update_user_birth_date_success(
+        self, user_service, mock_settings_repository
+    ):
         """Test successful birth date update.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.set_birth_date.return_value = True
+        mock_settings_repository.set_birth_date.return_value = True
 
-        # Execute
-        result = service.update_user_birth_date(123456789, date(1990, 1, 1))
+        result = user_service.update_user_birth_date(123456789, date(1990, 1, 1))
 
-        # Assert
         assert result is True
-        mock_repository.set_birth_date.assert_called_once_with(
+        mock_settings_repository.set_birth_date.assert_called_once_with(
             123456789, date(1990, 1, 1)
         )
 
-    def test_update_user_birth_date_failure(self, service, mock_repository):
-        """Test birth date update failure.
+    def test_update_user_birth_date_failure(
+        self, user_service, mock_settings_repository
+    ):
+        """Test failed birth date update.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.set_birth_date.return_value = False
+        mock_settings_repository.set_birth_date.return_value = False
 
-        # Execute
-        result = service.update_user_birth_date(123456789, date(1990, 1, 1))
+        result = user_service.update_user_birth_date(123456789, date(1990, 1, 1))
 
-        # Assert
         assert result is False
 
-    def test_update_user_birth_date_exception(self, service, mock_repository):
-        """Test birth date update when exception occurs.
+    def test_update_user_birth_date_exception(
+        self, user_service, mock_settings_repository
+    ):
+        """Test birth date update with exception.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.set_birth_date.side_effect = Exception("Database error")
+        mock_settings_repository.set_birth_date.side_effect = Exception("Test error")
 
-        # Execute
-        result = service.update_user_birth_date(123456789, date(1990, 1, 1))
+        result = user_service.update_user_birth_date(123456789, date(1990, 1, 1))
 
-        # Assert
         assert result is False
 
-    @patch("src.database.service.datetime")
     def test_update_notification_settings_success(
-        self, mock_datetime, service, mock_repository
+        self, user_service, mock_settings_repository
     ):
         """Test successful notification settings update.
 
-        :param mock_datetime: Mock datetime module
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_datetime.strptime.return_value = datetime(2023, 1, 1, 9, 0, 0)
-        mock_repository.set_notification_settings.return_value = True
+        mock_settings_repository.set_notification_settings.return_value = True
 
-        # Execute
-        result = service.update_notification_settings(
-            telegram_id=123456789,
-            notifications_enabled=True,
-            notifications_day="monday",
-            notifications_time="09:00:00",
+        result = user_service.update_notification_settings(
+            123456789, True, "monday", "09:00:00"
         )
 
-        # Assert
         assert result is True
-        mock_repository.set_notification_settings.assert_called_once()
+        mock_settings_repository.set_notification_settings.assert_called_once()
 
-    def test_update_notification_settings_no_time(self, service, mock_repository):
+    def test_update_notification_settings_failure(
+        self, user_service, mock_settings_repository
+    ):
+        """Test failed notification settings update.
+
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
+        :returns: None
+        """
+        mock_settings_repository.set_notification_settings.return_value = False
+
+        result = user_service.update_notification_settings(123456789, True)
+
+        assert result is False
+
+    def test_update_notification_settings_no_time(
+        self, user_service, mock_settings_repository
+    ):
         """Test notification settings update without time.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.set_notification_settings.return_value = True
+        mock_settings_repository.set_notification_settings.return_value = True
 
-        # Execute
-        result = service.update_notification_settings(
-            telegram_id=123456789,
-            notifications_enabled=True,
-            notifications_day="monday",
-        )
+        result = user_service.update_notification_settings(123456789, True, "monday")
 
-        # Assert
         assert result is True
-        mock_repository.set_notification_settings.assert_called_once_with(
-            123456789, True, "monday", None
-        )
+        args, kwargs = mock_settings_repository.set_notification_settings.call_args
+        assert args[3] is None  # time should be None
 
-    def test_update_notification_settings_invalid_time(self, service, mock_repository):
-        """Test notification settings update with invalid time format.
+    def test_update_notification_settings_exception(
+        self, user_service, mock_settings_repository
+    ):
+        """Test notification settings update with exception.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Execute
-        result = service.update_notification_settings(
-            telegram_id=123456789,
-            notifications_enabled=True,
-            notifications_time="invalid_time",
+        mock_settings_repository.set_notification_settings.side_effect = Exception(
+            "Test error"
         )
 
-        # Assert
-        assert result is False
-        mock_repository.set_notification_settings.assert_not_called()
+        result = user_service.update_notification_settings(123456789, True)
 
-    def test_update_notification_settings_failure(self, service, mock_repository):
-        """Test notification settings update failure.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
-        :returns: None
-        """
-        # Setup
-        mock_repository.set_notification_settings.return_value = False
-
-        # Execute
-        result = service.update_notification_settings(
-            telegram_id=123456789, notifications_enabled=True
-        )
-
-        # Assert
-        assert result is False
-
-    def test_update_notification_settings_exception(self, service, mock_repository):
-        """Test notification settings update when exception occurs.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
-        :returns: None
-        """
-        # Setup
-        mock_repository.set_notification_settings.side_effect = Exception(
-            "Database error"
-        )
-
-        # Execute
-        result = service.update_notification_settings(
-            telegram_id=123456789, notifications_enabled=True
-        )
-
-        # Assert
         assert result is False
 
     def test_get_users_with_notifications_success(
-        self, service, mock_repository, sample_user
+        self, user_service, mock_user_repository, mock_settings_repository, sample_user
     ):
         """Test successful retrieval of users with notifications.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :param sample_user: Sample user object
         :returns: None
         """
-        # Setup
-        mock_repository.get_users_with_notifications.return_value = [sample_user]
-
-        # Execute
-        result = service.get_users_with_notifications()
-
-        # Assert
-        assert result == [sample_user]
-        mock_repository.get_users_with_notifications.assert_called_once()
-
-    def test_get_users_with_notifications_exception(self, service, mock_repository):
-        """Test retrieval of users with notifications when exception occurs.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
-        :returns: None
-        """
-        # Setup
-        mock_repository.get_users_with_notifications.side_effect = Exception(
-            "Database error"
+        settings_with_notifications = UserSettings(
+            telegram_id=123456789, notifications=True
         )
 
-        # Execute
-        result = service.get_users_with_notifications()
+        mock_user_repository.get_all_users.return_value = [sample_user]
+        mock_settings_repository.get_user_settings.return_value = (
+            settings_with_notifications
+        )
 
-        # Assert
+        result = user_service.get_users_with_notifications()
+
+        assert len(result) == 1
+        assert result[0].telegram_id == sample_user.telegram_id
+        assert result[0].settings.notifications is True
+        mock_user_repository.get_all_users.assert_called_once()
+
+    def test_get_users_with_notifications_no_notifications(
+        self, user_service, mock_user_repository, mock_settings_repository, sample_user
+    ):
+        """Test get_users_with_notifications when user has notifications disabled.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param sample_user: Sample user object
+        :returns: None
+        """
+        settings_no_notifications = UserSettings(
+            telegram_id=123456789, notifications=False
+        )
+
+        mock_user_repository.get_all_users.return_value = [sample_user]
+        mock_settings_repository.get_user_settings.return_value = (
+            settings_no_notifications
+        )
+
+        result = user_service.get_users_with_notifications()
+
+        assert len(result) == 0
+
+    def test_get_users_with_notifications_no_settings(
+        self, user_service, mock_user_repository, mock_settings_repository, sample_user
+    ):
+        """Test get_users_with_notifications when user has no settings.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param sample_user: Sample user object
+        :returns: None
+        """
+        mock_user_repository.get_all_users.return_value = [sample_user]
+        mock_settings_repository.get_user_settings.return_value = None
+
+        result = user_service.get_users_with_notifications()
+
+        assert len(result) == 0
+
+    def test_get_users_with_notifications_exception(
+        self, user_service, mock_user_repository
+    ):
+        """Test get_users_with_notifications with exception.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :returns: None
+        """
+        mock_user_repository.get_all_users.side_effect = Exception("Test error")
+
+        result = user_service.get_users_with_notifications()
+
         assert result == []
 
-    def test_delete_user_success(self, service, mock_repository):
+    def test_delete_user_success(self, user_service, mock_user_repository):
         """Test successful user deletion.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user.return_value = True
+        mock_user_repository.delete_user.return_value = True
 
-        # Execute
-        result = service.delete_user(123456789)
+        result = user_service.delete_user(123456789)
 
-        # Assert
         assert result is True
-        mock_repository.delete_user.assert_called_once_with(123456789)
+        mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_failure(self, service, mock_repository):
-        """Test user deletion failure.
+    def test_delete_user_failure(self, user_service, mock_user_repository):
+        """Test failed user deletion.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user.return_value = False
+        mock_user_repository.delete_user.return_value = False
 
-        # Execute
-        result = service.delete_user(123456789)
+        result = user_service.delete_user(123456789)
 
-        # Assert
         assert result is False
 
-    def test_delete_user_exception(self, service, mock_repository):
-        """Test user deletion when exception occurs.
+    def test_delete_user_exception(self, user_service, mock_user_repository):
+        """Test user deletion with exception.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user.side_effect = Exception("Database error")
+        mock_user_repository.delete_user.side_effect = Exception("Test error")
 
-        # Execute
-        result = service.delete_user(123456789)
+        result = user_service.delete_user(123456789)
 
-        # Assert
         assert result is False
 
-    def test_delete_user_profile_success_both_deleted(self, service, mock_repository):
-        """Test successful user profile deletion with both settings and user deleted.
+    def test_delete_user_profile_success(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test successful user profile deletion.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user_settings.return_value = True
-        mock_repository.delete_user.return_value = True
+        mock_settings_repository.delete_user_settings.return_value = True
+        mock_user_repository.delete_user.return_value = True
 
-        # Execute
-        service.delete_user_profile(123456789)
+        user_service.delete_user_profile(123456789)
 
-        # Assert
-        mock_repository.delete_user_settings.assert_called_once_with(123456789)
-        mock_repository.delete_user.assert_called_once_with(123456789)
+        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
+        mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_profile_success_user_only(self, service, mock_repository):
-        """Test successful user profile deletion when only user exists.
+    def test_delete_user_profile_no_settings(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test user profile deletion when no settings exist.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user_settings.return_value = False
-        mock_repository.delete_user.return_value = True
+        mock_settings_repository.delete_user_settings.return_value = False
+        mock_user_repository.delete_user.return_value = True
 
-        # Execute
-        service.delete_user_profile(123456789)
+        user_service.delete_user_profile(123456789)
 
-        # Assert - should complete without raising exception
+        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
+        mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_profile_failure(self, service, mock_repository):
-        """Test user profile deletion failure.
+    def test_delete_user_profile_user_deletion_fails(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test user profile deletion when user deletion fails.
 
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user_settings.return_value = True
-        mock_repository.delete_user.return_value = False
+        mock_settings_repository.delete_user_settings.return_value = True
+        mock_user_repository.delete_user.return_value = False
 
-        # Execute and Assert
-        with pytest.raises(UserDeletionError) as exc_info:
-            service.delete_user_profile(123456789)
+        with pytest.raises(
+            UserDeletionError, match="Failed to delete user record for 123456789"
+        ):
+            user_service.delete_user_profile(123456789)
 
-        assert "Failed to delete user record" in str(exc_info.value)
+    def test_delete_user_profile_user_deletion_error_reraise(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test user profile deletion re-raises UserDeletionError.
 
-    def test_delete_user_profile_exception(self, service, mock_repository):
-        """Test user profile deletion when exception occurs.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Setup
-        mock_repository.delete_user_settings.side_effect = Exception("Database error")
+        mock_settings_repository.delete_user_settings.side_effect = UserDeletionError(
+            "Test error"
+        )
 
-        # Execute and Assert
-        with pytest.raises(UserServiceError) as exc_info:
-            service.delete_user_profile(123456789)
+        with pytest.raises(UserDeletionError, match="Test error"):
+            user_service.delete_user_profile(123456789)
 
-        assert "Error during complete profile deletion" in str(exc_info.value)
+    def test_delete_user_profile_general_exception(
+        self, user_service, mock_user_repository, mock_settings_repository
+    ):
+        """Test user profile deletion with general exception.
 
-    def test_close_with_repository(self, service, mock_repository):
-        """Test service closure with repository.
-
-        :param service: Service instance
-        :param mock_repository: Mock repository instance
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
         :returns: None
         """
-        # Execute
-        service.close()
+        mock_settings_repository.delete_user_settings.side_effect = Exception(
+            "Test error"
+        )
 
-        # Assert
-        mock_repository.close.assert_called_once()
-
-    def test_close_without_repository(self):
-        """Test service closure without repository.
-
-        :returns: None
-        """
-        # Setup
-        service = UserService(None)
-
-        # Execute - should not raise exception
-        service.close()
-
-    def test_close_with_none_repository(self):
-        """Test service closure when repository is None.
-
-        :returns: None
-        """
-        # Setup
-        service = UserService()
-        service.repository = None
-
-        # Execute - should not raise exception
-        service.close()
-
-
-class TestGlobalUserService:
-    """Test suite for global user_service instance."""
-
-    def test_global_service_instance(self):
-        """Test that global service instance is created correctly.
-
-        :returns: None
-        """
-        assert isinstance(user_service, UserService)
-        assert isinstance(user_service.repository, SQLAlchemyUserRepository)
+        with pytest.raises(
+            UserServiceError,
+            match="Error during complete profile deletion for user 123456789",
+        ):
+            user_service.delete_user_profile(123456789)

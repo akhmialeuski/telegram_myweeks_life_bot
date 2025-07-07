@@ -12,7 +12,6 @@ from pathlib import Path
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from database.constants import DEFAULT_DATABASE_PATH
 from database.models import Base
 
 # Add the src directory to the Python path
@@ -48,7 +47,9 @@ def get_database_url():
         return database_url
 
     # Use default SQLite database path
-    db_path = os.getenv("DATABASE_PATH", DEFAULT_DATABASE_PATH)
+    db_path = os.getenv(
+        "DATABASE_PATH",
+    )
     return f"sqlite:///{db_path}"
 
 

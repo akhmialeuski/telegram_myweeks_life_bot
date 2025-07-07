@@ -20,4 +20,5 @@ exclude =
 per-file-ignores =
     __init__.py:F401
     tests/*:S101,S105,S106,S107
+    src/database/models/*:F821
 max-complexity = 10

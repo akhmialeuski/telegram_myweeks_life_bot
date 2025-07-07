@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from database.constants import DATABASE_DIRECTORY, DEFAULT_DATABASE_PATH
+from database.constants import DEFAULT_DATABASE_PATH
 
 # Add src directory to Python path
 src_path = Path(__file__).parent.parent / "src"
@@ -46,12 +46,6 @@ def setup_database() -> bool:
     :returns: True if successful, False otherwise
     """
     print("\U0001f680 Setting up LifeWeeksBot database...")
-
-    # Create database directory if it doesn't exist
-    db_dir = Path(DATABASE_DIRECTORY)
-    if not db_dir.exists():
-        print(f"\U0001f4c1 Creating database directory: {db_dir}")
-        db_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if alembic is installed
     try:

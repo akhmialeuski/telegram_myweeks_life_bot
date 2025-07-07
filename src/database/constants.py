@@ -6,11 +6,11 @@ used throughout the database layer.
 
 # Database file paths
 DEFAULT_DATABASE_PATH = "lifeweeks.db"  # Default SQLite database filename
-DATABASE_DIRECTORY = "data"  # Directory to store database files
 
 # Table names
 USERS_TABLE = "users"  # Main users table name
 USER_SETTINGS_TABLE = "user_settings"  # User settings table name
+USER_SUBSCRIPTIONS_TABLE = "user_subscriptions"  # User subscriptions table name
 
 # Column constraints
 MAX_USERNAME_LENGTH = 255  # Maximum length for Telegram username
