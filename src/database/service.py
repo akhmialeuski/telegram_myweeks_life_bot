@@ -108,6 +108,7 @@ class UserService:
         username: Optional[str] = None,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
+        birth_date: Optional[date] = None,
     ) -> Optional[User]:
         """Create new user with default settings.
 
@@ -115,6 +116,7 @@ class UserService:
         :param username: Telegram username
         :param first_name: User's first name
         :param last_name: User's last name
+        :param birth_date: User's birth date
         :returns: Created user object if successful, None otherwise
         """
         try:
@@ -133,9 +135,10 @@ class UserService:
                 created_at=datetime.now(UTC),
             )
 
-            # Create default settings
+            # Create default settings with birth date if provided
             settings = UserSettings(
                 telegram_id=telegram_id,
+                birth_date=birth_date,
                 updated_at=datetime.now(UTC),
             )
 
@@ -169,13 +172,11 @@ class UserService:
                 logger.warning(f"User {telegram_id} not found")
                 return None
 
-            # Получаем настройки отдельно и создаем новый объект User
             settings = self.settings_repository.get_user_settings(telegram_id)
             if not settings:
                 logger.warning(f"Settings not found for user {telegram_id}")
                 return None
 
-            # Создаем новый объект User с теми же данными
             new_user = User(
                 telegram_id=user.telegram_id,
                 username=user.username,
@@ -210,106 +211,11 @@ class UserService:
         :returns: True if profile is valid, False otherwise
         """
         try:
-            # Получаем настройки напрямую
             settings = self.settings_repository.get_user_settings(telegram_id)
             return settings is not None and settings.birth_date is not None
         except Exception as e:
             logger.error(f"Error checking user profile validity for {telegram_id}: {e}")
             return False
-
-    def update_user_birth_date(self, telegram_id: int, birth_date: date) -> bool:
-        """Update user's birth date.
-
-        :param telegram_id: Telegram user ID
-        :type telegram_id: int
-        :param birth_date: New birth date
-        :type birth_date: date
-        :returns: True if successful, False otherwise
-        :rtype: bool
-        """
-        try:
-            success = self.settings_repository.set_birth_date(telegram_id, birth_date)
-            if success:
-                logger.info(f"Updated birth date for user {telegram_id}")
-            else:
-                logger.warning(f"Failed to update birth date for user {telegram_id}")
-            return success
-        except Exception as e:
-            logger.error(f"Error updating birth date for user {telegram_id}: {e}")
-            return False
-
-    def update_notification_settings(
-        self,
-        telegram_id: int,
-        notifications_enabled: bool,
-        notifications_day: Optional[str] = None,
-        notifications_time: Optional[str] = None,
-    ) -> bool:
-        """Update user's notification settings.
-
-        :param telegram_id: Telegram user ID
-        :type telegram_id: int
-        :param notifications_enabled: Whether notifications are enabled
-        :type notifications_enabled: bool
-        :param notifications_day: Day for notifications
-        :type notifications_day: Optional[str]
-        :param notifications_time: Time for notifications
-        :type notifications_time: Optional[str]
-        :returns: True if successful, False otherwise
-        :rtype: bool
-        """
-        try:
-            parsed_time = None
-            if notifications_time:
-                parsed_time = datetime.strptime(notifications_time, "%H:%M:%S").time()
-
-            success = self.settings_repository.set_notification_settings(
-                telegram_id, notifications_enabled, notifications_day, parsed_time
-            )
-
-            if success:
-                logger.info(f"Updated notification settings for user {telegram_id}")
-            else:
-                logger.warning(
-                    f"Failed to update notification settings for user {telegram_id}"
-                )
-            return success
-        except Exception as e:
-            logger.error(
-                f"Error updating notification settings for user {telegram_id}: {e}"
-            )
-            return False
-
-    def get_users_with_notifications(self) -> list[User]:
-        """Get all users with notifications enabled.
-
-        :returns: List of users with notifications enabled
-        :rtype: list[User]
-        """
-        try:
-            # Получаем всех пользователей
-            all_users = self.user_repository.get_all_users()
-            users_with_notifications = []
-
-            for user in all_users:
-                # Получаем настройки для каждого пользователя
-                settings = self.settings_repository.get_user_settings(user.telegram_id)
-                if settings and settings.notifications:
-                    # Создаем новый объект User с настройками
-                    user_with_settings = User(
-                        telegram_id=user.telegram_id,
-                        username=user.username,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                        created_at=user.created_at,
-                    )
-                    user_with_settings.settings = settings
-                    users_with_notifications.append(user_with_settings)
-
-            return users_with_notifications
-        except Exception as e:
-            logger.error(f"Error getting users with notifications: {e}")
-            return []
 
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.

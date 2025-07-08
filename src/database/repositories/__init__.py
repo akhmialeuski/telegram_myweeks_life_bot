@@ -5,6 +5,7 @@ for different database backends.
 """
 
 from .abstract import (
+    AbstractBaseRepository,
     AbstractUserRepository,
     AbstractUserSettingsRepository,
     AbstractUserSubscriptionRepository,
@@ -17,6 +18,7 @@ from .sqlite import (
 
 __all__ = [
     # Abstract repositories
+    "AbstractBaseRepository",
     "AbstractUserRepository",
     "AbstractUserSettingsRepository",
     "AbstractUserSubscriptionRepository",

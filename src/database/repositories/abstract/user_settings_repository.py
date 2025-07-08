@@ -4,35 +4,19 @@ Defines the contract for user settings storage operations
 that can be implemented by different database backends.
 """
 
-from abc import ABC, abstractmethod
-from datetime import date, time
+from abc import abstractmethod
 from typing import Optional
 
+from .base_repository import AbstractBaseRepository
 from ...models import UserSettings
 
 
-class AbstractUserSettingsRepository(ABC):
+class AbstractUserSettingsRepository(AbstractBaseRepository):
     """Abstract base class for user settings repository operations.
 
     Defines the interface for user settings storage that can be implemented
     by different database backends (SQLite, PostgreSQL, etc.)
     """
-
-    @abstractmethod
-    def initialize(self) -> None:
-        """Initialize database connection and create tables.
-
-        :returns: None
-        """
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        """Close database connection.
-
-        :returns: None
-        """
-        pass
 
     @abstractmethod
     def create_user_settings(self, settings: UserSettings) -> bool:
@@ -68,43 +52,6 @@ class AbstractUserSettingsRepository(ABC):
         """Delete user settings.
 
         :param telegram_id: Telegram user ID
-        :returns: True if successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def set_birth_date(self, telegram_id: int, birth_date: date) -> bool:
-        """Set user birth date.
-
-        :param telegram_id: Telegram user ID
-        :param birth_date: Birth date to set
-        :returns: True if successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_birth_date(self, telegram_id: int) -> Optional[date]:
-        """Get user birth date.
-
-        :param telegram_id: Telegram user ID
-        :returns: Birth date if set, None otherwise
-        """
-        pass
-
-    @abstractmethod
-    def set_notification_settings(
-        self,
-        telegram_id: int,
-        notifications: bool,
-        notifications_day: Optional[str] = None,
-        notifications_time: Optional[time] = None,
-    ) -> bool:
-        """Set notification settings.
-
-        :param telegram_id: Telegram user ID
-        :param notifications: Whether notifications are enabled
-        :param notifications_day: Day of week for notifications
-        :param notifications_time: Time for notifications
         :returns: True if successful, False otherwise
         """
         pass

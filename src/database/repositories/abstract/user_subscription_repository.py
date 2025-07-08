@@ -4,13 +4,14 @@ Defines the contract for user subscription storage operations
 that can be implemented by different database backends.
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Optional
+from abc import abstractmethod
+from typing import Optional
 
+from .base_repository import AbstractBaseRepository
 from ...models import UserSubscription
 
 
-class AbstractUserSubscriptionRepository(ABC):
+class AbstractUserSubscriptionRepository(AbstractBaseRepository):
     """Abstract base class for user subscription repository operations.
 
     Defines the interface for user subscription storage that can be implemented
@@ -52,40 +53,5 @@ class AbstractUserSubscriptionRepository(ABC):
 
         :param telegram_id: Telegram user ID
         :returns: True if successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_active_subscriptions(self) -> List[UserSubscription]:
-        """Get all active user subscriptions.
-
-        :returns: List of active UserSubscription objects
-        """
-        pass
-
-    @abstractmethod
-    def get_expired_subscriptions(self) -> List[UserSubscription]:
-        """Get all expired user subscriptions.
-
-        :returns: List of expired UserSubscription objects
-        """
-        pass
-
-    @abstractmethod
-    def extend_subscription(self, telegram_id: int, days: int) -> bool:
-        """Extend user subscription by specified number of days.
-
-        :param telegram_id: Telegram user ID
-        :param days: Number of days to extend subscription
-        :returns: True if successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def is_subscription_active(self, telegram_id: int) -> bool:
-        """Check if user has active subscription.
-
-        :param telegram_id: Telegram user ID
-        :returns: True if subscription is active, False otherwise
         """
         pass

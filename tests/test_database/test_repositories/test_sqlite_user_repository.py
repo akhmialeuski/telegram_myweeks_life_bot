@@ -279,38 +279,3 @@ class TestSQLiteUserRepository:
             mock_execute.side_effect = SQLAlchemyError("Database error")
             result = repository.delete_user(123)
             assert result is False
-
-    def test_get_all_users_success(self, repository, sample_user):
-        """Test successful retrieval of all users.
-
-        :param repository: Repository instance
-        :param sample_user: Sample user object
-        :returns: None
-        """
-        # Create user first
-        repository.create_user(sample_user)
-
-        # Get all users
-        users = repository.get_all_users()
-        assert len(users) == 1
-        assert users[0].telegram_id == sample_user.telegram_id
-
-    def test_get_all_users_empty(self, repository):
-        """Test retrieval of all users when database is empty.
-
-        :param repository: Repository instance
-        :returns: None
-        """
-        users = repository.get_all_users()
-        assert len(users) == 0
-
-    def test_get_all_users_database_error(self, repository):
-        """Test retrieval of all users with database error.
-
-        :param repository: Repository instance
-        :returns: None
-        """
-        with patch("sqlalchemy.orm.Session.execute") as mock_execute:
-            mock_execute.side_effect = SQLAlchemyError("Database error")
-            result = repository.get_all_users()
-            assert result == []

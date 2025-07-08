@@ -4,31 +4,19 @@ Defines the contract for user data storage operations
 that can be implemented by different database backends.
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import List, Optional
 
+from .base_repository import AbstractBaseRepository
 from ...models import User
 
 
-class AbstractUserRepository(ABC):
+class AbstractUserRepository(AbstractBaseRepository):
     """Abstract base class for user repository operations.
 
     Defines the interface for user data storage that can be implemented
     by different database backends (SQLite, PostgreSQL, etc.)
     """
-
-    @abstractmethod
-    def initialize(self) -> None:
-        """Initialize database connection and create tables if needed.
-
-        Should be called before any other operations.
-        """
-        pass
-
-    @abstractmethod
-    def close(self) -> None:
-        """Close database connection and cleanup resources."""
-        pass
 
     @abstractmethod
     def create_user(self, user: User) -> bool:
@@ -66,12 +54,3 @@ class AbstractUserRepository(ABC):
         :param telegram_id: Telegram user ID
         :returns: True if successful, False otherwise
         """
-        pass
-
-    @abstractmethod
-    def get_all_users(self) -> List[User]:
-        """Get all users from database.
-
-        :returns: List of all User objects
-        """
-        pass

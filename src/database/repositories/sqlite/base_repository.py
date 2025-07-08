@@ -7,10 +7,10 @@ common session management functionality following SQLAlchemy 2.0 best practices.
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any, Generator, List, Optional, Type, TypeVar
 
-from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from ....utils.config import BOT_NAME
@@ -18,6 +18,9 @@ from ...constants import DEFAULT_DATABASE_PATH, SQLITE_ECHO, SQLITE_POOL_PRE_PIN
 from ...models import Base
 
 logger = logging.getLogger(BOT_NAME)
+
+# Type variable for SQLAlchemy models
+ModelType = TypeVar("ModelType", bound=Base)
 
 
 class BaseSQLiteRepository:
@@ -60,7 +63,7 @@ class BaseSQLiteRepository:
                     bind=self.engine,
                     autocommit=False,
                     autoflush=False,
-                    expire_on_commit=False,  # Предотвращаем истечение объектов после коммита
+                    expire_on_commit=False,
                 )
                 logger.info(f"SQLite database initialized at {self.db_path}")
             except SQLAlchemyError as e:
@@ -118,3 +121,99 @@ class BaseSQLiteRepository:
         """
         if instance and instance in session:
             session.expunge(instance)
+
+    def _create_entity(self, entity: ModelType, entity_name: str) -> bool:
+        """Generic method to create an entity.
+
+        :param entity: Entity object to create
+        :param entity_name: Name of entity for logging
+        :returns: True if successful, False otherwise
+        """
+        try:
+            with self.session() as session:
+                session.add(entity)
+                logger.info(f"Created {entity_name}")
+                return True
+
+        except IntegrityError:
+            logger.warning(f"{entity_name} already exists")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to create {entity_name}: {e}")
+            return False
+
+    def _get_entity_by_telegram_id(
+        self, model_class: Type[ModelType], telegram_id: int, entity_name: str
+    ) -> Optional[ModelType]:
+        """Generic method to get entity by telegram_id.
+
+        :param model_class: SQLAlchemy model class
+        :param telegram_id: Telegram user ID
+        :param entity_name: Name of entity for logging
+        :returns: Entity object if found, None otherwise
+        """
+        try:
+            with self.session() as session:
+                stmt = select(model_class).where(
+                    model_class.telegram_id == telegram_id
+                )
+                result = session.execute(stmt)
+                entity = result.scalar_one_or_none()
+                if entity:
+                    self._detach_instance(session, entity)
+                return entity
+
+        except Exception as e:
+            logger.error(f"Failed to get {entity_name} {telegram_id}: {e}")
+            return None
+
+    def _delete_entity_by_telegram_id(
+        self, model_class: Type[ModelType], telegram_id: int, entity_name: str
+    ) -> bool:
+        """Generic method to delete entity by telegram_id.
+
+        :param model_class: SQLAlchemy model class
+        :param telegram_id: Telegram user ID
+        :param entity_name: Name of entity for logging
+        :returns: True if successful, False otherwise
+        """
+        try:
+            with self.session() as session:
+                stmt = delete(model_class).where(
+                    model_class.telegram_id == telegram_id
+                )
+                result = session.execute(stmt)
+
+                if result.rowcount > 0:
+                    logger.info(f"Deleted {entity_name} for user {telegram_id}")
+                    return True
+                else:
+                    logger.warning(f"{entity_name} for user {telegram_id} not found")
+                    return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete {entity_name}: {e}")
+            return False
+
+    def _get_all_entities(
+        self, model_class: Type[ModelType], entity_name: str
+    ) -> List[ModelType]:
+        """Generic method to get all entities.
+
+        :param model_class: SQLAlchemy model class
+        :param entity_name: Name of entity for logging
+        :returns: List of all entity objects
+        """
+        try:
+            with self.session() as session:
+                stmt = select(model_class)
+                result = session.execute(stmt)
+                entities = list(result.scalars().all())
+                # Отсоединяем все объекты от сессии
+                for entity in entities:
+                    self._detach_instance(session, entity)
+                return entities
+
+        except Exception as e:
+            logger.error(f"Failed to get all {entity_name}: {e}")
+            return []
