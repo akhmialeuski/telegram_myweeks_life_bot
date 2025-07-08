@@ -205,7 +205,7 @@ class BaseSQLiteRepository:
                 stmt = select(model_class)
                 result = session.execute(stmt)
                 entities = list(result.scalars().all())
-                # Отсоединяем все объекты от сессии
+                # Detach all objects from session
                 for entity in entities:
                     self._detach_instance(session, entity)
                 return entities
