@@ -5,10 +5,9 @@ for storing user data in SQLite database.
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import update
-from sqlalchemy.exc import IntegrityError
 
 from ....utils.config import BOT_NAME
 from ...models import User

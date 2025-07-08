@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generator, List, Optional, Type, TypeVar
 
-from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 

@@ -5,7 +5,7 @@ including abstract method definitions and interface compliance.
 """
 
 from abc import ABC
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 

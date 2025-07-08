@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, time
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.database.models import UserSettings
 from src.database.repositories.sqlite.user_settings_repository import (
