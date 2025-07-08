@@ -4,9 +4,10 @@ Tests all functionality of the SQLiteUserSettingsRepository class
 including CRUD operations, error handling, and edge cases.
 """
 
-import pytest
 from datetime import UTC, date, datetime, time
 from unittest.mock import patch
+
+import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.database.models import UserSettings
@@ -25,8 +26,8 @@ class TestSQLiteUserSettingsRepository:
         :returns: Path to temporary database file
         :rtype: str
         """
-        import tempfile
         import os
+        import tempfile
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp_file:
             yield tmp_file.name

@@ -42,7 +42,9 @@ class SQLiteUserSettingsRepository(
         :param telegram_id: Telegram user ID
         :returns: UserSettings object if found, None otherwise
         """
-        return self._get_entity_by_telegram_id(UserSettings, telegram_id, "user settings")
+        return self._get_entity_by_telegram_id(
+            UserSettings, telegram_id, "user settings"
+        )
 
     def update_user_settings(self, settings: UserSettings) -> bool:
         """Update user settings.
@@ -86,6 +88,4 @@ class SQLiteUserSettingsRepository(
         :param telegram_id: Telegram user ID
         :returns: True if successful, False otherwise
         """
-        return self._delete_entity_by_telegram_id(
-            UserSettings, telegram_id, "settings"
-        )
+        return self._delete_entity_by_telegram_id(UserSettings, telegram_id, "settings")

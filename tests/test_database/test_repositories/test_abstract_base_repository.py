@@ -4,9 +4,10 @@ Tests all functionality of the AbstractBaseRepository class
 including abstract method definitions and interface compliance.
 """
 
-import pytest
 from abc import ABC
 from unittest.mock import Mock, patch
+
+import pytest
 
 from src.database.repositories.abstract.base_repository import AbstractBaseRepository
 
@@ -145,7 +146,7 @@ class TestAbstractBaseRepository:
         :returns: None
         """
         abstract_methods = AbstractBaseRepository.__abstractmethods__
-        expected_methods = {'initialize', 'close', 'session', '_detach_instance'}
+        expected_methods = {"initialize", "close", "session", "_detach_instance"}
         assert abstract_methods == expected_methods
 
     def test_concrete_class_implements_all_methods(self):
@@ -156,10 +157,10 @@ class TestAbstractBaseRepository:
         repo = ConcreteRepository("test.db")
 
         # Check that all abstract methods are implemented
-        assert hasattr(repo, 'initialize')
-        assert hasattr(repo, 'close')
-        assert hasattr(repo, 'session')
-        assert hasattr(repo, '_detach_instance')
+        assert hasattr(repo, "initialize")
+        assert hasattr(repo, "close")
+        assert hasattr(repo, "session")
+        assert hasattr(repo, "_detach_instance")
 
         # Check that methods are callable
         assert callable(repo.initialize)

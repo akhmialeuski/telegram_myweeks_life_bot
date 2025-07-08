@@ -154,9 +154,7 @@ class BaseSQLiteRepository:
         """
         try:
             with self.session() as session:
-                stmt = select(model_class).where(
-                    model_class.telegram_id == telegram_id
-                )
+                stmt = select(model_class).where(model_class.telegram_id == telegram_id)
                 result = session.execute(stmt)
                 entity = result.scalar_one_or_none()
                 if entity:
@@ -179,9 +177,7 @@ class BaseSQLiteRepository:
         """
         try:
             with self.session() as session:
-                stmt = delete(model_class).where(
-                    model_class.telegram_id == telegram_id
-                )
+                stmt = delete(model_class).where(model_class.telegram_id == telegram_id)
                 result = session.execute(stmt)
 
                 if result.rowcount > 0:

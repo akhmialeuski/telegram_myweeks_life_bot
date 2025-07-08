@@ -4,11 +4,12 @@ Tests all functionality of the BaseSQLiteRepository class
 including session management, CRUD operations, and error handling.
 """
 
-import pytest
-import tempfile
 import os
-from unittest.mock import Mock, patch, MagicMock
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.database.models import User
@@ -50,7 +51,8 @@ class TestBaseSQLiteRepository:
         :returns: Sample User object
         :rtype: User
         """
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
         return User(
             telegram_id=123456789,
             username="testuser",
@@ -156,7 +158,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, 'SessionLocal') as mock_session_local:
+        with patch.object(repository, "SessionLocal") as mock_session_local:
             mock_session = Mock()
             mock_session_local.return_value = mock_session
             mock_session.execute.side_effect = SQLAlchemyError("Test error")
@@ -240,7 +242,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, 'session') as mock_session:
+        with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
             result = repository._create_entity(Mock(), "test entity")
@@ -257,9 +259,7 @@ class TestBaseSQLiteRepository:
         repository._create_entity(sample_user, "user")
 
         # Get user
-        result = repository._get_entity_by_telegram_id(
-            User, 123456789, "user"
-        )
+        result = repository._get_entity_by_telegram_id(User, 123456789, "user")
         assert result is not None
         assert result.telegram_id == 123456789
         assert result.username == "testuser"
@@ -270,9 +270,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        result = repository._get_entity_by_telegram_id(
-            User, 999999, "user"
-        )
+        result = repository._get_entity_by_telegram_id(User, 999999, "user")
         assert result is None
 
     def test_get_entity_by_telegram_id_error(self, repository):
@@ -281,12 +279,10 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, 'session') as mock_session:
+        with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
-            result = repository._get_entity_by_telegram_id(
-                User, 123456789, "user"
-            )
+            result = repository._get_entity_by_telegram_id(User, 123456789, "user")
             assert result is None
 
     def test_delete_entity_by_telegram_id_success(self, repository, sample_user):
@@ -300,9 +296,7 @@ class TestBaseSQLiteRepository:
         repository._create_entity(sample_user, "user")
 
         # Delete user
-        result = repository._delete_entity_by_telegram_id(
-            User, 123456789, "user"
-        )
+        result = repository._delete_entity_by_telegram_id(User, 123456789, "user")
         assert result is True
 
     def test_delete_entity_by_telegram_id_not_found(self, repository):
@@ -311,9 +305,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        result = repository._delete_entity_by_telegram_id(
-            User, 999999, "user"
-        )
+        result = repository._delete_entity_by_telegram_id(User, 999999, "user")
         assert result is False
 
     def test_delete_entity_by_telegram_id_error(self, repository):
@@ -322,12 +314,10 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, 'session') as mock_session:
+        with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
-            result = repository._delete_entity_by_telegram_id(
-                User, 123456789, "user"
-            )
+            result = repository._delete_entity_by_telegram_id(User, 123456789, "user")
             assert result is False
 
     def test_get_all_entities_success(self, repository, sample_user):
@@ -371,7 +361,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        with patch.object(repository, 'session') as mock_session:
+        with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
             results = repository._get_all_entities(User, "users")
@@ -386,7 +376,7 @@ class TestBaseSQLiteRepository:
         """
         repository._create_entity(sample_user, "user")
 
-        with patch.object(repository, '_detach_instance') as mock_detach:
+        with patch.object(repository, "_detach_instance") as mock_detach:
             results = repository._get_all_entities(User, "users")
 
             # Should be called once for each entity
@@ -412,8 +402,8 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        from src.database.repositories.sqlite.base_repository import ModelType
         from src.database.models import Base
+        from src.database.repositories.sqlite.base_repository import ModelType
 
         # Test that ModelType is bound to Base
         assert ModelType.__bound__ == Base

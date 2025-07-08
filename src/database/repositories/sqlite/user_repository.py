@@ -30,9 +30,7 @@ class SQLiteUserRepository(BaseSQLiteRepository, AbstractUserRepository):
         :param user: User object to create
         :returns: True if successful, False otherwise
         """
-        return self._create_entity(
-            user, f"user with telegram_id: {user.telegram_id}"
-        )
+        return self._create_entity(user, f"user with telegram_id: {user.telegram_id}")
 
     def get_user(self, telegram_id: int) -> Optional[User]:
         """Get user by Telegram ID.

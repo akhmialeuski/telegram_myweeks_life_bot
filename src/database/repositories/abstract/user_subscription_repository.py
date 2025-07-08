@@ -7,8 +7,8 @@ that can be implemented by different database backends.
 from abc import abstractmethod
 from typing import Optional
 
-from .base_repository import AbstractBaseRepository
 from ...models import UserSubscription
+from .base_repository import AbstractBaseRepository
 
 
 class AbstractUserSubscriptionRepository(AbstractBaseRepository):
