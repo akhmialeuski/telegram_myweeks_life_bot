@@ -4,8 +4,9 @@ Tests all functionality of the UserSettings model using pytest
 with proper edge case coverage.
 """
 
+from datetime import UTC, date, datetime
+
 import pytest
-from datetime import date, datetime, UTC
 from sqlalchemy.exc import IntegrityError
 
 from src.database.models import UserSettings, WeekDay

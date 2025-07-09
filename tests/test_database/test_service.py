@@ -11,7 +11,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.database.models import User, UserSettings, SubscriptionType
+from src.database.models import SubscriptionType, User, UserSettings
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
 from src.database.repositories.sqlite.user_settings_repository import (
     SQLiteUserSettingsRepository,

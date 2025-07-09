@@ -8,9 +8,9 @@ from .base import Base
 from .user import User
 from .user_settings import UserSettings, WeekDay
 from .user_subscription import (
-    UserSubscription,
-    SubscriptionType,
     DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
+    SubscriptionType,
+    UserSubscription,
 )
 
 __all__ = [

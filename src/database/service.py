@@ -10,11 +10,11 @@ from typing import Optional
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 from .models import (
+    DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
+    SubscriptionType,
     User,
     UserSettings,
     UserSubscription,
-    SubscriptionType,
-    DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
 )
 from .repositories.sqlite.user_repository import SQLiteUserRepository
 from .repositories.sqlite.user_settings_repository import SQLiteUserSettingsRepository

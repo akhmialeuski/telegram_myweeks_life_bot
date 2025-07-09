@@ -5,9 +5,10 @@ for the application logging system.
 """
 
 import logging
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, mock_open, patch
+
+import pytest
 
 from src.utils.logger import get_logger, set_log_level
 
