@@ -11,10 +11,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.database.models import User, UserSettings
+from src.database.models import User, UserSettings, SubscriptionType
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
 from src.database.repositories.sqlite.user_settings_repository import (
     SQLiteUserSettingsRepository,
+)
+from src.database.repositories.sqlite.user_subscription_repository import (
+    SQLiteUserSubscriptionRepository,
 )
 from src.database.service import (
     UserAlreadyExistsError,
@@ -121,17 +124,33 @@ class TestUserService:
         return Mock(spec=SQLiteUserSettingsRepository)
 
     @pytest.fixture
-    def user_service(self, mock_user_repository, mock_settings_repository):
+    def mock_subscription_repository(self):
+        """Create mock subscription repository.
+
+        :returns: Mock subscription repository
+        :rtype: Mock
+        """
+        return Mock(spec=SQLiteUserSubscriptionRepository)
+
+    @pytest.fixture
+    def user_service(
+        self,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
+    ):
         """Create UserService instance with mocked repositories.
 
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: UserService instance
         :rtype: UserService
         """
         return UserService(
             user_repository=mock_user_repository,
             settings_repository=mock_settings_repository,
+            subscription_repository=mock_subscription_repository,
         )
 
     @pytest.fixture
@@ -171,54 +190,78 @@ class TestUserService:
         service = UserService()
         assert isinstance(service.user_repository, SQLiteUserRepository)
         assert isinstance(service.settings_repository, SQLiteUserSettingsRepository)
+        assert isinstance(
+            service.subscription_repository, SQLiteUserSubscriptionRepository
+        )
 
     def test_init_with_custom_repositories(
-        self, mock_user_repository, mock_settings_repository
+        self,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
     ):
         """Test UserService initialization with custom repositories.
 
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
         service = UserService(
             user_repository=mock_user_repository,
             settings_repository=mock_settings_repository,
+            subscription_repository=mock_subscription_repository,
         )
         assert service.user_repository == mock_user_repository
         assert service.settings_repository == mock_settings_repository
+        assert service.subscription_repository == mock_subscription_repository
 
     def test_initialize(
-        self, user_service, mock_user_repository, mock_settings_repository
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
     ):
         """Test service initialization.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
         user_service.initialize()
         mock_user_repository.initialize.assert_called_once()
         mock_settings_repository.initialize.assert_called_once()
+        mock_subscription_repository.initialize.assert_called_once()
 
-    def test_close(self, user_service, mock_user_repository, mock_settings_repository):
+    def test_close(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
+    ):
         """Test service closure.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
         user_service.close()
         mock_user_repository.close.assert_called_once()
         mock_settings_repository.close.assert_called_once()
+        mock_subscription_repository.close.assert_called_once()
 
     def test_create_user_with_settings_success(
         self,
         user_service,
         mock_user_repository,
         mock_settings_repository,
+        mock_subscription_repository,
         sample_user,
         sample_settings,
     ):
@@ -227,6 +270,7 @@ class TestUserService:
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :param sample_user: Sample user object
         :param sample_settings: Sample settings object
         :returns: None
@@ -235,6 +279,7 @@ class TestUserService:
         user_service.get_user_profile = Mock(return_value=None)
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = True
+        mock_subscription_repository.create_subscription.return_value = True
 
         # Mock get_user_profile to return user after creation
         created_user = User(
@@ -247,17 +292,24 @@ class TestUserService:
         created_user.settings = sample_settings
         user_service.get_user_profile = Mock(side_effect=[None, created_user])
 
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = "Test"
+        mock_user_info.last_name = "User"
+
         result = user_service.create_user_with_settings(
-            telegram_id=123456789,
-            username="testuser",
-            first_name="Test",
-            last_name="User",
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
         )
 
         assert result is not None
         assert result.telegram_id == 123456789
         mock_user_repository.create_user.assert_called_once()
         mock_settings_repository.create_user_settings.assert_called_once()
+        mock_subscription_repository.create_subscription.assert_called_once()
 
     def test_create_user_with_settings_user_exists(self, user_service, sample_user):
         """Test user creation when user already exists.
@@ -268,43 +320,70 @@ class TestUserService:
         """
         user_service.get_user_profile = Mock(return_value=sample_user)
 
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = None
+        mock_user_info.last_name = None
+
         result = user_service.create_user_with_settings(
-            telegram_id=123456789,
-            username="testuser",
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
         )
 
         assert result == sample_user
 
     def test_create_user_with_settings_user_creation_fails(
-        self, user_service, mock_user_repository, mock_settings_repository
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
     ):
         """Test user creation when user creation fails.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
         user_service.get_user_profile = Mock(return_value=None)
         mock_user_repository.create_user.return_value = False
 
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = None
+        mock_user_info.last_name = None
+
         result = user_service.create_user_with_settings(
-            telegram_id=123456789,
-            username="testuser",
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
         )
 
         assert result is None
         mock_user_repository.create_user.assert_called_once()
         mock_settings_repository.create_user_settings.assert_not_called()
+        mock_subscription_repository.create_subscription.assert_not_called()
 
     def test_create_user_with_settings_settings_creation_fails(
-        self, user_service, mock_user_repository, mock_settings_repository
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
     ):
         """Test user creation when settings creation fails.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
         user_service.get_user_profile = Mock(return_value=None)
@@ -312,14 +391,66 @@ class TestUserService:
         mock_settings_repository.create_user_settings.return_value = False
         mock_user_repository.delete_user.return_value = True
 
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = None
+        mock_user_info.last_name = None
+
         result = user_service.create_user_with_settings(
-            telegram_id=123456789,
-            username="testuser",
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
         )
 
         assert result is None
         mock_user_repository.create_user.assert_called_once()
         mock_settings_repository.create_user_settings.assert_called_once()
+        mock_subscription_repository.create_subscription.assert_not_called()
+        mock_user_repository.delete_user.assert_called_once_with(123456789)
+
+    def test_create_user_with_settings_subscription_creation_fails(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
+    ):
+        """Test user creation when subscription creation fails.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
+        :returns: None
+        """
+        user_service.get_user_profile = Mock(return_value=None)
+        mock_user_repository.create_user.return_value = True
+        mock_settings_repository.create_user_settings.return_value = True
+        mock_subscription_repository.create_subscription.return_value = False
+        mock_user_repository.delete_user.return_value = True
+        mock_settings_repository.delete_user_settings.return_value = True
+
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = None
+        mock_user_info.last_name = None
+
+        result = user_service.create_user_with_settings(
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
+        )
+
+        assert result is None
+        mock_user_repository.create_user.assert_called_once()
+        mock_settings_repository.create_user_settings.assert_called_once()
+        mock_subscription_repository.create_subscription.assert_called_once()
+        # Now both user and settings should be deleted on subscription failure
+        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
         mock_user_repository.delete_user.assert_called_once_with(123456789)
 
     def test_create_user_with_settings_exception(self, user_service):
@@ -330,9 +461,17 @@ class TestUserService:
         """
         user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
 
+        # Create mock user info object with id attribute
+        mock_user_info = Mock()
+        mock_user_info.id = 123456789
+        mock_user_info.username = "testuser"
+        mock_user_info.first_name = None
+        mock_user_info.last_name = None
+
         result = user_service.create_user_with_settings(
-            telegram_id=123456789,
-            username="testuser",
+            user_info=mock_user_info,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
         )
 
         assert result is None
@@ -342,6 +481,7 @@ class TestUserService:
         user_service,
         mock_user_repository,
         mock_settings_repository,
+        mock_subscription_repository,
         sample_user,
         sample_settings,
     ):
@@ -350,20 +490,32 @@ class TestUserService:
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
         :param sample_user: Sample user object
         :param sample_settings: Sample settings object
         :returns: None
         """
+        from src.database.models import UserSubscription
+
+        sample_subscription = UserSubscription(
+            telegram_id=123456789,
+            subscription_type=SubscriptionType.BASIC,
+            is_active=True,
+        )
+
         mock_user_repository.get_user.return_value = sample_user
         mock_settings_repository.get_user_settings.return_value = sample_settings
+        mock_subscription_repository.get_subscription.return_value = sample_subscription
 
         result = user_service.get_user_profile(123456789)
 
         assert result is not None
         assert result.telegram_id == 123456789
         assert result.settings == sample_settings
+        assert result.subscription == sample_subscription
         mock_user_repository.get_user.assert_called_once_with(123456789)
         mock_settings_repository.get_user_settings.assert_called_once_with(123456789)
+        mock_subscription_repository.get_subscription.assert_called_once_with(123456789)
 
     def test_get_user_profile_user_not_found(self, user_service, mock_user_repository):
         """Test user profile retrieval when user not found.
@@ -391,6 +543,33 @@ class TestUserService:
         """
         mock_user_repository.get_user.return_value = sample_user
         mock_settings_repository.get_user_settings.return_value = None
+
+        result = user_service.get_user_profile(123456789)
+
+        assert result is None
+
+    def test_get_user_profile_subscription_not_found(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
+        sample_user,
+        sample_settings,
+    ):
+        """Test user profile retrieval when subscription not found.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
+        :param sample_user: Sample user object
+        :param sample_settings: Sample settings object
+        :returns: None
+        """
+        mock_user_repository.get_user.return_value = sample_user
+        mock_settings_repository.get_user_settings.return_value = sample_settings
+        mock_subscription_repository.get_subscription.return_value = None
 
         result = user_service.get_user_profile(123456789)
 

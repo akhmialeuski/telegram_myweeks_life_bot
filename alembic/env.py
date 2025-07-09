@@ -9,13 +9,21 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
+# Add the src directory to the Python path FIRST
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.orm import DeclarativeBase
 
-from database.models import Base
+# Define database constants locally to avoid import issues
+DEFAULT_DATABASE_PATH = "lifeweeks.db"
 
-# Add the src directory to the Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Create a minimal Base for migrations
+class Base(DeclarativeBase):
+    pass
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -47,9 +55,7 @@ def get_database_url():
         return database_url
 
     # Use default SQLite database path
-    db_path = os.getenv(
-        "DATABASE_PATH",
-    )
+    db_path = os.getenv("DATABASE_PATH", DEFAULT_DATABASE_PATH)
     return f"sqlite:///{db_path}"
 
 

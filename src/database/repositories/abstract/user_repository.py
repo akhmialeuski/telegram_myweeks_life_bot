@@ -26,7 +26,6 @@ class AbstractUserRepository(AbstractBaseRepository):
         :returns: True if successful, False otherwise
         :raises: DatabaseError if user already exists or other database error
         """
-        pass
 
     @abstractmethod
     def get_user(self, telegram_id: int) -> Optional[User]:
@@ -35,7 +34,6 @@ class AbstractUserRepository(AbstractBaseRepository):
         :param telegram_id: Telegram user ID
         :returns: User object if found, None otherwise
         """
-        pass
 
     @abstractmethod
     def update_user(self, user: User) -> bool:
@@ -45,7 +43,6 @@ class AbstractUserRepository(AbstractBaseRepository):
         :returns: True if successful, False otherwise
         :raises: DatabaseError if user not found or other database error
         """
-        pass
 
     @abstractmethod
     def delete_user(self, telegram_id: int) -> bool:

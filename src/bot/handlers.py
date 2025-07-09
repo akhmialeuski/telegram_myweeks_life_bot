@@ -35,6 +35,7 @@ from ..core.messages import (
     generate_message_visualize,
     generate_message_week,
 )
+from ..database.models import SubscriptionType
 from ..database.service import (
     UserAlreadyExistsError,
     UserDeletionError,
@@ -216,11 +217,9 @@ async def command_start_handle_birth_date(
         # Attempt to create user profile in the database
         try:
             user_service.create_user_with_settings(
-                telegram_id=user.id,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name,
+                user_info=user,
                 birth_date=birth_date,
+                subscription_type=SubscriptionType.BASIC,
             )
 
             # Send success message with calculated statistics

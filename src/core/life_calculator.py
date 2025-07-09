@@ -4,7 +4,7 @@ This module provides a comprehensive calculator for life-related metrics
 including age, weeks lived, months lived, and remaining time calculations.
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Tuple
 
 from ..database.models import User
@@ -232,17 +232,17 @@ class LifeCalculatorEngine:
             raise ValueError("Birth date cannot be None")
 
         # Create a mock user object for backward compatibility
-        from ..database.models import User, UserSettings
+        from ..database.models import User, UserSettings, WeekDay
 
-        mock_user = User(telegram_id=0, first_name="Mock", created_at=datetime.utcnow())
+        mock_user = User(telegram_id=0, first_name="Mock", created_at=datetime.now(UTC))
         mock_user.settings = UserSettings(
             telegram_id=0,
             birth_date=birth_date,
             notifications=True,
             timezone="UTC",
-            notifications_day="monday",
+            notifications_day=WeekDay.MONDAY,
             notifications_time=datetime.strptime("09:00:00", "%H:%M:%S").time(),
-            updated_at=datetime.utcnow(),
+            updated_at=datetime.now(UTC),
         )
         return cls(mock_user)
 

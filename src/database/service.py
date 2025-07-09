@@ -4,14 +4,23 @@ This module provides high-level business logic for database operations,
 working with models and repositories to handle complex operations.
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
-from .models import User, UserSettings
+from .models import (
+    User,
+    UserSettings,
+    UserSubscription,
+    SubscriptionType,
+    DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
+)
 from .repositories.sqlite.user_repository import SQLiteUserRepository
 from .repositories.sqlite.user_settings_repository import SQLiteUserSettingsRepository
+from .repositories.sqlite.user_subscription_repository import (
+    SQLiteUserSubscriptionRepository,
+)
 
 logger = get_logger(f"{BOT_NAME}.DatabaseService")
 
@@ -83,88 +92,111 @@ class UserService:
         self,
         user_repository: Optional[SQLiteUserRepository] = None,
         settings_repository: Optional[SQLiteUserSettingsRepository] = None,
+        subscription_repository: Optional[SQLiteUserSubscriptionRepository] = None,
     ):
         """Initialize user service.
 
         :param user_repository: User repository instance
         :param settings_repository: User settings repository instance
+        :param subscription_repository: User subscription repository instance
         """
         self.user_repository = user_repository or SQLiteUserRepository()
         self.settings_repository = settings_repository or SQLiteUserSettingsRepository()
+        self.subscription_repository = (
+            subscription_repository or SQLiteUserSubscriptionRepository()
+        )
 
     def initialize(self) -> None:
         """Initialize database connections."""
         self.user_repository.initialize()
         self.settings_repository.initialize()
+        self.subscription_repository.initialize()
 
     def close(self) -> None:
         """Close database connections."""
         self.user_repository.close()
         self.settings_repository.close()
+        self.subscription_repository.close()
 
     def create_user_with_settings(
         self,
-        telegram_id: int,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        birth_date: Optional[date] = None,
+        user_info,
+        birth_date: date,
+        subscription_type: SubscriptionType,
     ) -> Optional[User]:
         """Create new user with default settings.
 
-        :param telegram_id: Telegram user ID
-        :param username: Telegram username
-        :param first_name: User's first name
-        :param last_name: User's last name
+        :param user_info: Telegram User object
         :param birth_date: User's birth date
+        :param subscription_type: User's subscription type
         :returns: Created user object if successful, None otherwise
         """
         try:
             # Check if user already exists
-            existing_user = self.get_user_profile(telegram_id)
+            existing_user = self.get_user_profile(user_info.id)
             if existing_user:
-                logger.warning(f"User with telegram_id {telegram_id} already exists")
+                logger.warning(f"User with telegram_id {user_info.id} already exists")
                 return existing_user
 
             # Create user
             user = User(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
+                telegram_id=user_info.id,
+                username=user_info.username,
+                first_name=user_info.first_name,
+                last_name=user_info.last_name,
                 created_at=datetime.now(UTC),
             )
 
             # Create default settings with birth date if provided
             settings = UserSettings(
-                telegram_id=telegram_id,
+                telegram_id=user_info.id,
                 birth_date=birth_date,
                 updated_at=datetime.now(UTC),
             )
 
+            # Set subscription type
+            subscription = UserSubscription(
+                telegram_id=user_info.id,
+                subscription_type=subscription_type,
+                is_active=True,
+                created_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC)
+                + timedelta(days=DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS),
+            )
+
             # Save to database
             if self.user_repository.create_user(user):
-                if self.settings_repository.create_user_settings(settings):
-                    logger.info(f"Created user profile for {telegram_id}")
-                    return self.get_user_profile(telegram_id)
-                else:
+                # Try to create settings
+                if not self.settings_repository.create_user_settings(settings):
                     # Rollback user creation if settings creation failed
-                    self.user_repository.delete_user(telegram_id)
-                    logger.error(f"Failed to create settings for {telegram_id}")
+                    self.user_repository.delete_user(user_info.id)
+                    logger.error(f"Failed to create settings for {user_info.id}")
                     return None
+
+                # Try to create subscription
+                if not self.subscription_repository.create_subscription(subscription):
+                    # Rollback user and settings creation if subscription creation failed
+                    self.settings_repository.delete_user_settings(user_info.id)
+                    self.user_repository.delete_user(user_info.id)
+                    logger.error(f"Failed to create subscription for {user_info.id}")
+                    return None
+
+                # All operations successful
+                logger.info(f"Created complete user profile for {user_info.id}")
+                return self.get_user_profile(user_info.id)
             else:
-                logger.error(f"Failed to create user {telegram_id}")
+                logger.error(f"Failed to create user {user_info.id}")
                 return None
 
-        except Exception as e:
-            logger.error(f"Error creating user profile: {e}")
+        except Exception as error:
+            logger.error(f"Error creating user profile: {error}")
             return None
 
     def get_user_profile(self, telegram_id: int) -> Optional[User]:
-        """Get complete user profile with settings.
+        """Get complete user profile with settings and subscription.
 
         :param telegram_id: Telegram user ID
-        :returns: User object with settings if found, None otherwise
+        :returns: User object with settings and subscription if found, None otherwise
         """
         try:
             user = self.user_repository.get_user(telegram_id)
@@ -177,6 +209,11 @@ class UserService:
                 logger.warning(f"Settings not found for user {telegram_id}")
                 return None
 
+            subscription = self.subscription_repository.get_subscription(telegram_id)
+            if not subscription:
+                logger.warning(f"Subscription not found for user {telegram_id}")
+                return None
+
             new_user = User(
                 telegram_id=user.telegram_id,
                 username=user.username,
@@ -185,6 +222,7 @@ class UserService:
                 created_at=user.created_at,
             )
             new_user.settings = settings
+            new_user.subscription = subscription
             return new_user
 
         except Exception as e:

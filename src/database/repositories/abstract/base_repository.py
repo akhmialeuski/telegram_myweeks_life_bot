@@ -38,7 +38,6 @@ class AbstractBaseRepository(ABC):
         :returns: None
         :raises Exception: If database initialization fails
         """
-        pass
 
     @abstractmethod
     def close(self) -> None:
@@ -46,7 +45,6 @@ class AbstractBaseRepository(ABC):
 
         :returns: None
         """
-        pass
 
     @abstractmethod
     @contextmanager
@@ -67,7 +65,6 @@ class AbstractBaseRepository(ABC):
         :yields: Database session
         :raises RuntimeError: If repository is not initialized
         """
-        pass
 
     @abstractmethod
     def _detach_instance(self, session: Session, instance: Any) -> None:
@@ -77,4 +74,3 @@ class AbstractBaseRepository(ABC):
         :param instance: SQLAlchemy model instance to detach
         :returns: None
         """
-        pass
