@@ -4,8 +4,6 @@ Tests message retrieval, language detection, and fallback behavior
 for the multilingual support system.
 """
 
-from unittest.mock import Mock
-
 import pytest
 
 from src.utils.localization import (

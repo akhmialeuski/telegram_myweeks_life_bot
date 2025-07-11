@@ -4,9 +4,7 @@ Tests all functionality of the UserSubscription model using pytest
 with proper edge case coverage.
 """
 
-from datetime import UTC, date, datetime, timedelta
-
-import pytest
+from datetime import UTC, datetime, timedelta
 
 from src.database.models import (
     DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,

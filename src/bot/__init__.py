@@ -20,6 +20,7 @@ from .handlers import (
     command_cancel,
     command_help,
     command_start,
+    command_subscription_callback,
     command_visualize,
     command_weeks,
 )

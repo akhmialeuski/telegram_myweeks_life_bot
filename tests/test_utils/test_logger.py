@@ -6,7 +6,7 @@ for the application logging system.
 
 import logging
 from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -96,7 +96,7 @@ class TestLogger:
 
         :returns: None
         """
-        logger = get_logger("test_handler_logger")
+        get_logger("test_handler_logger")
         root_logger = logging.getLogger()
 
         # Root logger should have handlers
@@ -114,7 +114,7 @@ class TestLogger:
         """
         logger = get_logger("test_console_logger")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout"):
             logger.info("Test console message")
 
             # Should have been called (though we can't easily test exact content)

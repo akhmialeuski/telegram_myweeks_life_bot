@@ -4,13 +4,12 @@ Tests all methods of the LifeCalculatorEngine class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import Mock, patch
 
 import pytest
 
 from src.core.life_calculator import LifeCalculatorEngine
-from src.database.models import SubscriptionType, User, UserSettings
 
 
 class TestLifeCalculatorEngine:

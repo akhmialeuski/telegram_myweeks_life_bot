@@ -75,10 +75,11 @@ class TestMessageGeneration:
         return user
 
     @pytest.fixture
-    def sample_user_profile(self, sample_user_settings):
+    def sample_user_profile(self, sample_user_settings, sample_user_subscription):
         """Create a sample user profile for testing.
 
         :param sample_user_settings: Sample user settings fixture
+        :param sample_user_subscription: Sample user subscription fixture
         :returns: Sample User object
         :rtype: User
         """
@@ -89,8 +90,9 @@ class TestMessageGeneration:
             last_name="User",
             created_at=datetime.now(UTC),
         )
-        # Add settings to avoid SQLAlchemy issues
+        # Add settings and subscription to avoid SQLAlchemy issues
         user.settings = sample_user_settings
+        user.subscription = sample_user_subscription
         return user
 
     @pytest.fixture
@@ -112,6 +114,23 @@ class TestMessageGeneration:
         )
 
     @pytest.fixture
+    def sample_user_subscription(self):
+        """Create a sample user subscription for testing.
+
+        :returns: Sample UserSubscription object
+        :rtype: UserSubscription
+        """
+        from src.database.models import SubscriptionType, UserSubscription
+
+        return UserSubscription(
+            telegram_id=123456789,
+            subscription_type=SubscriptionType.BASIC,
+            is_active=True,
+            created_at=datetime.now(UTC),
+            expires_at=None,
+        )
+
+    @pytest.fixture
     def mock_life_stats(self):
         """Create mock life statistics for testing.
 
@@ -126,6 +145,7 @@ class TestMessageGeneration:
             "days_until_birthday": 45,
         }
 
+    @patch("src.core.messages.generate_message_week_addition_basic")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -134,6 +154,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
+        mock_addition_basic,
         mock_telegram_user,
         sample_user_profile,
         mock_life_stats,
@@ -156,6 +177,7 @@ class TestMessageGeneration:
         mock_get_message.return_value = (
             "Your life statistics: 33 years old, 1720 weeks lived"
         )
+        mock_addition_basic.return_value = ""
 
         # Execute
         result = generate_message_week(mock_telegram_user)
@@ -194,6 +216,7 @@ class TestMessageGeneration:
         ):
             generate_message_week(mock_telegram_user)
 
+    @patch("src.core.messages.generate_message_week_addition_basic")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -202,6 +225,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
+        mock_addition_basic,
         mock_telegram_user_ru,
         sample_user_profile,
         mock_life_stats,
@@ -224,6 +248,7 @@ class TestMessageGeneration:
         mock_get_message.return_value = (
             "Ваша статистика жизни: 33 года, 1720 недель прожито"
         )
+        mock_addition_basic.return_value = ""
 
         # Execute
         result = generate_message_week(mock_telegram_user_ru)
@@ -562,6 +587,7 @@ class TestMessageGeneration:
             "birth_date_validation", "format_error", "en"
         )
 
+    @patch("src.core.messages.generate_message_week_addition_basic")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -570,6 +596,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
+        mock_addition_basic,
         mock_telegram_user,
         sample_user_profile,
     ):

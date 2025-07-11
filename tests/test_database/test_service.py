@@ -256,7 +256,7 @@ class TestUserService:
         mock_settings_repository.close.assert_called_once()
         mock_subscription_repository.close.assert_called_once()
 
-    def test_create_user_with_settings_success(
+    def test_create_user_profile_success(
         self,
         user_service,
         mock_user_repository,
@@ -299,7 +299,7 @@ class TestUserService:
         mock_user_info.first_name = "Test"
         mock_user_info.last_name = "User"
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -311,7 +311,7 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_called_once()
 
-    def test_create_user_with_settings_user_exists(self, user_service, sample_user):
+    def test_create_user_profile_user_exists(self, user_service, sample_user):
         """Test user creation when user already exists.
 
         :param user_service: UserService instance
@@ -327,7 +327,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -335,7 +335,7 @@ class TestUserService:
 
         assert result == sample_user
 
-    def test_create_user_with_settings_user_creation_fails(
+    def test_create_user_profile_user_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -360,7 +360,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -371,7 +371,7 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_not_called()
         mock_subscription_repository.create_subscription.assert_not_called()
 
-    def test_create_user_with_settings_settings_creation_fails(
+    def test_create_user_profile_settings_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -398,7 +398,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -410,7 +410,7 @@ class TestUserService:
         mock_subscription_repository.create_subscription.assert_not_called()
         mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_create_user_with_settings_subscription_creation_fails(
+    def test_create_user_profile_subscription_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -439,7 +439,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -453,7 +453,7 @@ class TestUserService:
         mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
         mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_create_user_with_settings_exception(self, user_service):
+    def test_create_user_profile_exception(self, user_service):
         """Test user creation with exception.
 
         :param user_service: UserService instance
@@ -468,7 +468,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_with_settings(
+        result = user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,

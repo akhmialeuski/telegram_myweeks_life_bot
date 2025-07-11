@@ -8,9 +8,10 @@ and formatting of messages according to user's language preferences.
 
 from telegram import User as TelegramUser
 
+from ..database.models import SubscriptionType
 from ..database.service import user_service
 from ..utils.config import DEFAULT_LANGUAGE
-from ..utils.localization import get_message
+from ..utils.localization import get_message, get_subscription_description
 from .life_calculator import LifeCalculatorEngine
 
 
@@ -21,11 +22,12 @@ def generate_message_week(user_info: TelegramUser) -> str:
     calculates life statistics using the LifeCalculatorEngine,
     and formats a localized message showing the user's age,
     weeks lived, remaining weeks, life percentage, and days
-    until next birthday.
+    until next birthday. Additionally, it includes subscription-specific
+    content based on the user's subscription type.
 
     :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
-    :returns: Localized message with life statistics
+    :returns: Localized message with life statistics and subscription content
     :rtype: str
     :raises ValueError: If user profile is not found or has no birth date
     :raises KeyError: If required statistics are missing from calculator output
@@ -49,8 +51,8 @@ def generate_message_week(user_info: TelegramUser) -> str:
     life_percentage = f"{stats['life_percentage']:.1%}"
     days_until_birthday = stats["days_until_birthday"]
 
-    # Generate localized message with statistics
-    return get_message(
+    # Generate base localized message with statistics
+    base_message = get_message(
         "command_weeks",
         "statistics",
         user_lang,
@@ -60,6 +62,25 @@ def generate_message_week(user_info: TelegramUser) -> str:
         life_percentage=life_percentage,
         days_until_birthday=days_until_birthday,
     )
+
+    # Add subscription-specific content based on user's subscription type
+    if user_profile.subscription:
+        subscription_type = user_profile.subscription.subscription_type
+
+        if (
+            subscription_type.value == SubscriptionType.PREMIUM
+            or subscription_type.value == SubscriptionType.TRIAL
+        ):
+            additional_content = generate_message_week_addition_premium(user_info)
+        else:
+            # Fallback to basic if unknown subscription type
+            additional_content = generate_message_week_addition_basic(user_info)
+
+        return base_message + additional_content
+    else:
+        # Fallback to basic content if no subscription found
+        additional_content = generate_message_week_addition_basic(user_info)
+        return base_message + additional_content
 
 
 def generate_message_visualize(user_info: TelegramUser) -> str:
@@ -314,3 +335,171 @@ def generate_message_birth_date_format_error(user_info: TelegramUser) -> str:
 
     # Generate localized error message
     return get_message("birth_date_validation", "format_error", user_lang)
+
+
+def generate_message_subscription_current(user_info: TelegramUser) -> str:
+    """Generate current subscription message for the user.
+
+    This function creates a localized message showing the user's current
+    subscription type with description and options to change it.
+
+    :param user_info: Telegram user object containing user ID and language
+    :type user_info: TelegramUser
+    :returns: Localized subscription management message
+    :rtype: str
+    :raises ValueError: If user profile is not found or has no subscription
+    """
+    # Extract user ID and language preference
+    user_id = user_info.id
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+
+    # Get user profile from database
+    user_profile = user_service.get_user_profile(user_id)
+    if not user_profile or not user_profile.subscription:
+        raise ValueError(
+            f"User profile or subscription not found for telegram_id: {user_id}"
+        )
+
+    current_subscription = user_profile.subscription.subscription_type
+    subscription_type_title = current_subscription.value.title()
+
+    # Get subscription description
+    subscription_description = get_subscription_description(
+        current_subscription.value, user_lang
+    )
+
+    # Generate localized message
+    return get_message(
+        "command_subscription",
+        "current_subscription",
+        user_lang,
+        subscription_type=subscription_type_title,
+        subscription_description=subscription_description,
+    )
+
+
+def generate_message_subscription_invalid_type(user_info: TelegramUser) -> str:
+    """Generate invalid subscription type error message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized invalid subscription type message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("command_subscription", "invalid_subscription_type", user_lang)
+
+
+def generate_message_subscription_profile_error(user_info: TelegramUser) -> str:
+    """Generate subscription profile error message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized profile error message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("command_subscription", "profile_error", user_lang)
+
+
+def generate_message_subscription_already_active(
+    user_info: TelegramUser, subscription_type: str
+) -> str:
+    """Generate already active subscription message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :param subscription_type: Current subscription type
+    :type subscription_type: str
+    :returns: Localized already active message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message(
+        "command_subscription",
+        "already_active",
+        user_lang,
+        subscription_type=subscription_type.title(),
+    )
+
+
+def generate_message_subscription_change_success(
+    user_info: TelegramUser, subscription_type: str
+) -> str:
+    """Generate subscription change success message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :param subscription_type: New subscription type
+    :type subscription_type: str
+    :returns: Localized success message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+
+    # Get subscription description
+    subscription_description = get_subscription_description(
+        subscription_type, user_lang
+    )
+
+    return get_message(
+        "command_subscription",
+        "change_success",
+        user_lang,
+        subscription_type=subscription_type.title(),
+        subscription_description=subscription_description,
+    )
+
+
+def generate_message_subscription_change_failed(user_info: TelegramUser) -> str:
+    """Generate subscription change failed message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized change failed message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("command_subscription", "change_failed", user_lang)
+
+
+def generate_message_subscription_change_error(user_info: TelegramUser) -> str:
+    """Generate subscription change error message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized change error message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("command_subscription", "change_error", user_lang)
+
+
+def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
+    """Generate additional basic subscription message for weekly statistics.
+
+    This function creates a localized message with information about basic subscription,
+    including links to support the project and donation options.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized basic subscription addition message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("subscription_additions", "basic_addition", user_lang)
+
+
+def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
+    """Generate additional premium subscription message for weekly statistics.
+
+    This function creates a localized message with premium content including
+    psychology of time, interesting facts, and daily tips for premium subscribers.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized premium subscription addition message
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("subscription_additions", "premium_addition", user_lang)

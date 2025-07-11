@@ -6,9 +6,6 @@ with proper edge case coverage.
 
 from datetime import UTC, date, datetime
 
-import pytest
-from sqlalchemy.exc import IntegrityError
-
 from src.database.models import UserSettings, WeekDay
 
 

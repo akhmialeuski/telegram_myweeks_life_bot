@@ -18,7 +18,7 @@ from datetime import date, datetime
 from functools import wraps
 from typing import Any, Callable
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from ..core.messages import (
@@ -32,6 +32,13 @@ from ..core.messages import (
     generate_message_registration_success,
     generate_message_start_welcome_existing,
     generate_message_start_welcome_new,
+    generate_message_subscription_already_active,
+    generate_message_subscription_change_error,
+    generate_message_subscription_change_failed,
+    generate_message_subscription_change_success,
+    generate_message_subscription_current,
+    generate_message_subscription_invalid_type,
+    generate_message_subscription_profile_error,
     generate_message_visualize,
     generate_message_week,
 )
@@ -216,11 +223,7 @@ async def command_start_handle_birth_date(
 
         # Attempt to create user profile in the database
         try:
-            user_service.create_user_with_settings(
-                user_info=user,
-                birth_date=birth_date,
-                subscription_type=SubscriptionType.BASIC,
-            )
+            user_service.create_user_profile(user_info=user, birth_date=birth_date)
 
             # Send success message with calculated statistics
             await update.message.reply_text(
@@ -423,6 +426,143 @@ async def command_visualize(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         caption=generate_message_visualize(user_info=user),
         parse_mode="HTML",
     )
+
+
+@require_registration()
+async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /settings command - show user settings.
+
+    This command allows users to view and manage their profile settings.
+    It provides a list of available settings and allows users to change them.
+    """
+    # Extract user information
+    pass
+
+
+@require_registration()
+async def command_subscription(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle /subscription command - show user subscription.
+
+    This command allows users to view and manage their subscription.
+    It provides a list of available subscriptions and allows users to change them.
+    """
+    user = update.effective_user
+
+    try:
+        # Get user profile with current subscription
+        user_profile = user_service.get_user_profile(user.id)
+        if not user_profile or not user_profile.subscription:
+            await update.message.reply_text(
+                get_message("common", "error", user.language_code or DEFAULT_LANGUAGE)
+            )
+            return
+
+        current_subscription = user_profile.subscription.subscription_type
+
+        # Create subscription selection keyboard
+        keyboard = []
+        for subscription_type in SubscriptionType:
+            # Add checkmark for current subscription
+            text = f"{'✅ ' if subscription_type == current_subscription else ''}{subscription_type.value.title()}"
+            callback_data = f"subscription_{subscription_type.value}"
+            keyboard.append([InlineKeyboardButton(text, callback_data=callback_data)])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Generate message using messages module
+        message_text = generate_message_subscription_current(user_info=user)
+
+        await update.message.reply_text(
+            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
+        )
+
+    except Exception as error:
+        logger.error(f"Error in subscription command: {error}")
+        await update.message.reply_text(
+            get_message("common", "error", user.language_code or DEFAULT_LANGUAGE)
+        )
+
+
+async def command_subscription_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle subscription selection callback from inline keyboard.
+
+    This function processes the user's subscription selection and updates
+    the database accordingly. It provides feedback about the change.
+    """
+    query = update.callback_query
+    user = update.effective_user
+
+    try:
+        # Answer the callback query to remove loading state
+        await query.answer()
+
+        # Extract subscription type from callback data
+        callback_data = query.data
+        if not callback_data.startswith("subscription_"):
+            return
+
+        subscription_value = callback_data.replace("subscription_", "")
+
+        # Validate subscription type
+        try:
+            new_subscription_type = SubscriptionType(subscription_value)
+        except ValueError:
+            await query.edit_message_text(
+                text=generate_message_subscription_invalid_type(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        # Get current user profile
+        user_profile = user_service.get_user_profile(user.id)
+        if not user_profile or not user_profile.subscription:
+            await query.edit_message_text(
+                text=generate_message_subscription_profile_error(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        current_subscription = user_profile.subscription.subscription_type
+
+        # Check if subscription actually changed
+        if current_subscription == new_subscription_type:
+            await query.edit_message_text(
+                text=generate_message_subscription_already_active(
+                    user_info=user, subscription_type=new_subscription_type.value
+                ),
+                parse_mode="HTML",
+            )
+            return
+
+        # Update subscription in database
+        success = user_service.update_user_subscription(user.id, new_subscription_type)
+
+        if success:
+            success_message = generate_message_subscription_change_success(
+                user_info=user, subscription_type=new_subscription_type.value
+            )
+
+            await query.edit_message_text(text=success_message, parse_mode="HTML")
+
+            logger.info(
+                f"User {user.id} changed subscription from {current_subscription} to {new_subscription_type}"
+            )
+        else:
+            await query.edit_message_text(
+                text=generate_message_subscription_change_failed(user_info=user),
+                parse_mode="HTML",
+            )
+
+    except Exception as error:
+        logger.error(f"Error in subscription callback handler: {error}")
+        await query.edit_message_text(
+            text=generate_message_subscription_change_error(user_info=user),
+            parse_mode="HTML",
+        )
 
 
 async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -14,6 +14,7 @@ from typing import Callable, Dict, Optional
 
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ConversationHandler,
     MessageHandler,
@@ -26,8 +27,11 @@ from .handlers import (
     WAITING_USER_INPUT,
     command_cancel,
     command_help,
+    command_settings,
     command_start,
     command_start_handle_birth_date,
+    command_subscription,
+    command_subscription_callback,
     command_visualize,
     command_weeks,
 )
@@ -40,6 +44,8 @@ COMMAND_HANDLERS: Dict[str, Callable] = {
     "visualize": command_visualize,
     "help": command_help,
     "cancel": command_cancel,
+    "settings": command_settings,
+    "subscription": command_subscription,
 }
 
 
@@ -56,6 +62,8 @@ class LifeWeeksBot:
         - /start - User registration and setup
         - /weeks - Show current life weeks
         - /visualize - Generate week visualization
+        - /settings - Show user settings
+        - /subscription - Show user subscription
         - /help - Show help information
 
     :ivar _app: The telegram.ext.Application instance
@@ -84,6 +92,9 @@ class LifeWeeksBot:
         :returns: None
         :raises RuntimeError: If application creation fails
         """
+        if self._app is not None:
+            return  # Already set up
+
         logger.info("Setting up bot application")
         self._app = Application.builder().token(TOKEN).build()
 
@@ -108,6 +119,14 @@ class LifeWeeksBot:
         for command, handler in COMMAND_HANDLERS.items():
             self._app.add_handler(CommandHandler(command, handler))
             logger.debug(f"Registered command handler: /{command}")
+
+        # Register callback query handlers
+        self._app.add_handler(
+            CallbackQueryHandler(
+                command_subscription_callback, pattern="^subscription_"
+            )
+        )
+        logger.debug("Registered callback query handler for subscription")
 
         logger.info(
             f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"

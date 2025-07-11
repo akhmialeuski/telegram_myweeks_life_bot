@@ -118,11 +118,11 @@ class UserService:
         self.settings_repository.close()
         self.subscription_repository.close()
 
-    def create_user_with_settings(
+    def create_user_profile(
         self,
         user_info,
         birth_date: date,
-        subscription_type: SubscriptionType,
+        subscription_type: SubscriptionType = SubscriptionType.BASIC,
     ) -> Optional[User]:
         """Create new user with default settings.
 
@@ -253,6 +253,37 @@ class UserService:
             return settings is not None and settings.birth_date is not None
         except Exception as e:
             logger.error(f"Error checking user profile validity for {telegram_id}: {e}")
+            return False
+
+    def update_user_subscription(
+        self, telegram_id: int, subscription_type: SubscriptionType
+    ) -> bool:
+        """Update user subscription type.
+
+        :param telegram_id: Telegram user ID
+        :param subscription_type: New subscription type
+        :returns: True if successful, False otherwise
+        """
+        try:
+            subscription = self.subscription_repository.get_subscription(telegram_id)
+            if not subscription:
+                logger.warning(f"Subscription not found for user {telegram_id}")
+                return False
+
+            # Update subscription type
+            subscription.subscription_type = subscription_type
+
+            success = self.subscription_repository.update_subscription(subscription)
+            if success:
+                logger.info(
+                    f"Updated subscription for user {telegram_id} to {subscription_type}"
+                )
+            else:
+                logger.warning(f"Failed to update subscription for user {telegram_id}")
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating subscription for {telegram_id}: {e}")
             return False
 
     def delete_user(self, telegram_id: int) -> bool:
