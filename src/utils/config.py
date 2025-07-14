@@ -37,3 +37,19 @@ COLORS = {
 WEEKLY_NOTIFICATION_DAY = "mon"
 WEEKLY_NOTIFICATION_HOUR = 9
 WEEKLY_NOTIFICATION_MINUTE = 0
+
+
+# Donation URL (BuyMeACoffee)
+def _get_buymeacoffee_url() -> str:
+    """
+    Get BuyMeACoffee URL from environment or use default if not set or empty.
+
+    :returns: BuyMeACoffee URL string
+    """
+    url = os.getenv("BUYMEACOFFEE_URL", "https://www.buymeacoffee.com/yourname")
+    if not url or not url.strip():
+        return "https://www.buymeacoffee.com/yourname"
+    return url
+
+
+BUYMEACOFFEE_URL: str = _get_buymeacoffee_url()

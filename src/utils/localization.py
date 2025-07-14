@@ -425,25 +425,25 @@ ALL_MESSAGES: Dict[str, Dict[str, Dict[str, str]]] = {
             "Вы используете базовую версию бота с основным функционалом.\n\n"
             "🔗 <b>Поддержите проект:</b>\n"
             "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-            "• Донат: https://www.buymeacoffee.com/yourname\n\n"
+            "• Донат: {buymeacoffee_url}\n\n"
             "Ваша поддержка помогает развивать бот! 🙏",
             "en": "\n\n💡 <b>Basic Subscription</b>\n\n"
             "You are using the basic version of the bot with core functionality.\n\n"
             "🔗 <b>Support the project:</b>\n"
             "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-            "• Donate: https://www.buymeacoffee.com/yourname\n\n"
+            "• Donate: {buymeacoffee_url}\n\n"
             "Your support helps develop the bot! 🙏",
             "ua": "\n\n💡 <b>Базова підписка</b>\n\n"
             "Ви використовуєте базову версію бота з основним функціоналом.\n\n"
             "🔗 <b>Підтримайте проект:</b>\n"
             "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-            "• Донат: https://www.buymeacoffee.com/yourname\n\n"
+            "• Донат: {buymeacoffee_url}\n\n"
             "Ваша підтримка допомагає розвивати бот! 🙏",
             "by": "\n\n💡 <b>Базавая падпіска</b>\n\n"
             "Вы выкарыстоўваеце базавую версію бота з асноўным функцыяналам.\n\n"
             "🔗 <b>Падтрымайте праект:</b>\n"
             "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-            "• Донат: https://www.buymeacoffee.com/yourname\n\n"
+            "• Донат: {buymeacoffee_url}\n\n"
             "Ваша падтрымка дапамагае развіваць бот! 🙏",
         },
         "premium_addition": {

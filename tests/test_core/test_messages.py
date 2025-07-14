@@ -145,7 +145,7 @@ class TestMessageGeneration:
             "days_until_birthday": 45,
         }
 
-    @patch("src.core.messages.generate_message_week_addition_basic")
+    @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -154,7 +154,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
-        mock_addition_basic,
+        mock_subscription_addition,
         mock_telegram_user,
         sample_user_profile,
         mock_life_stats,
@@ -177,7 +177,7 @@ class TestMessageGeneration:
         mock_get_message.return_value = (
             "Your life statistics: 33 years old, 1720 weeks lived"
         )
-        mock_addition_basic.return_value = ""
+        mock_subscription_addition.return_value = ""
 
         # Execute
         result = generate_message_week(mock_telegram_user)
@@ -216,7 +216,7 @@ class TestMessageGeneration:
         ):
             generate_message_week(mock_telegram_user)
 
-    @patch("src.core.messages.generate_message_week_addition_basic")
+    @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -225,7 +225,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
-        mock_addition_basic,
+        mock_subscription_addition,
         mock_telegram_user_ru,
         sample_user_profile,
         mock_life_stats,
@@ -248,7 +248,7 @@ class TestMessageGeneration:
         mock_get_message.return_value = (
             "Ваша статистика жизни: 33 года, 1720 недель прожито"
         )
-        mock_addition_basic.return_value = ""
+        mock_subscription_addition.return_value = ""
 
         # Execute
         result = generate_message_week(mock_telegram_user_ru)
@@ -587,7 +587,7 @@ class TestMessageGeneration:
             "birth_date_validation", "format_error", "en"
         )
 
-    @patch("src.core.messages.generate_message_week_addition_basic")
+    @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
     @patch("src.core.messages.user_service")
@@ -596,7 +596,7 @@ class TestMessageGeneration:
         mock_user_service,
         mock_calculator,
         mock_get_message,
-        mock_addition_basic,
+        mock_subscription_addition,
         mock_telegram_user,
         sample_user_profile,
     ):
@@ -872,27 +872,36 @@ class TestMessageGeneration:
             "command_subscription", "change_error", "en"
         )
 
-    @patch("src.core.messages.get_message")
+    @patch(
+        "src.core.subscription_messages.BUYMEACOFFEE_URL",
+        "https://test.buymeacoffee.com/testuser",
+    )
+    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic(
         self, mock_get_message, mock_telegram_user
     ):
         """Test generate_message_week_addition_basic returns correct message."""
         mock_get_message.return_value = "Basic addition"
-        from src.core.messages import generate_message_week_addition_basic
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
         result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Basic addition"
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "basic_addition", "en"
+            "subscription_additions",
+            "basic_addition",
+            "en",
+            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
         )
 
-    @patch("src.core.messages.get_message")
+    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_premium(
         self, mock_get_message, mock_telegram_user
     ):
         """Test generate_message_week_addition_premium returns correct message."""
         mock_get_message.return_value = "Premium addition"
-        from src.core.messages import generate_message_week_addition_premium
+        from src.core.subscription_messages import (
+            generate_message_week_addition_premium,
+        )
 
         result = generate_message_week_addition_premium(mock_telegram_user)
         assert result == "Premium addition"
