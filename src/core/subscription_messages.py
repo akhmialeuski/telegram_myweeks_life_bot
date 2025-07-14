@@ -7,7 +7,7 @@ user's subscription type.
 
 from telegram import User as TelegramUser
 
-from ..utils.config import DEFAULT_LANGUAGE, BUYMEACOFFEE_URL
+from ..utils.config import BUYMEACOFFEE_URL, DEFAULT_LANGUAGE
 from ..utils.localization import get_message
 
 

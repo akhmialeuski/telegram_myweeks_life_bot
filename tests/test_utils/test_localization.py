@@ -1,13 +1,12 @@
 """Tests for localization functionality."""
 
 import pytest
-from unittest.mock import patch
 
 from src.utils.localization import (
     get_message,
+    get_subscription_description,
     get_supported_languages,
     is_language_supported,
-    get_subscription_description,
 )
 
 
@@ -127,7 +126,6 @@ class TestLocalization:
 
     def test_get_message_case_sensitivity(self):
         """Test that message keys are case sensitive."""
-        result1 = get_message("common", "error", "ru")
         # Should raise KeyError for incorrect case
         with pytest.raises(KeyError, match="Message not found: Common.Error"):
             get_message("Common", "Error", "ru")
@@ -296,9 +294,9 @@ class TestLocalization:
         """Test that all required functions are imported correctly."""
         from src.utils.localization import (
             get_message,
+            get_subscription_description,
             get_supported_languages,
             is_language_supported,
-            get_subscription_description,
         )
 
         assert callable(get_message)

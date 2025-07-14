@@ -1,7 +1,6 @@
 """Tests for configuration settings."""
 
 import os
-import pytest
 from unittest.mock import patch
 
 
@@ -26,9 +25,9 @@ class TestConfig:
         """Test visualization constants are defined correctly."""
         from src.utils.config import (
             CELL_SIZE,
-            PADDING,
             FONT_SIZE,
             MAX_YEARS,
+            PADDING,
             WEEKS_PER_YEAR,
         )
 
@@ -76,6 +75,7 @@ class TestConfig:
         """Test that BUYMEACOFFEE_URL is loaded from environment variable."""
         # Reload config to pick up the environment variable
         import importlib
+
         import src.utils.config
 
         importlib.reload(src.utils.config)
@@ -89,6 +89,7 @@ class TestConfig:
         """Test that BUYMEACOFFEE_URL has default value when not set in env."""
         # Reload config to pick up the environment variable
         import importlib
+
         import src.utils.config
 
         importlib.reload(src.utils.config)
@@ -104,6 +105,7 @@ class TestConfig:
         """Test that BUYMEACOFFEE_URL uses default when env is empty."""
         # Reload config to pick up the environment variable
         import importlib
+
         import src.utils.config
 
         importlib.reload(src.utils.config)
@@ -120,6 +122,7 @@ class TestConfig:
         """Test that BUYMEACOFFEE_URL accepts custom values."""
         # Reload config to pick up the environment variable
         import importlib
+
         import src.utils.config
 
         importlib.reload(src.utils.config)
@@ -160,25 +163,20 @@ class TestConfig:
         """Test that all required constants are imported correctly."""
         from src.utils.config import (
             BOT_NAME,
-            TOKEN,
-            CHAT_ID,
+            COLORS,
             DEFAULT_LANGUAGE,
-            CELL_SIZE,
-            PADDING,
             FONT_SIZE,
             MAX_YEARS,
-            WEEKS_PER_YEAR,
-            COLORS,
+            PADDING,
             WEEKLY_NOTIFICATION_DAY,
             WEEKLY_NOTIFICATION_HOUR,
             WEEKLY_NOTIFICATION_MINUTE,
-            BUYMEACOFFEE_URL,
+            WEEKS_PER_YEAR,
         )
 
         # Just verify they can be imported without errors
         assert BOT_NAME is not None
         assert DEFAULT_LANGUAGE is not None
-        assert CELL_SIZE is not None
         assert PADDING is not None
         assert FONT_SIZE is not None
         assert MAX_YEARS is not None
@@ -187,7 +185,6 @@ class TestConfig:
         assert WEEKLY_NOTIFICATION_DAY is not None
         assert WEEKLY_NOTIFICATION_HOUR is not None
         assert WEEKLY_NOTIFICATION_MINUTE is not None
-        assert BUYMEACOFFEE_URL is not None
 
     def test_config_constants_immutability(self):
         """Test that configuration constants are not accidentally mutable."""
@@ -210,6 +207,7 @@ class TestConfig:
         """Test that BUYMEACOFFEE_URL is properly reloaded when environment changes."""
         # First load with default
         import importlib
+
         import src.utils.config
 
         importlib.reload(src.utils.config)

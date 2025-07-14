@@ -1,7 +1,8 @@
 """Tests for subscription message generation module."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from src.core.subscription_messages import (
     generate_message_week_addition_basic,
