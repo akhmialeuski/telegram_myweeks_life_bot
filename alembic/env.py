@@ -9,12 +9,12 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-# Add the src directory to the Python path FIRST
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.orm import DeclarativeBase
+
+# Add the src directory to the Python path FIRST
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Define database constants locally to avoid import issues
 DEFAULT_DATABASE_PATH = "lifeweeks.db"

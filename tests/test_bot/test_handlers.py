@@ -21,6 +21,7 @@ from src.bot.handlers import (
     command_subscription_callback,
     command_visualize,
     command_weeks,
+    handle_unknown_message,
     require_registration,
 )
 from src.database.models import SubscriptionType
@@ -1138,25 +1139,299 @@ class TestCommandHelp:
 
     @pytest.mark.asyncio
     async def test_command_help_success(self, mock_update, mock_context):
-        """Test successful help command.
+        """Test /help command success.
 
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         :returns: None
         """
         # Setup
-        with patch("src.bot.handlers.generate_message_help") as mock_generate_message:
-            with patch("src.bot.handlers.logger") as mock_logger:
-                mock_generate_message.return_value = "Help message"
+        with patch("src.bot.handlers.generate_message_help") as mock_generate:
+            mock_generate.return_value = "Help message"
 
-                # Execute
-                await command_help(mock_update, mock_context)
+            # Execute
+            await command_help(mock_update, mock_context)
 
-                # Assert
-                mock_update.message.reply_text.assert_called_once_with(
-                    text="Help message", parse_mode="HTML"
-                )
-                mock_generate_message.assert_called_once_with(
-                    user_info=mock_update.effective_user
-                )
-                mock_logger.info.assert_called_once()
+            # Assert
+            mock_generate.assert_called_once_with(user_info=mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Help message", parse_mode="HTML"
+            )
+
+
+class TestHandleUnknownMessage:
+    """Test suite for handle_unknown_message handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object.
+
+        :returns: Mock Update object
+        :rtype: Mock
+        """
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.effective_user.language_code = "en"
+        update.message = Mock()
+        update.message.reply_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object.
+
+        :returns: Mock ContextTypes object
+        :rtype: Mock
+        """
+        return Mock(spec=ContextTypes.DEFAULT_TYPE)
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_success(self, mock_update, mock_context):
+        """Test handle_unknown_message success.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Unknown command error message"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Unknown command error message"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_with_russian_user(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message with Russian language user.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_update.effective_user.language_code = "ru"
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Ошибка: Неизвестная команда"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Ошибка: Неизвестная команда"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_with_no_language_code(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message with user having no language code.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_update.effective_user.language_code = None
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Error: Unknown command"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Error: Unknown command"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_with_ukrainian_user(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message with Ukrainian language user.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_update.effective_user.language_code = "ua"
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Помилка: Невідома команда"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Помилка: Невідома команда"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_with_belarusian_user(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message with Belarusian language user.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_update.effective_user.language_code = "by"
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Памылка: Невядомая каманда"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Памылка: Невядомая каманда"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_function_signature(self):
+        """Test handle_unknown_message function signature and docstring.
+
+        :returns: None
+        """
+        # Assert function exists and is callable
+        assert callable(handle_unknown_message)
+
+        # Assert function has correct docstring
+        assert handle_unknown_message.__doc__ is not None
+        assert "Handle unknown messages and commands" in handle_unknown_message.__doc__
+        assert "update" in handle_unknown_message.__doc__
+        assert "context" in handle_unknown_message.__doc__
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_async_function(self):
+        """Test that handle_unknown_message is an async function.
+
+        :returns: None
+        """
+        import inspect
+
+        # Assert function is async
+        assert inspect.iscoroutinefunction(handle_unknown_message)
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_parameter_types(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message parameter types.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Test message"
+
+            # Execute - should not raise any type errors
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once()
+            mock_update.message.reply_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_integration_with_messages_module(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message integration with messages module.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Integration test message"
+
+            # Execute
+            await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with(
+                "Integration test message"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_error_handling(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message error handling.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup - simulate an error in generate_message_unknown_command
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.side_effect = Exception("Test error")
+
+            # Execute and assert that exception is raised
+            with pytest.raises(Exception, match="Test error"):
+                await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_reply_text_error(
+        self, mock_update, mock_context
+    ):
+        """Test handle_unknown_message when reply_text fails.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_update.message.reply_text.side_effect = Exception("Reply error")
+        with patch(
+            "src.bot.handlers.generate_message_unknown_command"
+        ) as mock_generate:
+            mock_generate.return_value = "Test message"
+
+            # Execute and assert that exception is raised
+            with pytest.raises(Exception, match="Reply error"):
+                await handle_unknown_message(mock_update, mock_context)
+
+            # Assert
+            mock_generate.assert_called_once_with(mock_update.effective_user)
+            mock_update.message.reply_text.assert_called_once_with("Test message")

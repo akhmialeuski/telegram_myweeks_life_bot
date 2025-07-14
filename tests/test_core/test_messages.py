@@ -715,3 +715,199 @@ class TestMessageGeneration:
         # Assert
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
         mock_get_message.assert_called_once_with("command_help", "help_text", "ru")
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_subscription_description")
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_current_success(
+        self,
+        mock_get_message,
+        mock_get_subscription_description,
+        mock_user_service,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        """Test generate_message_subscription_current returns correct message."""
+        # Setup
+        from src.database.models import SubscriptionType
+
+        sample_user_profile.subscription.subscription_type = SubscriptionType.BASIC
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_get_subscription_description.return_value = (
+            "Basic subscription description"
+        )
+        mock_get_message.return_value = "Subscription info"
+
+        # Execute
+        from src.core.messages import generate_message_subscription_current
+
+        result = generate_message_subscription_current(mock_telegram_user)
+
+        # Assert
+        assert result == "Subscription info"
+        mock_get_message.assert_called_once_with(
+            "command_subscription",
+            "current_subscription",
+            "en",
+            subscription_type="Basic",
+            subscription_description="Basic subscription description",
+        )
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_subscription_current_no_profile(
+        self, mock_user_service, mock_telegram_user
+    ):
+        """Test generate_message_subscription_current raises ValueError if no profile."""
+        mock_user_service.get_user_profile.return_value = None
+        from src.core.messages import generate_message_subscription_current
+
+        with pytest.raises(ValueError):
+            generate_message_subscription_current(mock_telegram_user)
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_subscription_current_no_subscription(
+        self, mock_user_service, mock_telegram_user, sample_user_profile
+    ):
+        """Test generate_message_subscription_current raises ValueError if no subscription."""
+        sample_user_profile.subscription = None
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        from src.core.messages import generate_message_subscription_current
+
+        with pytest.raises(ValueError):
+            generate_message_subscription_current(mock_telegram_user)
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_invalid_type(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_subscription_invalid_type returns correct message."""
+        mock_get_message.return_value = "Invalid subscription type"
+        from src.core.messages import generate_message_subscription_invalid_type
+
+        result = generate_message_subscription_invalid_type(mock_telegram_user)
+        assert result == "Invalid subscription type"
+        mock_get_message.assert_called_once_with(
+            "command_subscription", "invalid_subscription_type", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_profile_error(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_subscription_profile_error returns correct message."""
+        mock_get_message.return_value = "Profile error"
+        from src.core.messages import generate_message_subscription_profile_error
+
+        result = generate_message_subscription_profile_error(mock_telegram_user)
+        assert result == "Profile error"
+        mock_get_message.assert_called_once_with(
+            "command_subscription", "profile_error", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_already_active(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_subscription_already_active returns correct message."""
+        mock_get_message.return_value = "Already active"
+        from src.core.messages import generate_message_subscription_already_active
+
+        result = generate_message_subscription_already_active(
+            mock_telegram_user, "premium"
+        )
+        assert result == "Already active"
+        mock_get_message.assert_called_once_with(
+            "command_subscription", "already_active", "en", subscription_type="Premium"
+        )
+
+    @patch("src.core.messages.get_subscription_description")
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_change_success(
+        self, mock_get_message, mock_get_subscription_description, mock_telegram_user
+    ):
+        """Test generate_message_subscription_change_success returns correct message."""
+        mock_get_subscription_description.return_value = (
+            "Premium subscription description"
+        )
+        mock_get_message.return_value = "Change success"
+        from src.core.messages import generate_message_subscription_change_success
+
+        result = generate_message_subscription_change_success(
+            mock_telegram_user, "premium"
+        )
+        assert result == "Change success"
+        mock_get_message.assert_called_once_with(
+            "command_subscription",
+            "change_success",
+            "en",
+            subscription_type="Premium",
+            subscription_description="Premium subscription description",
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_change_failed(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_subscription_change_failed returns correct message."""
+        mock_get_message.return_value = "Change failed"
+        from src.core.messages import generate_message_subscription_change_failed
+
+        result = generate_message_subscription_change_failed(mock_telegram_user)
+        assert result == "Change failed"
+        mock_get_message.assert_called_once_with(
+            "command_subscription", "change_failed", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_subscription_change_error(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_subscription_change_error returns correct message."""
+        mock_get_message.return_value = "Change error"
+        from src.core.messages import generate_message_subscription_change_error
+
+        result = generate_message_subscription_change_error(mock_telegram_user)
+        assert result == "Change error"
+        mock_get_message.assert_called_once_with(
+            "command_subscription", "change_error", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_week_addition_basic(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_week_addition_basic returns correct message."""
+        mock_get_message.return_value = "Basic addition"
+        from src.core.messages import generate_message_week_addition_basic
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+        assert result == "Basic addition"
+        mock_get_message.assert_called_once_with(
+            "subscription_additions", "basic_addition", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_week_addition_premium(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_week_addition_premium returns correct message."""
+        mock_get_message.return_value = "Premium addition"
+        from src.core.messages import generate_message_week_addition_premium
+
+        result = generate_message_week_addition_premium(mock_telegram_user)
+        assert result == "Premium addition"
+        mock_get_message.assert_called_once_with(
+            "subscription_additions", "premium_addition", "en"
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_unknown_command(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_message_unknown_command returns correct message."""
+        mock_get_message.return_value = "Unknown command"
+        from src.core.messages import generate_message_unknown_command
+
+        result = generate_message_unknown_command(mock_telegram_user)
+        assert result == "Unknown command"
+        mock_get_message.assert_called_once_with("common", "unknown_command", "en")

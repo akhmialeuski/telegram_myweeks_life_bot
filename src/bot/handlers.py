@@ -39,6 +39,7 @@ from ..core.messages import (
     generate_message_subscription_current,
     generate_message_subscription_invalid_type,
     generate_message_subscription_profile_error,
+    generate_message_unknown_command,
     generate_message_visualize,
     generate_message_week,
 )
@@ -596,3 +597,22 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         text=generate_message_help(user_info=user),
         parse_mode="HTML",
     )
+
+
+async def handle_unknown_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """
+    Handle unknown messages and commands.
+
+    This function is called when user sends any message that is not a recognized command.
+    It sends an error message and suggests using /help command.
+
+    :param update: The update object containing the message
+    :type update: telegram.Update
+    :param context: The context object
+    :type context: telegram.ext.CallbackContext
+    :returns: None
+    """
+    user = update.effective_user  # type: telegram.User
+    await update.message.reply_text(generate_message_unknown_command(user))

@@ -12,6 +12,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ConversationHandler,
+    MessageHandler,
 )
 
 from src.bot.application import COMMAND_HANDLERS, LifeWeeksBot
@@ -212,14 +213,16 @@ class TestLifeWeeksBot:
         bot.setup()
 
         # Assert
-        # Should register conversation handler + command handlers + callback handler
-        expected_handlers = 1 + len(COMMAND_HANDLERS) + 1  # conv + commands + callback
+        # Should register conversation handler + command handlers + callback handler + unknown message handler
+        expected_handlers = (
+            1 + len(COMMAND_HANDLERS) + 1 + 1
+        )  # conv + commands + callback + unknown
         assert mock_app.add_handler.call_count == expected_handlers
 
         # Check that all command handlers are registered
         command_calls = mock_app.add_handler.call_args_list[
-            1:-1
-        ]  # Skip conv handler and callback handler
+            1:-2
+        ]  # Skip conv handler, callback handler, and unknown message handler
         registered_commands = set()
 
         for call in command_calls:
@@ -253,9 +256,9 @@ class TestLifeWeeksBot:
         bot.setup()
 
         # Assert
-        # Last handler should be callback query handler
-        last_call = mock_app.add_handler.call_args_list[-1]
-        handler = last_call[0][0]
+        # Second to last handler should be callback query handler (last is unknown message handler)
+        callback_call = mock_app.add_handler.call_args_list[-2]
+        handler = callback_call[0][0]
         assert isinstance(handler, CallbackQueryHandler)
         assert handler.callback == command_subscription_callback
         assert handler.pattern.pattern == "^subscription_"
@@ -298,6 +301,9 @@ class TestLifeWeeksBot:
 
         # Check callback handler debug message
         assert "Registered callback query handler for subscription" in debug_calls
+
+        # Check unknown message handler debug message
+        assert "Registered handler for unknown messages" in debug_calls
 
     @patch("src.bot.application.Application")
     @patch("src.bot.application.logger")
@@ -519,15 +525,15 @@ class TestLifeWeeksBot:
         # Assert
         calls = mock_app.add_handler.call_args_list
 
+        # Last should be unknown message handler
+        assert isinstance(calls[-1][0][0], MessageHandler)
+        # Second to last should be callback query handler
+        assert isinstance(calls[-2][0][0], CallbackQueryHandler)
         # First should be conversation handler
         assert isinstance(calls[0][0][0], ConversationHandler)
-
         # Middle should be command handlers
         for i in range(1, len(COMMAND_HANDLERS) + 1):
             assert isinstance(calls[i][0][0], CommandHandler)
-
-        # Last should be callback query handler
-        assert isinstance(calls[-1][0][0], CallbackQueryHandler)
 
     @patch("src.bot.application.Application")
     def test_setup_all_handlers_registered(self, mock_application_class, bot):
@@ -552,6 +558,7 @@ class TestLifeWeeksBot:
             1  # ConversationHandler for /start
             + len(COMMAND_HANDLERS)  # Command handlers
             + 1  # CallbackQueryHandler for subscription
+            + 1  # MessageHandler for unknown messages
         )
 
         assert mock_app.add_handler.call_count == total_expected_handlers

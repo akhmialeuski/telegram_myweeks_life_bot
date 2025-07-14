@@ -503,3 +503,17 @@ def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
     """
     user_lang = user_info.language_code or DEFAULT_LANGUAGE
     return get_message("subscription_additions", "premium_addition", user_lang)
+
+
+def generate_message_unknown_command(user_info: TelegramUser) -> str:
+    """Generate message for unknown command or message.
+
+    This function creates a localized error message when the user sends an unknown command or message.
+
+    :param user_info: Telegram user object containing language preference
+    :type user_info: TelegramUser
+    :returns: Localized error message for unknown command
+    :rtype: str
+    """
+    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    return get_message("common", "unknown_command", user_lang)

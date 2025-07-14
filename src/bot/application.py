@@ -34,6 +34,7 @@ from .handlers import (
     command_subscription_callback,
     command_visualize,
     command_weeks,
+    handle_unknown_message,
 )
 
 logger = get_logger(BOT_NAME)
@@ -127,6 +128,10 @@ class LifeWeeksBot:
             )
         )
         logger.debug("Registered callback query handler for subscription")
+
+        # Register handler for unknown messages and commands (must be last)
+        self._app.add_handler(MessageHandler(filters.ALL, handle_unknown_message))
+        logger.debug("Registered handler for unknown messages")
 
         logger.info(
             f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"
