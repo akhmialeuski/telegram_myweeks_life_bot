@@ -213,16 +213,16 @@ class TestLifeWeeksBot:
         bot.setup()
 
         # Assert
-        # Should register conversation handler + command handlers + callback handler + unknown message handler
+        # Should register conversation handler + command handlers + callback handlers + settings text handler + unknown message handler
         expected_handlers = (
-            1 + len(COMMAND_HANDLERS) + 1 + 1
-        )  # conv + commands + callback + unknown
+            1 + len(COMMAND_HANDLERS) + 3 + 1 + 1
+        )  # conv + commands + 3 callback handlers + settings text + unknown
         assert mock_app.add_handler.call_count == expected_handlers
 
         # Check that all command handlers are registered
         command_calls = mock_app.add_handler.call_args_list[
-            1:-2
-        ]  # Skip conv handler, callback handler, and unknown message handler
+            1:-5
+        ]  # Skip conv handler, callback handlers, settings text handler, and unknown message handler
         registered_commands = set()
 
         for call in command_calls:
@@ -256,12 +256,21 @@ class TestLifeWeeksBot:
         bot.setup()
 
         # Assert
-        # Second to last handler should be callback query handler (last is unknown message handler)
-        callback_call = mock_app.add_handler.call_args_list[-2]
-        handler = callback_call[0][0]
-        assert isinstance(handler, CallbackQueryHandler)
-        assert handler.callback == command_subscription_callback
-        assert handler.pattern.pattern == "^subscription_"
+        # Check that subscription callback handler is registered
+        callback_calls = mock_app.add_handler.call_args_list
+        subscription_handler_found = False
+
+        for call in callback_calls:
+            handler = call[0][0]
+            if (
+                isinstance(handler, CallbackQueryHandler)
+                and handler.callback == command_subscription_callback
+            ):
+                assert handler.pattern.pattern == "^subscription_"
+                subscription_handler_found = True
+                break
+
+        assert subscription_handler_found, "Subscription callback handler not found"
 
     @patch("src.bot.application.Application")
     @patch("src.bot.application.logger")
@@ -527,13 +536,19 @@ class TestLifeWeeksBot:
 
         # Last should be unknown message handler
         assert isinstance(calls[-1][0][0], MessageHandler)
-        # Second to last should be callback query handler
-        assert isinstance(calls[-2][0][0], CallbackQueryHandler)
+        # Second to last should be settings text handler
+        assert isinstance(calls[-2][0][0], MessageHandler)
         # First should be conversation handler
         assert isinstance(calls[0][0][0], ConversationHandler)
         # Middle should be command handlers
         for i in range(1, len(COMMAND_HANDLERS) + 1):
             assert isinstance(calls[i][0][0], CommandHandler)
+
+        # Check that callback handlers are registered
+        callback_handlers = [
+            call for call in calls if isinstance(call[0][0], CallbackQueryHandler)
+        ]
+        assert len(callback_handlers) >= 3  # subscription, settings, language
 
     @patch("src.bot.application.Application")
     def test_setup_all_handlers_registered(self, mock_application_class, bot):
@@ -557,7 +572,8 @@ class TestLifeWeeksBot:
         total_expected_handlers = (
             1  # ConversationHandler for /start
             + len(COMMAND_HANDLERS)  # Command handlers
-            + 1  # CallbackQueryHandler for subscription
+            + 3  # CallbackQueryHandler for subscription, settings, language
+            + 1  # MessageHandler for settings text input
             + 1  # MessageHandler for unknown messages
         )
 

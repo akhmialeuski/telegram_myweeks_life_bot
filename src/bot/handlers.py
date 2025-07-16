@@ -25,11 +25,21 @@ from ..core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
     generate_message_birth_date_old_error,
+    generate_message_birth_date_updated,
     generate_message_cancel_error,
     generate_message_cancel_success,
+    generate_message_change_birth_date,
+    generate_message_change_language,
+    generate_message_change_life_expectancy,
     generate_message_help,
+    generate_message_invalid_life_expectancy,
+    generate_message_language_updated,
+    generate_message_life_expectancy_updated,
     generate_message_registration_error,
     generate_message_registration_success,
+    generate_message_settings_basic,
+    generate_message_settings_error,
+    generate_message_settings_premium,
     generate_message_start_welcome_existing,
     generate_message_start_welcome_new,
     generate_message_subscription_already_active,
@@ -42,6 +52,8 @@ from ..core.messages import (
     generate_message_unknown_command,
     generate_message_visualize,
     generate_message_week,
+    generate_settings_buttons,
+    get_user_language,
 )
 from ..database.models import SubscriptionType
 from ..database.service import (
@@ -51,8 +63,13 @@ from ..database.service import (
     UserServiceError,
     user_service,
 )
-from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
-from ..utils.localization import get_message
+from ..utils.config import (
+    BOT_NAME,
+    MAX_LIFE_EXPECTANCY,
+    MIN_BIRTH_YEAR,
+    MIN_LIFE_EXPECTANCY,
+)
+from ..utils.localization import LANGUAGES, get_localized_language_name, get_message
 from ..utils.logger import get_logger
 from ..visualization.grid import generate_visualization
 
@@ -93,13 +110,19 @@ def require_registration():
             # Extract user information from the update
             user = update.effective_user
             user_id = user.id
-            user_lang = user.language_code or DEFAULT_LANGUAGE
 
             try:
                 # Validate that user has completed registration with birth date
                 if not user_service.is_valid_user_profile(user_id):
+                    # Get user's language preference
+                    user_lang = get_user_language(user)
+
                     await update.message.reply_text(
-                        get_message("common", "not_registered", user_lang)
+                        get_message(
+                            message_key="common",
+                            sub_key="not_registered",
+                            language=user_lang,
+                        )
                     )
                     return
 
@@ -109,9 +132,17 @@ def require_registration():
             except Exception as error:  # pylint: disable=broad-exception-caught
                 # Log the error for debugging and monitoring
                 logger.error(f"Error in {func.__name__} command: {error}")
+
+                # Get user's language preference
+                user_lang = get_user_language(user)
+
                 # Send user-friendly error message
                 await update.message.reply_text(
-                    get_message("common", "error", user_lang)
+                    get_message(
+                        message_key="common",
+                        sub_key="error",
+                        language=user_lang,
+                    )
                 )
 
         return wrapper
@@ -215,7 +246,7 @@ async def command_start_handle_birth_date(
             return WAITING_USER_INPUT
 
         # Validate that birth date is not unreasonably old
-        if birth_date.year < 1900:
+        if birth_date.year < MIN_BIRTH_YEAR:
             await update.message.reply_text(
                 text=generate_message_birth_date_old_error(user_info=user),
                 parse_mode="HTML",
@@ -437,7 +468,62 @@ async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     It provides a list of available settings and allows users to change them.
     """
     # Extract user information
-    pass
+    user = update.effective_user
+    logger.info(f"Handling /settings command from user {user.id}")
+
+    try:
+        # Get user profile with current subscription
+        user_profile = user_service.get_user_profile(user.id)
+
+        # Get user's language preference
+        language = get_user_language(user, user_profile)
+
+        if not user_profile or not user_profile.subscription:
+            await update.message.reply_text(
+                get_message(
+                    message_key="common",
+                    sub_key="error",
+                    language=language,
+                )
+            )
+            return
+
+        current_subscription = user_profile.subscription.subscription_type
+
+        # Generate appropriate settings message based on subscription type
+        if current_subscription in [SubscriptionType.PREMIUM, SubscriptionType.TRIAL]:
+            message_text = generate_message_settings_premium(user_info=user)
+        else:
+            message_text = generate_message_settings_basic(user_info=user)
+
+        # Create settings selection keyboard with localized buttons
+        button_configs = generate_settings_buttons(user_info=user)
+        keyboard = []
+        for button_config in button_configs:
+            for button in button_config:
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            button["text"], callback_data=button["callback_data"]
+                        )
+                    ]
+                )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
+        )
+
+    except Exception as error:
+        logger.error(f"Error in settings command: {error}")
+        await update.message.reply_text(
+            get_message(
+                message_key="common",
+                sub_key="error",
+                language=language,
+            )
+        )
 
 
 @require_registration()
@@ -450,13 +536,22 @@ async def command_subscription(
     It provides a list of available subscriptions and allows users to change them.
     """
     user = update.effective_user
+    language = None
 
     try:
         # Get user profile with current subscription
         user_profile = user_service.get_user_profile(user.id)
+
+        # Get user's language preference
+        language = get_user_language(user, user_profile)
+
         if not user_profile or not user_profile.subscription:
             await update.message.reply_text(
-                get_message("common", "error", user.language_code or DEFAULT_LANGUAGE)
+                get_message(
+                    message_key="common",
+                    sub_key="error",
+                    language=language,
+                )
             )
             return
 
@@ -481,8 +576,14 @@ async def command_subscription(
 
     except Exception as error:
         logger.error(f"Error in subscription command: {error}")
+        # Use default language if language is not set
+        fallback_language = language or get_user_language(user, None)
         await update.message.reply_text(
-            get_message("common", "error", user.language_code or DEFAULT_LANGUAGE)
+            get_message(
+                message_key="common",
+                sub_key="error",
+                language=fallback_language,
+            )
         )
 
 
@@ -566,6 +667,136 @@ async def command_subscription_callback(
         )
 
 
+async def command_settings_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle settings selection callback from inline keyboard.
+
+    This function processes the user's settings selection and shows
+    appropriate interface for changing the selected setting.
+    """
+    query = update.callback_query
+    user = update.effective_user
+
+    try:
+        # Answer the callback query to remove loading state
+        await query.answer()
+
+        # Extract setting type from callback data
+        callback_data = query.data
+        if not callback_data.startswith("settings_"):
+            return
+
+        setting_type = callback_data.replace("settings_", "")
+
+        if setting_type == "birth_date":
+            # Show birth date change interface
+            message_text = generate_message_change_birth_date(user_info=user)
+            await query.edit_message_text(
+                text=message_text,
+                parse_mode="HTML",
+            )
+            # Store state in context for handling user input
+            context.user_data["waiting_for"] = "birth_date"
+
+        elif setting_type == "language":
+            # Show language selection keyboard
+            message_text = generate_message_change_language(user_info=user)
+            keyboard = [
+                [InlineKeyboardButton("🇷🇺 Русский", callback_data="language_ru")],
+                [InlineKeyboardButton("🇺🇸 English", callback_data="language_en")],
+                [InlineKeyboardButton("🇺🇦 Українська", callback_data="language_ua")],
+                [InlineKeyboardButton("🇧🇾 Беларуская", callback_data="language_by")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                text=message_text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+
+        elif setting_type == "life_expectancy":
+            # Show life expectancy change interface
+            message_text = generate_message_change_life_expectancy(user_info=user)
+            await query.edit_message_text(
+                text=message_text,
+                parse_mode="HTML",
+            )
+            # Store state in context for handling user input
+            context.user_data["waiting_for"] = "life_expectancy"
+
+    except Exception as error:
+        logger.error(f"Error in settings callback handler: {error}")
+        await query.edit_message_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
+
+
+async def command_language_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle language selection callback from inline keyboard.
+
+    This function processes the user's language selection and updates
+    the user's language preference.
+    """
+    query = update.callback_query
+    user = update.effective_user
+
+    try:
+        # Answer the callback query to remove loading state
+        await query.answer()
+
+        # Extract language from callback data
+        callback_data = query.data
+        if not callback_data.startswith("language_"):
+            return
+
+        language_code = callback_data.replace("language_", "")
+
+        # Validate language code
+        if language_code not in LANGUAGES:
+            await query.edit_message_text(
+                text=generate_message_settings_error(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        # Get language name for display
+        language_name = get_localized_language_name(language_code, language_code)
+
+        # Update user's language preference in database
+        success = user_service.update_user_settings(
+            telegram_id=user.id, language=language_code
+        )
+
+        if success:
+            # Show success message
+            success_message = generate_message_language_updated(
+                user_info=user, new_language=language_name
+            )
+        else:
+            await query.edit_message_text(
+                text=generate_message_settings_error(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+        await query.edit_message_text(
+            text=success_message,
+            parse_mode="HTML",
+        )
+
+        logger.info(f"User {user.id} changed language to {language_code}")
+
+    except Exception as error:
+        logger.error(f"Error in language callback handler: {error}")
+        await query.edit_message_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
+
+
 async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command - show bot usage information.
 
@@ -597,6 +828,171 @@ async def command_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         text=generate_message_help(user_info=user),
         parse_mode="HTML",
     )
+
+
+async def handle_settings_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle text input for settings changes.
+
+    This function processes text input when user is changing settings
+    like birth date or life expectancy.
+    """
+    user = update.effective_user
+    message_text = update.message.text
+
+    try:
+        # Check what we're waiting for
+        waiting_for = context.user_data.get("waiting_for")
+
+        if waiting_for == "birth_date":
+            await handle_birth_date_input(update, context, message_text)
+        elif waiting_for == "life_expectancy":
+            await handle_life_expectancy_input(update, context, message_text)
+        else:
+            # Not waiting for settings input, let unknown message handler deal with it
+            await handle_unknown_message(update, context)
+
+    except Exception as error:
+        logger.error(f"Error in settings input handler: {error}")
+
+        await update.message.reply_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
+
+
+async def handle_birth_date_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str
+) -> None:
+    """Handle birth date input for settings change.
+
+    :param update: The update object
+    :param context: The context object
+    :param message_text: User's input text
+    """
+    user = update.effective_user
+
+    try:
+        # Parse birth date from user input (DD.MM.YYYY format)
+        birth_date = datetime.strptime(message_text, "%d.%m.%Y").date()
+
+        # Validate that birth date is not in the future
+        if birth_date > date.today():
+            await update.message.reply_text(
+                text=generate_message_birth_date_future_error(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        # Validate that birth date is not unreasonably old
+        if birth_date.year < MIN_BIRTH_YEAR:
+            await update.message.reply_text(
+                text=generate_message_birth_date_old_error(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        # Update birth date in database
+        success = user_service.update_user_settings(
+            telegram_id=user.id, birth_date=birth_date
+        )
+
+        if success:
+            # Calculate new age
+            from ..core.life_calculator import LifeCalculatorEngine
+
+            user_profile = user_service.get_user_profile(user.id)
+            if user_profile:
+                calculator = LifeCalculatorEngine(user=user_profile)
+                new_age = calculator.calculate_age()
+            else:
+                new_age = 0
+
+            # Send success message
+            success_message = generate_message_birth_date_updated(
+                user_info=user, new_birth_date=birth_date, new_age=new_age
+            )
+            await update.message.reply_text(
+                text=success_message,
+                parse_mode="HTML",
+            )
+
+            # Clear waiting state
+            context.user_data.pop("waiting_for", None)
+
+            logger.info(f"User {user.id} updated birth date to {birth_date}")
+        else:
+            await update.message.reply_text(
+                text=generate_message_settings_error(user_info=user),
+                parse_mode="HTML",
+            )
+
+    except ValueError:
+        # Invalid date format
+        await update.message.reply_text(
+            text=generate_message_birth_date_format_error(user_info=user),
+            parse_mode="HTML",
+        )
+
+
+async def handle_life_expectancy_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str
+) -> None:
+    """Handle life expectancy input for settings change.
+
+    :param update: The update object
+    :param context: The context object
+    :param message_text: User's input text
+    """
+    user = update.effective_user
+
+    try:
+        # Parse life expectancy from user input
+        life_expectancy = int(message_text)
+
+        # Validate life expectancy range
+        if (
+            life_expectancy < MIN_LIFE_EXPECTANCY
+            or life_expectancy > MAX_LIFE_EXPECTANCY
+        ):
+            await update.message.reply_text(
+                text=generate_message_invalid_life_expectancy(user_info=user),
+                parse_mode="HTML",
+            )
+            return
+
+        # Update life expectancy in database
+        success = user_service.update_user_settings(
+            telegram_id=user.id, life_expectancy=life_expectancy
+        )
+
+        if success:
+            # Send success message
+            success_message = generate_message_life_expectancy_updated(
+                user_info=user, new_life_expectancy=life_expectancy
+            )
+            await update.message.reply_text(
+                text=success_message,
+                parse_mode="HTML",
+            )
+
+            # Clear waiting state
+            context.user_data.pop("waiting_for", None)
+
+            logger.info(f"User {user.id} updated life expectancy to {life_expectancy}")
+        else:
+            await update.message.reply_text(
+                text=generate_message_settings_error(user_info=user),
+                parse_mode="HTML",
+            )
+
+    except ValueError:
+        # Invalid number format
+        await update.message.reply_text(
+            text=generate_message_invalid_life_expectancy(user_info=user),
+            parse_mode="HTML",
+        )
 
 
 async def handle_unknown_message(

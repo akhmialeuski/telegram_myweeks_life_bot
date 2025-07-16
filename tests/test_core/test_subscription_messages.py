@@ -1,7 +1,5 @@
 """Tests for subscription message generation module."""
 
-from unittest.mock import patch
-
 import pytest
 
 from src.core.subscription_messages import (
@@ -51,191 +49,286 @@ class TestSubscriptionMessages:
         user.language_code = None
         return user
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic_success(
-        self, mock_get_message, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test basic subscription message generation with BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Basic subscription message with donation link"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Basic subscription message with donation link"
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic_russian(
-        self, mock_get_message, mock_telegram_user_ru
+        self, mocker, mock_telegram_user_ru
     ):
         """Test basic subscription message generation with Russian language and BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            10  # Less than 20% probability, so message should be shown
+        )
+
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Сообщение базовой подписки с ссылкой на донат"
 
         result = generate_message_week_addition_basic(mock_telegram_user_ru)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "ru",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="ru",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Сообщение базовой подписки с ссылкой на донат"
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic_no_language(
-        self, mock_get_message, mock_telegram_user_no_lang
+        self, mocker, mock_telegram_user_no_lang
     ):
         """Test basic subscription message generation with no language code and BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            5  # Less than 20% probability, so message should be shown
+        )
+
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Default language message with donation link"
 
         result = generate_message_week_addition_basic(mock_telegram_user_no_lang)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "ru",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="ru",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Default language message with donation link"
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://custom.buymeacoffee.com/customuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic_custom_url(
-        self, mock_get_message, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test basic subscription message generation with custom BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Custom URL message"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url="https://custom.buymeacoffee.com/customuser",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Custom URL message"
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://www.buymeacoffee.com/yourname",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic_default_url(
-        self, mock_get_message, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test basic subscription message generation with default BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            10  # Less than 20% probability, so message should be shown
+        )
+
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Default URL message"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url="https://www.buymeacoffee.com/yourname",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Default URL message"
 
-    @patch("src.core.subscription_messages.get_message")
+    def test_generate_message_week_addition_basic_probability_high(
+        self, mocker, mock_telegram_user
+    ):
+        """Test basic subscription message generation when probability check fails."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            85  # Higher than 20% probability, so message should not be shown
+        )
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+
+        assert result == ""
+        mock_randint.assert_called_once_with(1, 100)
+
+    def test_generate_message_week_addition_basic_probability_exact(
+        self, mocker, mock_telegram_user
+    ):
+        """Test basic subscription message generation with exact probability threshold."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            20  # Exactly 20% probability, сообщение показывается
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
+        mock_get_message.return_value = "Test message"
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+
+        assert result == "Test message"
+        mock_randint.assert_called_once_with(1, 100)
+
+    def test_generate_message_week_addition_basic_probability_low(
+        self, mocker, mock_telegram_user
+    ):
+        """Test basic subscription message generation when probability check passes."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            19  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
+        mock_get_message.return_value = "Test message"
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+
+        assert result == "Test message"
+        mock_randint.assert_called_once_with(1, 100)
+
+    def test_generate_message_week_addition_basic_custom_probability(
+        self, mocker, mock_telegram_user
+    ):
+        """Test basic subscription message generation with custom probability setting."""
+        mocker.patch(
+            "src.core.subscription_messages.SUBSCRIPTION_MESSAGE_PROBABILITY", 50
+        )
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            30  # Less than 50% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
+        mock_get_message.return_value = "Custom probability message"
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+
+        assert result == "Custom probability message"
+        mock_randint.assert_called_once_with(1, 100)
+
+    def test_generate_message_week_addition_basic_custom_probability_fail(
+        self, mocker, mock_telegram_user
+    ):
+        """Test basic subscription message generation with custom probability when check fails."""
+        mocker.patch(
+            "src.core.subscription_messages.SUBSCRIPTION_MESSAGE_PROBABILITY", 50
+        )
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            75  # Higher than 50% probability, so message should not be shown
+        )
+
+        result = generate_message_week_addition_basic(mock_telegram_user)
+
+        assert result == ""
+        mock_randint.assert_called_once_with(1, 100)
+
     def test_generate_message_week_addition_premium_success(
-        self, mock_get_message, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test premium subscription message generation."""
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Premium subscription message"
 
         result = generate_message_week_addition_premium(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "premium_addition", "en"
+            message_key="subscription_additions",
+            sub_key="premium_addition",
+            language="en",
         )
         assert result == "Premium subscription message"
 
-    @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_premium_russian(
-        self, mock_get_message, mock_telegram_user_ru
+        self, mocker, mock_telegram_user_ru
     ):
         """Test premium subscription message generation with Russian language."""
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Сообщение премиум подписки"
 
         result = generate_message_week_addition_premium(mock_telegram_user_ru)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "premium_addition", "ru"
+            message_key="subscription_additions",
+            sub_key="premium_addition",
+            language="ru",
         )
         assert result == "Сообщение премиум подписки"
 
-    @patch("src.core.subscription_messages.generate_message_week_addition_premium")
     def test_get_subscription_addition_message_premium(
-        self, mock_premium, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test subscription addition message for premium subscription."""
+        mock_premium = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_premium"
+        )
         mock_premium.return_value = "Premium content"
 
         result = get_subscription_addition_message(
             mock_telegram_user, SubscriptionType.PREMIUM.value
         )
 
-        mock_premium.assert_called_once_with(mock_telegram_user)
+        mock_premium.assert_called_once_with(user_info=mock_telegram_user)
         assert result == "Premium content"
 
-    @patch("src.core.subscription_messages.generate_message_week_addition_premium")
-    def test_get_subscription_addition_message_trial(
-        self, mock_premium, mock_telegram_user
-    ):
+    def test_get_subscription_addition_message_trial(self, mocker, mock_telegram_user):
         """Test subscription addition message for trial subscription."""
+        mock_premium = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_premium"
+        )
         mock_premium.return_value = "Trial content"
 
         result = get_subscription_addition_message(
             mock_telegram_user, SubscriptionType.TRIAL.value
         )
 
-        mock_premium.assert_called_once_with(mock_telegram_user)
+        mock_premium.assert_called_once_with(user_info=mock_telegram_user)
         assert result == "Trial content"
 
-    @patch("src.core.subscription_messages.generate_message_week_addition_basic")
-    def test_get_subscription_addition_message_basic(
-        self, mock_basic, mock_telegram_user
-    ):
+    def test_get_subscription_addition_message_basic(self, mocker, mock_telegram_user):
         """Test subscription addition message for basic subscription."""
+        mock_basic = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_basic"
+        )
         mock_basic.return_value = "Basic content"
 
         result = get_subscription_addition_message(
             mock_telegram_user, SubscriptionType.BASIC.value
         )
 
-        mock_basic.assert_called_once_with(mock_telegram_user)
+        mock_basic.assert_called_once_with(user_info=mock_telegram_user)
         assert result == "Basic content"
 
-    @patch("src.core.subscription_messages.generate_message_week_addition_basic")
     def test_get_subscription_addition_message_unknown_type(
-        self, mock_basic, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test subscription addition message for unknown subscription type."""
+        mock_basic = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_basic"
+        )
         mock_basic.return_value = "Fallback content"
 
         result = get_subscription_addition_message(mock_telegram_user, "unknown_type")
 
-        mock_basic.assert_called_once_with(mock_telegram_user)
+        mock_basic.assert_called_once_with(user_info=mock_telegram_user)
         assert result == "Fallback content"
 
     def test_generate_message_week_addition_basic_function_signature(self):
@@ -269,32 +362,28 @@ class TestSubscriptionMessages:
         assert params[0] == "user_info"
         assert params[1] == "subscription_type"
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
-    def test_integration_basic_message_generation(
-        self, mock_get_message, mock_telegram_user
-    ):
+    def test_integration_basic_message_generation(self, mocker, mock_telegram_user):
         """Test integration of basic message generation with BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Integrated basic message with donation"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         assert result == "Integrated basic message with donation"
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
 
-    @patch("src.core.subscription_messages.get_message")
-    def test_integration_premium_message_generation(
-        self, mock_get_message, mock_telegram_user
-    ):
+    def test_integration_premium_message_generation(self, mocker, mock_telegram_user):
         """Test integration of premium message generation."""
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Integrated premium message"
 
         result = generate_message_week_addition_premium(mock_telegram_user)
@@ -302,12 +391,16 @@ class TestSubscriptionMessages:
         assert result == "Integrated premium message"
         mock_get_message.assert_called_once()
 
-    @patch("src.core.subscription_messages.generate_message_week_addition_premium")
-    @patch("src.core.subscription_messages.generate_message_week_addition_basic")
     def test_integration_subscription_addition_message(
-        self, mock_basic, mock_premium, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test integration of subscription addition message selection."""
+        mock_premium = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_premium"
+        )
+        mock_basic = mocker.patch(
+            "src.core.subscription_messages.generate_message_week_addition_basic"
+        )
         mock_premium.return_value = "Premium integration"
         mock_basic.return_value = "Basic integration"
 
@@ -324,53 +417,61 @@ class TestSubscriptionMessages:
         assert result_basic == "Basic integration"
 
         # Verify calls
-        mock_premium.assert_called_once_with(mock_telegram_user)
-        mock_basic.assert_called_once_with(mock_telegram_user)
+        mock_premium.assert_called_once_with(user_info=mock_telegram_user)
+        mock_basic.assert_called_once_with(user_info=mock_telegram_user)
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_buymeacoffee_url_parameter_passed_correctly(
-        self, mock_get_message, mock_telegram_user
+        self, mocker, mock_telegram_user
     ):
         """Test that BuyMeACoffee URL is passed correctly to get_message."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Test message"
 
         generate_message_week_addition_basic(mock_telegram_user)
 
         # Verify that buymeacoffee_url parameter is passed
         call_args = mock_get_message.call_args
-        assert (
-            call_args[1]["buymeacoffee_url"] == "https://test.buymeacoffee.com/testuser"
-        )
+        assert call_args[1]["buymeacoffee_url"] == "https://coff.ee/akhmelevskiy"
 
-    @patch("src.core.subscription_messages.BUYMEACOFFEE_URL", "")
-    @patch("src.core.subscription_messages.get_message")
-    def test_empty_buymeacoffee_url_handling(
-        self, mock_get_message, mock_telegram_user
-    ):
+    def test_empty_buymeacoffee_url_handling(self, mocker, mock_telegram_user):
         """Test handling of empty BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Empty URL message"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=""
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Empty URL message"
 
-    @patch("src.core.subscription_messages.BUYMEACOFFEE_URL", None)
-    @patch("src.core.subscription_messages.get_message")
-    def test_none_buymeacoffee_url_handling(self, mock_get_message, mock_telegram_user):
+    def test_none_buymeacoffee_url_handling(self, mocker, mock_telegram_user):
         """Test handling of None BuyMeACoffee URL."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "None URL message"
 
         result = generate_message_week_addition_basic(mock_telegram_user)
 
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=None
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
+            buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "None URL message"
 
@@ -395,15 +496,15 @@ class TestSubscriptionMessages:
         # Check that it's a valid URL (either buymeacoffee.com or coff.ee)
         assert "buymeacoffee.com" in BUYMEACOFFEE_URL or "coff.ee" in BUYMEACOFFEE_URL
 
-    @patch(
-        "src.core.subscription_messages.BUYMEACOFFEE_URL",
-        "https://test.buymeacoffee.com/testuser",
-    )
-    @patch("src.core.subscription_messages.get_message")
     def test_multiple_language_support_with_buymeacoffee(
-        self, mock_get_message, mock_telegram_user, mock_telegram_user_ru
+        self, mocker, mock_telegram_user, mock_telegram_user_ru
     ):
         """Test that BuyMeACoffee URL works with multiple languages."""
+        mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
+        mock_randint.return_value = (
+            15  # Less than 20% probability, so message should be shown
+        )
+        mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Multi-language message"
 
         # Test English
@@ -417,6 +518,4 @@ class TestSubscriptionMessages:
         # Verify both calls included the URL
         assert mock_get_message.call_count == 2
         for call in mock_get_message.call_args_list:
-            assert (
-                call[1]["buymeacoffee_url"] == "https://test.buymeacoffee.com/testuser"
-            )
+            assert call[1]["buymeacoffee_url"] == "https://coff.ee/akhmelevskiy"

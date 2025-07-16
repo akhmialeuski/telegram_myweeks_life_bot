@@ -106,6 +106,7 @@ class UserSettings(Base):
     :param notifications_day: Day of the week for notifications (enum WeekDay)
     :param life_expectancy: Expected life expectancy in years
     :param timezone: User's timezone (e.g., "Europe/Warsaw")
+    :param language: User's language preference (e.g., "ru", "en", "ua", "by")
     :param notifications: Whether notifications are enabled
     :param notifications_time: Time of day for notifications
     :param updated_at: Last update timestamp
@@ -136,6 +137,9 @@ class UserSettings(Base):
     timezone: Mapped[Optional[str]] = mapped_column(
         String(MAX_TIMEZONE_LENGTH), nullable=True
     )
+
+    # Language preference
+    language: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )

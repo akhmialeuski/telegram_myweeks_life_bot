@@ -222,3 +222,105 @@ class TestConfig:
 
         assert src.utils.config.__doc__ is not None
         assert len(src.utils.config.__doc__) > 0
+
+    def test_subscription_message_probability_default(self):
+        """Test that DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY is set correctly."""
+        from src.utils.config import DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY == 20
+        assert isinstance(DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY, int)
+
+    def test_subscription_message_probability_constant(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is defined correctly."""
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert isinstance(SUBSCRIPTION_MESSAGE_PROBABILITY, int)
+        assert 0 <= SUBSCRIPTION_MESSAGE_PROBABILITY <= 100
+
+    @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "30"})
+    def test_subscription_message_probability_from_env(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is loaded from environment variable."""
+        # Reload config to pick up the environment variable
+        import importlib
+
+        import src.utils.config
+
+        importlib.reload(src.utils.config)
+
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY == 30
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_subscription_message_probability_default_value(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY has default value when not set in env."""
+        # Reload config to pick up the environment variable
+        import importlib
+
+        import src.utils.config
+
+        importlib.reload(src.utils.config)
+
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY == 20
+
+    @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "invalid"})
+    def test_subscription_message_probability_invalid_env(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY uses default when env is invalid."""
+        # Reload config to pick up the environment variable
+        import importlib
+
+        import src.utils.config
+
+        importlib.reload(src.utils.config)
+
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        # When env is invalid, it should use default
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY == 20
+
+    @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "0"})
+    def test_subscription_message_probability_zero(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts zero value."""
+        # Reload config to pick up the environment variable
+        import importlib
+
+        import src.utils.config
+
+        importlib.reload(src.utils.config)
+
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY == 0
+
+    @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "100"})
+    def test_subscription_message_probability_hundred(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts 100 value."""
+        # Reload config to pick up the environment variable
+        import importlib
+
+        import src.utils.config
+
+        importlib.reload(src.utils.config)
+
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY == 100
+
+    def test_subscription_message_probability_range(self):
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is within valid range."""
+        from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
+
+        assert 0 <= SUBSCRIPTION_MESSAGE_PROBABILITY <= 100
+
+    def test_config_module_imports_with_probability(self):
+        """Test that subscription message probability constants are imported correctly."""
+        from src.utils.config import (
+            DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY,
+            SUBSCRIPTION_MESSAGE_PROBABILITY,
+        )
+
+        # Just verify they can be imported without errors
+        assert DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY is not None
+        assert SUBSCRIPTION_MESSAGE_PROBABILITY is not None

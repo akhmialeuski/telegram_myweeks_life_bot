@@ -184,12 +184,14 @@ class TestMessageGeneration:
 
         # Assert
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
-        mock_user_service.get_user_profile.assert_called_once_with(123456789)
+        mock_user_service.get_user_profile.assert_called_once_with(
+            telegram_id=123456789
+        )
         mock_calculator.assert_called_once_with(user=sample_user_profile)
         mock_get_message.assert_called_once_with(
-            "command_weeks",
-            "statistics",
-            "en",
+            message_key="command_weeks",
+            sub_key="statistics",
+            language="en",
             age=33,
             weeks_lived=1720,
             remaining_weeks=2448,
@@ -256,9 +258,9 @@ class TestMessageGeneration:
         # Assert
         assert result == "Ваша статистика жизни: 33 года, 1720 недель прожито"
         mock_get_message.assert_called_once_with(
-            "command_weeks",
-            "statistics",
-            "ru",
+            message_key="command_weeks",
+            sub_key="statistics",
+            language="ru",
             age=33,
             weeks_lived=1720,
             remaining_weeks=2448,
@@ -293,19 +295,21 @@ class TestMessageGeneration:
         mock_calculator_instance = Mock()
         mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
         mock_calculator.return_value = mock_calculator_instance
-        mock_get_message.return_value = (
-            "Visualization caption: 33 years, 1720 weeks, 41.2%"
-        )
+        mock_get_message.return_value = "Visualization message"
 
         # Execute
         result = generate_message_visualize(mock_telegram_user)
 
         # Assert
-        assert result == "Visualization caption: 33 years, 1720 weeks, 41.2%"
+        assert result == "Visualization message"
+        mock_user_service.get_user_profile.assert_called_once_with(
+            telegram_id=123456789
+        )
+        mock_calculator.assert_called_once_with(user=sample_user_profile)
         mock_get_message.assert_called_once_with(
-            "command_visualize",
-            "caption",
-            "en",
+            message_key="command_visualize",
+            sub_key="visualization_info",
+            language="en",
             age=33,
             weeks_lived=1720,
             life_percentage="41.2%",
@@ -329,7 +333,11 @@ class TestMessageGeneration:
 
         # Assert
         assert result == "Available commands: /start, /weeks, /visualize, /help"
-        mock_get_message.assert_called_once_with("command_help", "help_text", "en")
+        mock_get_message.assert_called_once_with(
+            message_key="command_help",
+            sub_key="help_text",
+            language="en",
+        )
 
     @patch("src.core.messages.get_message")
     def test_generate_message_help_default_language(self, mock_get_message):
@@ -355,7 +363,11 @@ class TestMessageGeneration:
 
         # Assert
         assert result == "Available commands: /start, /weeks, /visualize, /help"
-        mock_get_message.assert_called_once_with("command_help", "help_text", "ru")
+        mock_get_message.assert_called_once_with(
+            message_key="command_help",
+            sub_key="help_text",
+            language="ru",
+        )
 
     @patch("src.core.messages.get_message")
     def test_generate_message_cancel_success(
@@ -368,14 +380,19 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_get_message.return_value = "Your data has been successfully deleted."
+        mock_get_message.return_value = "Cancel success message"
 
         # Execute
         result = generate_message_cancel_success(mock_telegram_user)
 
         # Assert
-        assert result == "Your data has been successfully deleted."
-        mock_get_message.assert_called_once_with("command_cancel", "user_deleted", "en")
+        assert result == "Cancel success message"
+        mock_get_message.assert_called_once_with(
+            message_key="command_cancel",
+            sub_key="success",
+            language="en",
+            first_name="Test",
+        )
 
     @patch("src.core.messages.get_message")
     def test_generate_message_cancel_error(self, mock_get_message, mock_telegram_user):
@@ -386,15 +403,18 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_get_message.return_value = "Failed to delete your data. Please try again."
+        mock_get_message.return_value = "Cancel error message"
 
         # Execute
         result = generate_message_cancel_error(mock_telegram_user)
 
         # Assert
-        assert result == "Failed to delete your data. Please try again."
+        assert result == "Cancel error message"
         mock_get_message.assert_called_once_with(
-            "command_cancel", "deletion_error", "en"
+            message_key="command_cancel",
+            sub_key="error",
+            language="en",
+            first_name="Test",
         )
 
     @patch("src.core.messages.get_message")
@@ -418,9 +438,9 @@ class TestMessageGeneration:
         # Assert
         assert result == "Welcome back, Test! You are already registered."
         mock_get_message.assert_called_once_with(
-            "command_start",
-            "welcome_existing",
-            "en",
+            message_key="command_start",
+            sub_key="welcome_existing",
+            language="en",
             first_name="Test",
         )
 
@@ -445,9 +465,9 @@ class TestMessageGeneration:
         # Assert
         assert result == "Welcome, Test! Please provide your birth date to get started."
         mock_get_message.assert_called_once_with(
-            "command_start",
-            "welcome_new",
-            "en",
+            message_key="command_start",
+            sub_key="welcome_new",
+            language="en",
             first_name="Test",
         )
 
@@ -478,25 +498,27 @@ class TestMessageGeneration:
         mock_calculator_instance = Mock()
         mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
         mock_calculator.return_value = mock_calculator_instance
-        mock_get_message.return_value = (
-            "Registration successful! Birth date: 1990-01-01, Age: 33, Weeks: 1720"
-        )
+        mock_get_message.return_value = "Registration success message"
 
         # Execute
         result = generate_message_registration_success(mock_telegram_user, "1990-01-01")
 
         # Assert
-        assert (
-            result
-            == "Registration successful! Birth date: 1990-01-01, Age: 33, Weeks: 1720"
+        assert result == "Registration success message"
+        mock_user_service.get_user_profile.assert_called_once_with(
+            telegram_id=123456789
         )
+        mock_calculator.assert_called_once_with(user=sample_user_profile)
         mock_get_message.assert_called_once_with(
-            "registration",
-            "success",
-            "en",
+            message_key="command_start",
+            sub_key="registration_success",
+            language="en",
+            first_name="Test",
             birth_date="1990-01-01",
             age=33,
             weeks_lived=1720,
+            remaining_weeks=2448,
+            life_percentage="41.2%",
         )
 
     @patch("src.core.messages.get_message")
@@ -517,7 +539,12 @@ class TestMessageGeneration:
 
         # Assert
         assert result == "Registration failed. Please try again."
-        mock_get_message.assert_called_once_with("registration", "database_error", "en")
+        mock_get_message.assert_called_once_with(
+            message_key="command_start",
+            sub_key="registration_error",
+            language="en",
+            first_name="Test",
+        )
 
     @patch("src.core.messages.get_message")
     def test_generate_message_birth_date_future_error(
@@ -530,15 +557,18 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_get_message.return_value = "Birth date cannot be in the future."
+        mock_get_message.return_value = "Birth date future error message"
 
         # Execute
         result = generate_message_birth_date_future_error(mock_telegram_user)
 
         # Assert
-        assert result == "Birth date cannot be in the future."
+        assert result == "Birth date future error message"
         mock_get_message.assert_called_once_with(
-            "birth_date_validation", "future_date_error", "en"
+            message_key="command_start",
+            sub_key="birth_date_future_error",
+            language="en",
+            first_name="Test",
         )
 
     @patch("src.core.messages.get_message")
@@ -552,15 +582,18 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_get_message.return_value = "Birth date cannot be before 1900."
+        mock_get_message.return_value = "Birth date old error message"
 
         # Execute
         result = generate_message_birth_date_old_error(mock_telegram_user)
 
         # Assert
-        assert result == "Birth date cannot be before 1900."
+        assert result == "Birth date old error message"
         mock_get_message.assert_called_once_with(
-            "birth_date_validation", "old_date_error", "en"
+            message_key="command_start",
+            sub_key="birth_date_old_error",
+            language="en",
+            first_name="Test",
         )
 
     @patch("src.core.messages.get_message")
@@ -584,7 +617,10 @@ class TestMessageGeneration:
         # Assert
         assert result == "Invalid birth date format. Please use DD.MM.YYYY."
         mock_get_message.assert_called_once_with(
-            "birth_date_validation", "format_error", "en"
+            message_key="command_start",
+            sub_key="birth_date_format_error",
+            language="en",
+            first_name="Test",
         )
 
     @patch("src.core.messages.get_subscription_addition_message")
@@ -657,8 +693,10 @@ class TestMessageGeneration:
         # Setup
         mock_user_service.get_user_profile.return_value = None
 
-        # Execute and Assert
-        with pytest.raises(ValueError, match="User must have a valid birth date"):
+        # Execute and assert
+        with pytest.raises(
+            ValueError, match="User profile not found for telegram_id: 123456789"
+        ):
             generate_message_registration_success(mock_telegram_user, "1990-01-01")
 
     @patch("src.core.messages.get_message")
@@ -714,7 +752,11 @@ class TestMessageGeneration:
 
         # Assert
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
-        mock_get_message.assert_called_once_with("command_help", "help_text", "ru")
+        mock_get_message.assert_called_once_with(
+            message_key="command_help",
+            sub_key="help_text",
+            language="ru",
+        )
 
     @patch("src.core.messages.user_service")
     @patch("src.core.messages.get_subscription_description")
@@ -746,9 +788,9 @@ class TestMessageGeneration:
         # Assert
         assert result == "Subscription info"
         mock_get_message.assert_called_once_with(
-            "command_subscription",
-            "current_subscription",
-            "en",
+            message_key="command_subscription",
+            sub_key="current_subscription",
+            language="en",
             subscription_type="Basic",
             subscription_description="Basic subscription description",
         )
@@ -781,13 +823,15 @@ class TestMessageGeneration:
         self, mock_get_message, mock_telegram_user
     ):
         """Test generate_message_subscription_invalid_type returns correct message."""
-        mock_get_message.return_value = "Invalid subscription type"
+        mock_get_message.return_value = "Invalid subscription type message"
         from src.core.messages import generate_message_subscription_invalid_type
 
         result = generate_message_subscription_invalid_type(mock_telegram_user)
-        assert result == "Invalid subscription type"
+        assert result == "Invalid subscription type message"
         mock_get_message.assert_called_once_with(
-            "command_subscription", "invalid_subscription_type", "en"
+            message_key="command_subscription",
+            sub_key="invalid_type",
+            language="en",
         )
 
     @patch("src.core.messages.get_message")
@@ -801,7 +845,9 @@ class TestMessageGeneration:
         result = generate_message_subscription_profile_error(mock_telegram_user)
         assert result == "Profile error"
         mock_get_message.assert_called_once_with(
-            "command_subscription", "profile_error", "en"
+            message_key="command_subscription",
+            sub_key="profile_error",
+            language="en",
         )
 
     @patch("src.core.messages.get_message")
@@ -809,15 +855,18 @@ class TestMessageGeneration:
         self, mock_get_message, mock_telegram_user
     ):
         """Test generate_message_subscription_already_active returns correct message."""
-        mock_get_message.return_value = "Already active"
+        mock_get_message.return_value = "Already active message"
         from src.core.messages import generate_message_subscription_already_active
 
         result = generate_message_subscription_already_active(
             mock_telegram_user, "premium"
         )
-        assert result == "Already active"
+        assert result == "Already active message"
         mock_get_message.assert_called_once_with(
-            "command_subscription", "already_active", "en", subscription_type="Premium"
+            message_key="command_subscription",
+            sub_key="already_active",
+            language="en",
+            subscription_type="premium",
         )
 
     @patch("src.core.messages.get_subscription_description")
@@ -829,18 +878,18 @@ class TestMessageGeneration:
         mock_get_subscription_description.return_value = (
             "Premium subscription description"
         )
-        mock_get_message.return_value = "Change success"
+        mock_get_message.return_value = "Change success message"
         from src.core.messages import generate_message_subscription_change_success
 
         result = generate_message_subscription_change_success(
             mock_telegram_user, "premium"
         )
-        assert result == "Change success"
+        assert result == "Change success message"
         mock_get_message.assert_called_once_with(
-            "command_subscription",
-            "change_success",
-            "en",
-            subscription_type="Premium",
+            message_key="command_subscription",
+            sub_key="change_success",
+            language="en",
+            subscription_type="premium",
             subscription_description="Premium subscription description",
         )
 
@@ -855,7 +904,9 @@ class TestMessageGeneration:
         result = generate_message_subscription_change_failed(mock_telegram_user)
         assert result == "Change failed"
         mock_get_message.assert_called_once_with(
-            "command_subscription", "change_failed", "en"
+            message_key="command_subscription",
+            sub_key="change_failed",
+            language="en",
         )
 
     @patch("src.core.messages.get_message")
@@ -869,27 +920,34 @@ class TestMessageGeneration:
         result = generate_message_subscription_change_error(mock_telegram_user)
         assert result == "Change error"
         mock_get_message.assert_called_once_with(
-            "command_subscription", "change_error", "en"
+            message_key="command_subscription",
+            sub_key="change_error",
+            language="en",
         )
 
     @patch(
         "src.core.subscription_messages.BUYMEACOFFEE_URL",
         "https://test.buymeacoffee.com/testuser",
     )
+    @patch("src.core.subscription_messages.random.randint")
     @patch("src.core.subscription_messages.get_message")
     def test_generate_message_week_addition_basic(
-        self, mock_get_message, mock_telegram_user
+        self, mock_get_message, mock_random_randint, mock_telegram_user
     ):
         """Test generate_message_week_addition_basic returns correct message."""
+        # Mock random.randint to return a value that allows message generation
+        mock_random_randint.return_value = (
+            10  # Less than SUBSCRIPTION_MESSAGE_PROBABILITY (20)
+        )
         mock_get_message.return_value = "Basic addition"
         from src.core.subscription_messages import generate_message_week_addition_basic
 
         result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Basic addition"
         mock_get_message.assert_called_once_with(
-            "subscription_additions",
-            "basic_addition",
-            "en",
+            message_key="subscription_additions",
+            sub_key="basic_addition",
+            language="en",
             buymeacoffee_url="https://test.buymeacoffee.com/testuser",
         )
 
@@ -906,7 +964,9 @@ class TestMessageGeneration:
         result = generate_message_week_addition_premium(mock_telegram_user)
         assert result == "Premium addition"
         mock_get_message.assert_called_once_with(
-            "subscription_additions", "premium_addition", "en"
+            message_key="subscription_additions",
+            sub_key="premium_addition",
+            language="en",
         )
 
     @patch("src.core.messages.get_message")
@@ -919,4 +979,486 @@ class TestMessageGeneration:
 
         result = generate_message_unknown_command(mock_telegram_user)
         assert result == "Unknown command"
-        mock_get_message.assert_called_once_with("common", "unknown_command", "en")
+        mock_get_message.assert_called_once_with(
+            message_key="common",
+            sub_key="unknown_command",
+            language="en",
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_settings_buttons_success(
+        self, mock_get_message, mock_telegram_user
+    ):
+        """Test generate_settings_buttons returns correct button configurations.
+
+        :param mock_get_message: Mock message localization function
+        :param mock_telegram_user: Mock Telegram user
+        :returns: None
+        """
+        # Setup
+        mock_get_message.side_effect = [
+            "📅 Change Birth Date",  # birth_date_text
+            "🌍 Change Language",  # language_text
+            "⏰ Change Expected Life Expectancy",  # life_expectancy_text
+        ]
+
+        # Execute
+        from src.core.messages import generate_settings_buttons
+
+        result = generate_settings_buttons(mock_telegram_user)
+
+        # Assert
+        expected_result = [
+            [{"text": "📅 Change Birth Date", "callback_data": "settings_birth_date"}],
+            [{"text": "🌍 Change Language", "callback_data": "settings_language"}],
+            [
+                {
+                    "text": "⏰ Change Expected Life Expectancy",
+                    "callback_data": "settings_life_expectancy",
+                }
+            ],
+        ]
+        assert result == expected_result
+
+        # Verify get_message was called with correct parameters
+        assert mock_get_message.call_count == 3
+        mock_get_message.assert_any_call(
+            message_key="command_settings",
+            sub_key="button_change_birth_date",
+            language="en",
+        )
+        mock_get_message.assert_any_call(
+            message_key="command_settings",
+            sub_key="button_change_language",
+            language="en",
+        )
+        mock_get_message.assert_any_call(
+            message_key="command_settings",
+            sub_key="button_change_life_expectancy",
+            language="en",
+        )
+
+    @patch("src.core.messages.get_message")
+    def test_generate_settings_buttons_russian_language(
+        self, mock_get_message, mock_telegram_user_ru
+    ):
+        """Test generate_settings_buttons with Russian language.
+
+        :param mock_get_message: Mock message localization function
+        :param mock_telegram_user_ru: Mock Telegram user with Russian language
+        :returns: None
+        """
+        # Setup
+        mock_get_message.side_effect = [
+            "📅 Изменить дату рождения",  # birth_date_text
+            "🌍 Изменить язык",  # language_text
+            "⏰ Изменить ожидаемую продолжительность жизни",  # life_expectancy_text
+        ]
+
+        # Execute
+        from src.core.messages import generate_settings_buttons
+
+        result = generate_settings_buttons(mock_telegram_user_ru)
+
+        # Assert
+        expected_result = [
+            [
+                {
+                    "text": "📅 Изменить дату рождения",
+                    "callback_data": "settings_birth_date",
+                }
+            ],
+            [{"text": "🌍 Изменить язык", "callback_data": "settings_language"}],
+            [
+                {
+                    "text": "⏰ Изменить ожидаемую продолжительность жизни",
+                    "callback_data": "settings_life_expectancy",
+                }
+            ],
+        ]
+        assert result == expected_result
+
+        # Verify get_message was called with Russian language
+        assert mock_get_message.call_count == 3
+        mock_get_message.assert_any_call(
+            message_key="command_settings",
+            sub_key="button_change_birth_date",
+            language="ru",
+        )
+
+
+class TestMessageSettings:
+    """Unit tests for settings-related message generation functions."""
+
+    @pytest.fixture
+    def mock_telegram_user(self):
+        user = Mock()
+        user.id = 123456789
+        user.username = "test_user"
+        user.first_name = "Test"
+        user.last_name = "User"
+        user.language_code = "en"
+        return user
+
+    @pytest.fixture
+    def sample_user_settings(self):
+        return UserSettings(
+            telegram_id=123456789,
+            birth_date=date(1990, 1, 1),
+            notifications=True,
+            notifications_day="monday",
+            notifications_time=time(9, 0),
+            timezone="UTC",
+            life_expectancy=80,
+            updated_at=datetime.now(UTC),
+            language="en",
+        )
+
+    @pytest.fixture
+    def sample_user_profile(self, sample_user_settings):
+        user = User(
+            telegram_id=123456789,
+            username="test_user",
+            first_name="Test",
+            last_name="User",
+            created_at=datetime.now(UTC),
+        )
+        user.settings = sample_user_settings
+        user.subscription = None
+        return user
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.get_localized_language_name")
+    def test_generate_message_settings_basic(
+        self,
+        mock_get_localized_language_name,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_get_localized_language_name.return_value = "English"
+        mock_get_message.return_value = "Basic settings message"
+        from src.core.messages import generate_message_settings_basic
+
+        result = generate_message_settings_basic(mock_telegram_user)
+        assert result == "Basic settings message"
+        assert mock_get_message.called
+        assert mock_get_localized_language_name.called
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.get_localized_language_name")
+    def test_generate_message_settings_premium(
+        self,
+        mock_get_localized_language_name,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_get_localized_language_name.return_value = "English"
+        mock_get_message.return_value = "Premium settings message"
+        from src.core.messages import generate_message_settings_premium
+
+        result = generate_message_settings_premium(mock_telegram_user)
+        assert result == "Premium settings message"
+        assert mock_get_message.called
+        assert mock_get_localized_language_name.called
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    def test_generate_message_change_birth_date(
+        self,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_get_message.return_value = "Change birth date message"
+        from src.core.messages import generate_message_change_birth_date
+
+        result = generate_message_change_birth_date(mock_telegram_user)
+        assert result == "Change birth date message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.get_localized_language_name")
+    def test_generate_message_change_language(
+        self, mock_get_localized_language_name, mock_get_message, mock_telegram_user
+    ):
+        mock_get_localized_language_name.return_value = "English"
+        mock_get_message.return_value = "Change language message"
+        from src.core.messages import generate_message_change_language
+
+        result = generate_message_change_language(mock_telegram_user)
+        assert result == "Change language message"
+        assert mock_get_message.called
+        assert mock_get_localized_language_name.called
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    def test_generate_message_change_life_expectancy(
+        self,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_get_message.return_value = "Change life expectancy message"
+        from src.core.messages import generate_message_change_life_expectancy
+
+        result = generate_message_change_life_expectancy(mock_telegram_user)
+        assert result == "Change life expectancy message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_birth_date_updated(
+        self, mock_get_message, mock_telegram_user
+    ):
+        mock_get_message.return_value = "Birth date updated message"
+        from src.core.messages import generate_message_birth_date_updated
+
+        result = generate_message_birth_date_updated(
+            mock_telegram_user, date(2000, 1, 1), 24
+        )
+        assert result == "Birth date updated message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_language_updated(
+        self, mock_get_message, mock_telegram_user
+    ):
+        mock_get_message.return_value = "Language updated message"
+        from src.core.messages import generate_message_language_updated
+
+        result = generate_message_language_updated(mock_telegram_user, "English")
+        assert result == "Language updated message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_life_expectancy_updated(
+        self, mock_get_message, mock_telegram_user
+    ):
+        mock_get_message.return_value = "Life expectancy updated message"
+        from src.core.messages import generate_message_life_expectancy_updated
+
+        result = generate_message_life_expectancy_updated(mock_telegram_user, 90)
+        assert result == "Life expectancy updated message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_invalid_life_expectancy(
+        self, mock_get_message, mock_telegram_user
+    ):
+        mock_get_message.return_value = "Invalid life expectancy message"
+        from src.core.messages import generate_message_invalid_life_expectancy
+
+        result = generate_message_invalid_life_expectancy(mock_telegram_user)
+        assert result == "Invalid life expectancy message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.get_message")
+    def test_generate_message_settings_error(
+        self, mock_get_message, mock_telegram_user
+    ):
+        mock_get_message.return_value = "Settings error message"
+        from src.core.messages import generate_message_settings_error
+
+        result = generate_message_settings_error(mock_telegram_user)
+        assert result == "Settings error message"
+        assert mock_get_message.called
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_settings_basic_no_profile(
+        self, mock_user_service, mock_telegram_user
+    ):
+        mock_user_service.get_user_profile.return_value = None
+        from src.core.messages import generate_message_settings_basic
+
+        with pytest.raises(ValueError):
+            generate_message_settings_basic(mock_telegram_user)
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_settings_premium_no_profile(
+        self, mock_user_service, mock_telegram_user
+    ):
+        mock_user_service.get_user_profile.return_value = None
+        from src.core.messages import generate_message_settings_premium
+
+        with pytest.raises(ValueError):
+            generate_message_settings_premium(mock_telegram_user)
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_change_birth_date_no_profile(
+        self, mock_user_service, mock_telegram_user
+    ):
+        mock_user_service.get_user_profile.return_value = None
+        from src.core.messages import generate_message_change_birth_date
+
+        with pytest.raises(ValueError):
+            generate_message_change_birth_date(mock_telegram_user)
+
+    @patch("src.core.messages.user_service")
+    def test_generate_message_change_life_expectancy_no_profile(
+        self, mock_user_service, mock_telegram_user
+    ):
+        mock_user_service.get_user_profile.return_value = None
+        from src.core.messages import generate_message_change_life_expectancy
+
+        with pytest.raises(ValueError):
+            generate_message_change_life_expectancy(mock_telegram_user)
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.get_localized_language_name")
+    def test_generate_message_settings_basic_no_birth_date(
+        self,
+        mock_get_localized_language_name,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+    ):
+        """Test settings basic message when birth_date is None."""
+        from src.core.messages import generate_message_settings_basic
+
+        # Create user profile with None birth_date
+        user_profile = Mock()
+        user_profile.settings = Mock()
+        user_profile.settings.birth_date = None
+        user_profile.settings.language = "en"
+        user_profile.settings.life_expectancy = 80
+
+        mock_user_service.get_user_profile.return_value = user_profile
+        mock_get_localized_language_name.return_value = "English"
+        mock_get_message.side_effect = ["Not set", "Basic settings message"]
+
+        result = generate_message_settings_basic(mock_telegram_user)
+
+        assert result == "Basic settings message"
+        mock_get_message.assert_any_call(
+            message_key="common",
+            sub_key="not_set",
+            language="en",
+        )
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.get_localized_language_name")
+    def test_generate_message_settings_premium_no_birth_date(
+        self,
+        mock_get_localized_language_name,
+        mock_get_message,
+        mock_user_service,
+        mock_telegram_user,
+    ):
+        """Test settings premium message when birth_date is None."""
+        from src.core.messages import generate_message_settings_premium
+
+        # Create user profile with None birth_date
+        user_profile = Mock()
+        user_profile.settings = Mock()
+        user_profile.settings.birth_date = None
+        user_profile.settings.language = "en"
+        user_profile.settings.life_expectancy = 80
+
+        mock_user_service.get_user_profile.return_value = user_profile
+        mock_get_localized_language_name.return_value = "English"
+        mock_get_message.side_effect = ["Not set", "Premium settings message"]
+
+        result = generate_message_settings_premium(mock_telegram_user)
+
+        assert result == "Premium settings message"
+        mock_get_message.assert_any_call(
+            message_key="common",
+            sub_key="not_set",
+            language="en",
+        )
+
+    @patch("src.core.messages.user_service")
+    @patch("src.core.messages.get_message")
+    def test_generate_message_change_birth_date_no_birth_date(
+        self, mock_get_message, mock_user_service, mock_telegram_user
+    ):
+        """Test change birth date message when birth_date is None."""
+        from src.core.messages import generate_message_change_birth_date
+
+        # Create user profile with None birth_date
+        user_profile = Mock()
+        user_profile.settings = Mock()
+        user_profile.settings.birth_date = None
+        user_profile.settings.language = "en"
+
+        mock_user_service.get_user_profile.return_value = user_profile
+        mock_get_message.side_effect = ["Not set", "Change birth date message"]
+
+        result = generate_message_change_birth_date(mock_telegram_user)
+
+        assert result == "Change birth date message"
+        mock_get_message.assert_any_call(
+            message_key="common",
+            sub_key="not_set",
+            language="en",
+        )
+
+    @patch("src.core.messages.user_service")
+    def test_get_user_language_no_profile_passed(
+        self, mock_user_service, mock_telegram_user
+    ):
+        """Test get_user_language when no profile is passed (should call user_service.get_user_profile)."""
+        from src.core.messages import get_user_language
+
+        mock_user_service.get_user_profile.return_value = None
+        mock_telegram_user.language_code = "en"
+        result = get_user_language(mock_telegram_user)
+        assert result == "en"
+        mock_user_service.get_user_profile.assert_called_once_with(
+            telegram_id=123456789
+        )
+
+    @patch("src.core.messages.get_subscription_addition_message")
+    @patch("src.core.messages.get_message")
+    @patch("src.core.messages.LifeCalculatorEngine")
+    @patch("src.core.messages.user_service")
+    def test_generate_message_week_no_subscription(
+        self,
+        mock_user_service,
+        mock_calculator,
+        mock_get_message,
+        mock_subscription_addition,
+        mock_telegram_user,
+        sample_user_profile,
+    ):
+        """Test weekly statistics message generation when user has no subscription."""
+        from src.core.messages import generate_message_week
+
+        # Remove subscription from user profile
+        sample_user_profile.subscription = None
+
+        mock_user_service.get_user_profile.return_value = sample_user_profile
+        mock_calculator_instance = Mock()
+        mock_calculator_instance.get_life_statistics.return_value = {
+            "age": 33,
+            "weeks_lived": 1720,
+            "remaining_weeks": 2448,
+            "life_percentage": 0.412,
+            "days_until_birthday": 45,
+        }
+        mock_calculator.return_value = mock_calculator_instance
+        mock_get_message.return_value = (
+            "Your life statistics: 33 years old, 1720 weeks lived"
+        )
+        mock_subscription_addition.return_value = ""
+
+        result = generate_message_week(mock_telegram_user)
+
+        assert result == "Your life statistics: 33 years old, 1720 weeks lived"
+        # Should call with BASIC subscription type as fallback
+        mock_subscription_addition.assert_called_once()
+        call_args = mock_subscription_addition.call_args
+        assert call_args[1]["subscription_type"] == "basic"

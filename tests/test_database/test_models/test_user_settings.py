@@ -263,3 +263,33 @@ class TestUserSettings:
             telegram_id=123456789, birth_date=date(1990, 1, 1), life_expectancy=200
         )
         assert settings_high.life_expectancy == 200
+
+    def test_weekday_get_choices(self):
+        choices = WeekDay.get_choices()
+        assert isinstance(choices, list)
+        assert ("monday", "Monday") in choices
+        assert ("sunday", "Sunday") in choices
+        assert len(choices) == 7
+
+    def test_weekday_is_valid(self):
+        assert WeekDay.is_valid("monday") is True
+        assert WeekDay.is_valid("sunday") is True
+        assert WeekDay.is_valid("notaday") is False
+        assert WeekDay.is_valid(123) is False
+
+    def test_weekday_get_weekday_number(self):
+        assert WeekDay.get_weekday_number(WeekDay.MONDAY) == 0
+        assert WeekDay.get_weekday_number(WeekDay.SUNDAY) == 6
+        assert WeekDay.get_weekday_number(WeekDay.THURSDAY) == 3
+
+    def test_weekday_from_weekday_number(self):
+        assert WeekDay.from_weekday_number(0) == WeekDay.MONDAY
+        assert WeekDay.from_weekday_number(6) == WeekDay.SUNDAY
+        assert WeekDay.from_weekday_number(3) == WeekDay.THURSDAY
+        # Проверка ValueError для некорректного номера
+        import pytest
+
+        with pytest.raises(ValueError):
+            WeekDay.from_weekday_number(7)
+        with pytest.raises(ValueError):
+            WeekDay.from_weekday_number(-1)

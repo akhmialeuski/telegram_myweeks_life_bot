@@ -62,6 +62,7 @@ class SQLiteUserSettingsRepository(
                         notifications_day=settings.notifications_day,
                         life_expectancy=settings.life_expectancy,
                         timezone=settings.timezone,
+                        language=settings.language,
                         notifications=settings.notifications,
                         notifications_time=settings.notifications_time,
                         updated_at=datetime.now(UTC),

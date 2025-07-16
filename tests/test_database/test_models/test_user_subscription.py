@@ -11,6 +11,7 @@ from src.database.models import (
     SubscriptionType,
     UserSubscription,
 )
+from src.database.models.user_subscription import create_user_subscription
 
 
 class TestUserSubscription:
@@ -343,3 +344,56 @@ class TestUserSubscription:
         assert (
             user1_subscription.subscription_type != user2_subscription.subscription_type
         )
+
+    def test_subscription_type_get_choices(self):
+        choices = SubscriptionType.get_choices()
+        assert ("basic", "Basic") in choices
+        assert ("premium", "Premium") in choices
+        assert ("trial", "Trial") in choices
+        assert len(choices) == 3
+
+    def test_subscription_type_is_valid(self):
+        assert SubscriptionType.is_valid("basic") is True
+        assert SubscriptionType.is_valid("premium") is True
+        assert SubscriptionType.is_valid("trial") is True
+        assert SubscriptionType.is_valid("notatype") is False
+        assert SubscriptionType.is_valid(123) is False
+
+    def test_create_user_subscription_basic_defaults(self):
+        sub = create_user_subscription(telegram_id=111)
+        assert sub.telegram_id == 111
+        assert sub.subscription_type == SubscriptionType.BASIC
+        assert sub.is_active is True
+        assert sub.expires_at is not None
+
+    def test_create_user_subscription_premium_no_expiry(self):
+        sub = create_user_subscription(
+            telegram_id=222, subscription_type=SubscriptionType.PREMIUM
+        )
+        assert sub.telegram_id == 222
+        assert sub.subscription_type == SubscriptionType.PREMIUM
+        assert sub.is_active is True
+        assert sub.expires_at is None
+
+    def test_create_user_subscription_with_explicit_expiry(self):
+        from datetime import UTC, datetime
+
+        dt = datetime(2030, 1, 1, tzinfo=UTC)
+        sub = create_user_subscription(telegram_id=333, expires_at=dt)
+        assert sub.expires_at == dt
+
+    def test_create_user_subscription_invalid_telegram_id(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            create_user_subscription(telegram_id=0)
+        with pytest.raises(ValueError):
+            create_user_subscription(telegram_id=-5)
+        with pytest.raises(ValueError):
+            create_user_subscription(telegram_id="notint")
+
+    def test_create_user_subscription_invalid_subscription_type(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            create_user_subscription(telegram_id=123, subscription_type="notatype")

@@ -286,6 +286,60 @@ class UserService:
             logger.error(f"Error updating subscription for {telegram_id}: {e}")
             return False
 
+    def update_user_settings(
+        self,
+        telegram_id: int,
+        birth_date: Optional[date] = None,
+        life_expectancy: Optional[int] = None,
+        language: Optional[str] = None,
+    ) -> bool:
+        """Update user settings.
+
+        :param telegram_id: Telegram user ID
+        :type telegram_id: int
+        :param birth_date: New birth date (optional)
+        :type birth_date: Optional[date]
+        :param life_expectancy: New life expectancy (optional)
+        :type life_expectancy: Optional[int]
+        :param language: New language preference (optional)
+        :type language: Optional[str]
+        :returns: True if successful, False otherwise
+        :rtype: bool
+        """
+        try:
+            settings = self.settings_repository.get_user_settings(telegram_id)
+            if not settings:
+                logger.warning(f"Settings not found for user {telegram_id}")
+                return False
+
+            # Update only provided fields
+            if birth_date is not None:
+                settings.birth_date = birth_date
+                logger.info(
+                    f"Updated birth date for user {telegram_id} to {birth_date}"
+                )
+
+            if life_expectancy is not None:
+                settings.life_expectancy = life_expectancy
+                logger.info(
+                    f"Updated life expectancy for user {telegram_id} to {life_expectancy}"
+                )
+
+            if language is not None:
+                settings.language = language
+                logger.info(f"Updated language for user {telegram_id} to {language}")
+
+            success = self.settings_repository.update_user_settings(settings)
+            if success:
+                logger.info(f"Successfully updated settings for user {telegram_id}")
+            else:
+                logger.warning(f"Failed to update settings for user {telegram_id}")
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating settings for {telegram_id}: {e}")
+            return False
+
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
 

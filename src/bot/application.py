@@ -27,13 +27,16 @@ from .handlers import (
     WAITING_USER_INPUT,
     command_cancel,
     command_help,
+    command_language_callback,
     command_settings,
+    command_settings_callback,
     command_start,
     command_start_handle_birth_date,
     command_subscription,
     command_subscription_callback,
     command_visualize,
     command_weeks,
+    handle_settings_input,
     handle_unknown_message,
 )
 
@@ -128,6 +131,23 @@ class LifeWeeksBot:
             )
         )
         logger.debug("Registered callback query handler for subscription")
+
+        # Register settings callback handlers
+        self._app.add_handler(
+            CallbackQueryHandler(command_settings_callback, pattern="^settings_")
+        )
+        logger.debug("Registered callback query handler for settings")
+
+        self._app.add_handler(
+            CallbackQueryHandler(command_language_callback, pattern="^language_")
+        )
+        logger.debug("Registered callback query handler for language selection")
+
+        # Register handler for settings text input (must be before unknown messages)
+        self._app.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_input)
+        )
+        logger.debug("Registered handler for settings text input")
 
         # Register handler for unknown messages and commands (must be last)
         self._app.add_handler(MessageHandler(filters.ALL, handle_unknown_message))

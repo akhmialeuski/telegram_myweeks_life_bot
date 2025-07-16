@@ -5,9 +5,14 @@ additional content that is appended to main bot messages based on
 user's subscription type.
 """
 
+import random
+
 from telegram import User as TelegramUser
 
-from ..utils.config import BUYMEACOFFEE_URL, DEFAULT_LANGUAGE
+from ..utils.config import (
+    BUYMEACOFFEE_URL,
+    SUBSCRIPTION_MESSAGE_PROBABILITY,
+)
 from ..utils.localization import get_message
 
 
@@ -15,18 +20,27 @@ def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
     """Generate additional basic subscription message for weekly statistics.
 
     This function creates a localized message with information about basic subscription,
-    including links to support the project and donation options.
+    including links to support the project and donation options. The message is returned
+    only with a configurable probability (default 20%).
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
-    :returns: Localized basic subscription addition message
+    :returns: Localized basic subscription addition message or empty string based on probability
     :rtype: str
     """
-    user_lang = user_info.language_code or DEFAULT_LANGUAGE
+    # Check probability - return empty string if random check fails
+    if random.randint(1, 100) > SUBSCRIPTION_MESSAGE_PROBABILITY:
+        return ""
+
+    # Get user's language preference
+    from .messages import get_user_language
+
+    user_lang = get_user_language(user_info)
+
     return get_message(
-        "subscription_additions",
-        "basic_addition",
-        user_lang,
+        message_key="subscription_additions",
+        sub_key="basic_addition",
+        language=user_lang,
         buymeacoffee_url=BUYMEACOFFEE_URL,
     )
 
@@ -42,8 +56,16 @@ def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
     :returns: Localized premium subscription addition message
     :rtype: str
     """
-    user_lang = user_info.language_code or DEFAULT_LANGUAGE
-    return get_message("subscription_additions", "premium_addition", user_lang)
+    # Get user's language preference
+    from .messages import get_user_language
+
+    user_lang = get_user_language(user_info)
+
+    return get_message(
+        message_key="subscription_additions",
+        sub_key="premium_addition",
+        language=user_lang,
+    )
 
 
 def get_subscription_addition_message(
@@ -67,7 +89,7 @@ def get_subscription_addition_message(
         SubscriptionType.PREMIUM.value,
         SubscriptionType.TRIAL.value,
     ]:
-        return generate_message_week_addition_premium(user_info)
+        return generate_message_week_addition_premium(user_info=user_info)
     else:
         # Fallback to basic for unknown subscription types
-        return generate_message_week_addition_basic(user_info)
+        return generate_message_week_addition_basic(user_info=user_info)

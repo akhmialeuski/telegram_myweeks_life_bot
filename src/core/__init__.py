@@ -26,6 +26,7 @@ from .messages import (
     generate_message_unknown_command,
     generate_message_visualize,
     generate_message_week,
+    generate_settings_buttons,
 )
 from .subscription_messages import (
     generate_message_week_addition_basic,
@@ -56,6 +57,7 @@ __all__ = [
     "generate_message_unknown_command",
     "generate_message_visualize",
     "generate_message_week",
+    "generate_settings_buttons",
     # Subscription message functions
     "generate_message_week_addition_basic",
     "generate_message_week_addition_premium",

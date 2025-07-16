@@ -24,6 +24,11 @@ FONT_SIZE = 12
 MAX_YEARS = 90
 WEEKS_PER_YEAR = 52
 
+# Validation Constants
+MIN_BIRTH_YEAR = 1900
+MIN_LIFE_EXPECTANCY = 50
+MAX_LIFE_EXPECTANCY = 120
+
 # Colors
 COLORS = {
     "background": (255, 255, 255),  # White
@@ -37,6 +42,27 @@ COLORS = {
 WEEKLY_NOTIFICATION_DAY = "mon"
 WEEKLY_NOTIFICATION_HOUR = 9
 WEEKLY_NOTIFICATION_MINUTE = 0
+
+# Subscription message probability (percentage)
+DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY = 20  # 20% default probability
+
+
+def _get_subscription_message_probability() -> int:
+    """
+    Get subscription message probability from environment or use default.
+
+    :returns: Probability percentage as integer (0-100)
+    """
+    try:
+        probability = os.getenv("SUBSCRIPTION_MESSAGE_PROBABILITY")
+        if probability is not None:
+            return int(probability)
+    except (ValueError, TypeError):
+        pass
+    return DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY
+
+
+SUBSCRIPTION_MESSAGE_PROBABILITY: int = _get_subscription_message_probability()
 
 
 # Donation URL (BuyMeACoffee)

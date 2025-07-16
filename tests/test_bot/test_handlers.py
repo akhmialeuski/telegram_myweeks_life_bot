@@ -15,12 +15,18 @@ from src.bot.handlers import (
     WAITING_USER_INPUT,
     command_cancel,
     command_help,
+    command_language_callback,
+    command_settings,
+    command_settings_callback,
     command_start,
     command_start_handle_birth_date,
     command_subscription,
     command_subscription_callback,
     command_visualize,
     command_weeks,
+    handle_birth_date_input,
+    handle_life_expectancy_input,
+    handle_settings_input,
     handle_unknown_message,
     require_registration,
 )
@@ -112,7 +118,7 @@ class TestRequireRegistrationDecorator:
                 mock_handler.assert_not_called()
                 mock_update.message.reply_text.assert_called_once_with("Not registered")
                 mock_get_message.assert_called_once_with(
-                    "common", "not_registered", "en"
+                    message_key="common", sub_key="not_registered", language="en"
                 )
 
     @pytest.mark.asyncio
@@ -169,7 +175,7 @@ class TestRequireRegistrationDecorator:
 
                 # Assert
                 mock_get_message.assert_called_once_with(
-                    "common", "not_registered", "ru"
+                    message_key="common", sub_key="not_registered", language="ru"
                 )  # Should use DEFAULT_LANGUAGE
 
 
@@ -1435,3 +1441,627 @@ class TestHandleUnknownMessage:
             # Assert
             mock_generate.assert_called_once_with(mock_update.effective_user)
             mock_update.message.reply_text.assert_called_once_with("Test message")
+
+
+class TestCommandSettings:
+    """Test suite for command_settings handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.effective_user.username = "testuser"
+        update.message = Mock()
+        update.message.reply_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        return Mock(spec=ContextTypes.DEFAULT_TYPE)
+
+    @pytest.fixture
+    def mock_user_profile(self):
+        """Create mock user profile."""
+        profile = Mock()
+        profile.subscription = Mock()
+        profile.subscription.subscription_type = SubscriptionType.PREMIUM
+        return profile
+
+    @pytest.mark.asyncio
+    async def test_command_settings_premium_success(
+        self, mock_update, mock_context, mock_user_profile
+    ):
+        """Test /settings command with premium subscription."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_premium"
+            ) as mock_generate_message:
+                with patch(
+                    "src.bot.handlers.generate_settings_buttons"
+                ) as mock_generate_buttons:
+                    with patch("src.bot.handlers.logger") as mock_logger:
+                        mock_user_service.get_user_profile.return_value = (
+                            mock_user_profile
+                        )
+                        mock_generate_message.return_value = "Premium settings"
+                        mock_generate_buttons.return_value = [
+                            [{"text": "Test", "callback_data": "test"}]
+                        ]
+
+                        result = await command_settings(mock_update, mock_context)
+
+                        assert result is None
+                        mock_update.message.reply_text.assert_called_once()
+                        mock_logger.info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_command_settings_basic_success(self, mock_update, mock_context):
+        """Test /settings command with basic subscription."""
+        profile = Mock()
+        profile.subscription = Mock()
+        profile.subscription.subscription_type = SubscriptionType.BASIC
+
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_basic"
+            ) as mock_generate_message:
+                with patch(
+                    "src.bot.handlers.generate_settings_buttons"
+                ) as mock_generate_buttons:
+                    mock_user_service.get_user_profile.return_value = profile
+                    mock_generate_message.return_value = "Basic settings"
+                    mock_generate_buttons.return_value = [
+                        [{"text": "Test", "callback_data": "test"}]
+                    ]
+
+                    await command_settings(mock_update, mock_context)
+
+                    mock_update.message.reply_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_command_settings_no_profile(self, mock_update, mock_context):
+        """Test /settings command with no user profile."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch("src.bot.handlers.get_message") as mock_get_message:
+                mock_user_service.get_user_profile.return_value = None
+                mock_get_message.return_value = "Error"
+
+                await command_settings(mock_update, mock_context)
+
+                mock_update.message.reply_text.assert_called_once_with("Error")
+
+    @pytest.mark.asyncio
+    async def test_command_settings_exception(self, mock_update, mock_context):
+        """Test /settings command with exception."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch("src.bot.handlers.get_message") as mock_get_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    mock_user_service.get_user_profile.side_effect = Exception(
+                        "Test error"
+                    )
+                    mock_get_message.return_value = "Error"
+
+                    await command_settings(mock_update, mock_context)
+
+                    assert mock_logger.error.call_count >= 1
+                    mock_update.message.reply_text.assert_called_once_with("Error")
+
+
+class TestCommandSettingsCallback:
+    """Test suite for command_settings_callback handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.callback_query = Mock()
+        update.callback_query.answer = AsyncMock()
+        update.callback_query.edit_message_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        context.user_data = {}
+        return context
+
+    @pytest.mark.asyncio
+    async def test_settings_callback_birth_date(self, mock_update, mock_context):
+        """Test settings callback for birth date."""
+        mock_update.callback_query.data = "settings_birth_date"
+
+        with patch(
+            "src.bot.handlers.generate_message_change_birth_date"
+        ) as mock_generate_message:
+            mock_generate_message.return_value = "Change birth date"
+
+            await command_settings_callback(mock_update, mock_context)
+
+            mock_update.callback_query.answer.assert_called_once()
+            mock_update.callback_query.edit_message_text.assert_called_once()
+            assert mock_context.user_data["waiting_for"] == "birth_date"
+
+    @pytest.mark.asyncio
+    async def test_settings_callback_language(self, mock_update, mock_context):
+        """Test settings callback for language."""
+        mock_update.callback_query.data = "settings_language"
+
+        with patch(
+            "src.bot.handlers.generate_message_change_language"
+        ) as mock_generate_message:
+            mock_generate_message.return_value = "Change language"
+
+            await command_settings_callback(mock_update, mock_context)
+
+            mock_update.callback_query.answer.assert_called_once()
+            mock_update.callback_query.edit_message_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_settings_callback_life_expectancy(self, mock_update, mock_context):
+        """Test settings callback for life expectancy."""
+        mock_update.callback_query.data = "settings_life_expectancy"
+
+        with patch(
+            "src.bot.handlers.generate_message_change_life_expectancy"
+        ) as mock_generate_message:
+            mock_generate_message.return_value = "Change life expectancy"
+
+            await command_settings_callback(mock_update, mock_context)
+
+            mock_update.callback_query.answer.assert_called_once()
+            mock_update.callback_query.edit_message_text.assert_called_once()
+            assert mock_context.user_data["waiting_for"] == "life_expectancy"
+
+    @pytest.mark.asyncio
+    async def test_settings_callback_invalid_data(self, mock_update, mock_context):
+        """Test settings callback with invalid data."""
+        mock_update.callback_query.data = "invalid_data"
+
+        await command_settings_callback(mock_update, mock_context)
+
+        mock_update.callback_query.answer.assert_called_once()
+        mock_update.callback_query.edit_message_text.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_settings_callback_exception(self, mock_update, mock_context):
+        """Test settings callback with exception."""
+        mock_update.callback_query.data = "settings_birth_date"
+
+        with patch(
+            "src.bot.handlers.generate_message_change_birth_date",
+            side_effect=Exception("Test error"),
+        ):
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    mock_error_message.return_value = "Settings error"
+
+                    await command_settings_callback(mock_update, mock_context)
+
+                    mock_logger.error.assert_called_once()
+                    mock_update.callback_query.edit_message_text.assert_called_once()
+
+
+class TestCommandLanguageCallback:
+    """Test suite for command_language_callback handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.callback_query = Mock()
+        update.callback_query.answer = AsyncMock()
+        update.callback_query.edit_message_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        return Mock(spec=ContextTypes.DEFAULT_TYPE)
+
+    @pytest.mark.asyncio
+    async def test_language_callback_success(self, mock_update, mock_context):
+        """Test language callback with success."""
+        mock_update.callback_query.data = "language_en"
+
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_language_updated"
+            ) as mock_generate_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    mock_user_service.update_user_settings.return_value = True
+                    mock_generate_message.return_value = "Language updated"
+
+                    await command_language_callback(mock_update, mock_context)
+
+                    mock_update.callback_query.answer.assert_called_once()
+                    mock_update.callback_query.edit_message_text.assert_called_once()
+                    mock_user_service.update_user_settings.assert_called_once_with(
+                        telegram_id=123456789, language="en"
+                    )
+                    mock_logger.info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_language_callback_invalid_language(self, mock_update, mock_context):
+        """Test language callback with invalid language."""
+        mock_update.callback_query.data = "language_invalid"
+
+        with patch(
+            "src.bot.handlers.generate_message_settings_error"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Settings error"
+
+            await command_language_callback(mock_update, mock_context)
+
+            mock_update.callback_query.answer.assert_called_once()
+            mock_update.callback_query.edit_message_text.assert_called_once_with(
+                text="Settings error", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_language_callback_update_failed(self, mock_update, mock_context):
+        """Test language callback when update fails."""
+        mock_update.callback_query.data = "language_ru"
+
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                mock_user_service.update_user_settings.return_value = False
+                mock_error_message.return_value = "Settings error"
+
+                await command_language_callback(mock_update, mock_context)
+
+                mock_update.callback_query.edit_message_text.assert_called_once_with(
+                    text="Settings error", parse_mode="HTML"
+                )
+
+    @pytest.mark.asyncio
+    async def test_language_callback_exception(self, mock_update, mock_context):
+        """Test language callback with exception."""
+        mock_update.callback_query.data = "language_en"
+
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    # Симулируем исключение при вызове update_user_settings
+                    mock_user_service.update_user_settings.side_effect = Exception(
+                        "Test error"
+                    )
+                    mock_error_message.return_value = "Settings error"
+
+                    await command_language_callback(mock_update, mock_context)
+
+                    # Проверяем, что logger.error был вызван хотя бы один раз
+                    assert mock_logger.error.call_count >= 1
+                    mock_update.callback_query.edit_message_text.assert_called_once()
+
+
+class TestHandleSettingsInput:
+    """Test suite for handle_settings_input handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.message = Mock()
+        update.message.text = "test input"
+        update.message.reply_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        context.user_data = {}
+        return context
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_birth_date(self, mock_update, mock_context):
+        """Test settings input for birth date."""
+        mock_context.user_data["waiting_for"] = "birth_date"
+
+        with patch(
+            "src.bot.handlers.handle_birth_date_input"
+        ) as mock_handle_birth_date:
+            await handle_settings_input(mock_update, mock_context)
+
+            mock_handle_birth_date.assert_called_once_with(
+                mock_update, mock_context, "test input"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_life_expectancy(
+        self, mock_update, mock_context
+    ):
+        """Test settings input for life expectancy."""
+        mock_context.user_data["waiting_for"] = "life_expectancy"
+
+        with patch(
+            "src.bot.handlers.handle_life_expectancy_input"
+        ) as mock_handle_life_expectancy:
+            await handle_settings_input(mock_update, mock_context)
+
+            mock_handle_life_expectancy.assert_called_once_with(
+                mock_update, mock_context, "test input"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_unknown(self, mock_update, mock_context):
+        """Test settings input for unknown waiting state."""
+        mock_context.user_data["waiting_for"] = "unknown"
+
+        with patch("src.bot.handlers.handle_unknown_message") as mock_handle_unknown:
+            await handle_settings_input(mock_update, mock_context)
+
+            mock_handle_unknown.assert_called_once_with(mock_update, mock_context)
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_exception(self, mock_update, mock_context):
+        """Test settings input with exception."""
+        mock_context.user_data["waiting_for"] = "birth_date"
+
+        with patch(
+            "src.bot.handlers.handle_birth_date_input",
+            side_effect=Exception("Test error"),
+        ):
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    mock_error_message.return_value = "Settings error"
+
+                    await handle_settings_input(mock_update, mock_context)
+
+                    mock_logger.error.assert_called_once()
+                    mock_update.message.reply_text.assert_called_once_with(
+                        text="Settings error", parse_mode="HTML"
+                    )
+
+
+class TestHandleBirthDateInput:
+    """Test suite for handle_birth_date_input handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.message = Mock()
+        update.message.reply_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        context.user_data = {"waiting_for": "birth_date"}
+        return context
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_success(self, mock_update, mock_context):
+        """Test birth date input with success."""
+        from datetime import date
+
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_birth_date_updated"
+            ) as mock_success_message:
+                with patch(
+                    "src.bot.handlers.LifeCalculatorEngine", create=True
+                ) as mock_calculator:
+                    with patch("src.bot.handlers.logger") as mock_logger:
+                        mock_user_service.update_user_settings.return_value = True
+
+                        # Создаем правильный мок для user_profile
+                        mock_user_profile = Mock()
+                        mock_user_profile.settings = Mock()
+                        mock_user_profile.settings.birth_date = date(1990, 3, 15)
+                        mock_user_service.get_user_profile.return_value = (
+                            mock_user_profile
+                        )
+
+                        mock_calculator_instance = Mock()
+                        mock_calculator_instance.calculate_age.return_value = 25
+                        mock_calculator.return_value = mock_calculator_instance
+                        mock_success_message.return_value = "Birth date updated"
+
+                        await handle_birth_date_input(
+                            mock_update, mock_context, "15.03.1990"
+                        )
+
+                        mock_user_service.update_user_settings.assert_called_once_with(
+                            telegram_id=123456789, birth_date=date(1990, 3, 15)
+                        )
+                        mock_update.message.reply_text.assert_called_once_with(
+                            text="Birth date updated", parse_mode="HTML"
+                        )
+                        assert "waiting_for" not in mock_context.user_data
+                        mock_logger.info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_future_date(self, mock_update, mock_context):
+        """Test birth date input with future date."""
+        with patch(
+            "src.bot.handlers.generate_message_birth_date_future_error"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Future date error"
+
+            await handle_birth_date_input(mock_update, mock_context, "15.03.2030")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Future date error", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_old_date(self, mock_update, mock_context):
+        """Test birth date input with old date."""
+        with patch(
+            "src.bot.handlers.generate_message_birth_date_old_error"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Old date error"
+
+            await handle_birth_date_input(mock_update, mock_context, "15.03.1800")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Old date error", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_invalid_format(
+        self, mock_update, mock_context
+    ):
+        """Test birth date input with invalid format."""
+        with patch(
+            "src.bot.handlers.generate_message_birth_date_format_error"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Format error"
+
+            await handle_birth_date_input(mock_update, mock_context, "invalid_date")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Format error", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_update_failed(
+        self, mock_update, mock_context
+    ):
+        """Test birth date input when update fails."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                mock_user_service.update_user_settings.return_value = False
+                mock_error_message.return_value = "Settings error"
+
+                await handle_birth_date_input(mock_update, mock_context, "15.03.1990")
+
+                mock_update.message.reply_text.assert_called_once_with(
+                    text="Settings error", parse_mode="HTML"
+                )
+
+
+class TestHandleLifeExpectancyInput:
+    """Test suite for handle_life_expectancy_input handler."""
+
+    @pytest.fixture
+    def mock_update(self):
+        """Create mock Update object."""
+        update = Mock(spec=Update)
+        update.effective_user = Mock()
+        update.effective_user.id = 123456789
+        update.message = Mock()
+        update.message.reply_text = AsyncMock()
+        return update
+
+    @pytest.fixture
+    def mock_context(self):
+        """Create mock ContextTypes object."""
+        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        context.user_data = {"waiting_for": "life_expectancy"}
+        return context
+
+    @pytest.mark.asyncio
+    async def test_handle_life_expectancy_input_success(
+        self, mock_update, mock_context
+    ):
+        """Test life expectancy input with success."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_life_expectancy_updated"
+            ) as mock_success_message:
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    mock_user_service.update_user_settings.return_value = True
+                    mock_success_message.return_value = "Life expectancy updated"
+
+                    await handle_life_expectancy_input(mock_update, mock_context, "80")
+
+                    mock_user_service.update_user_settings.assert_called_once_with(
+                        telegram_id=123456789, life_expectancy=80
+                    )
+                    mock_update.message.reply_text.assert_called_once_with(
+                        text="Life expectancy updated", parse_mode="HTML"
+                    )
+                    assert "waiting_for" not in mock_context.user_data
+                    mock_logger.info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_life_expectancy_input_too_low(
+        self, mock_update, mock_context
+    ):
+        """Test life expectancy input with too low value."""
+        with patch(
+            "src.bot.handlers.generate_message_invalid_life_expectancy"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Invalid life expectancy"
+
+            await handle_life_expectancy_input(mock_update, mock_context, "30")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Invalid life expectancy", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_life_expectancy_input_too_high(
+        self, mock_update, mock_context
+    ):
+        """Test life expectancy input with too high value."""
+        with patch(
+            "src.bot.handlers.generate_message_invalid_life_expectancy"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Invalid life expectancy"
+
+            await handle_life_expectancy_input(mock_update, mock_context, "150")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Invalid life expectancy", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_life_expectancy_input_invalid_format(
+        self, mock_update, mock_context
+    ):
+        """Test life expectancy input with invalid format."""
+        with patch(
+            "src.bot.handlers.generate_message_invalid_life_expectancy"
+        ) as mock_error_message:
+            mock_error_message.return_value = "Invalid life expectancy"
+
+            await handle_life_expectancy_input(mock_update, mock_context, "invalid")
+
+            mock_update.message.reply_text.assert_called_once_with(
+                text="Invalid life expectancy", parse_mode="HTML"
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_life_expectancy_input_update_failed(
+        self, mock_update, mock_context
+    ):
+        """Test life expectancy input when update fails."""
+        with patch("src.bot.handlers.user_service") as mock_user_service:
+            with patch(
+                "src.bot.handlers.generate_message_settings_error"
+            ) as mock_error_message:
+                mock_user_service.update_user_settings.return_value = False
+                mock_error_message.return_value = "Settings error"
+
+                await handle_life_expectancy_input(mock_update, mock_context, "80")
+
+                mock_update.message.reply_text.assert_called_once_with(
+                    text="Settings error", parse_mode="HTML"
+                )
