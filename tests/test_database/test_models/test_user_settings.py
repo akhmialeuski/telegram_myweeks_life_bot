@@ -286,7 +286,7 @@ class TestUserSettings:
         assert WeekDay.from_weekday_number(0) == WeekDay.MONDAY
         assert WeekDay.from_weekday_number(6) == WeekDay.SUNDAY
         assert WeekDay.from_weekday_number(3) == WeekDay.THURSDAY
-        # Проверка ValueError для некорректного номера
+        # Test ValueError for invalid number
         import pytest
 
         with pytest.raises(ValueError):

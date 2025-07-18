@@ -4,19 +4,18 @@ Tests all functionality of the bot scheduler module
 with proper mocking and edge cases coverage.
 """
 
-from unittest.mock import Mock, patch, call, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from telegram.ext import Application
-from telegram import User as TelegramUser
 
 from src.bot.scheduler import (
     add_user_to_scheduler,
     remove_user_from_scheduler,
+    send_weekly_message_to_user,
     setup_user_notification_schedules,
     start_scheduler,
     stop_scheduler,
-    send_weekly_message_to_user,
     update_user_schedule,
 )
 

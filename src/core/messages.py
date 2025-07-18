@@ -663,7 +663,7 @@ def generate_message_settings_basic(user_info: TelegramUser) -> str:
             language=db_language,
         )
 
-    # Локализованное название языка
+    # Localized language name
     language_name = get_localized_language_name(db_language, db_language)
 
     # Get life expectancy
@@ -717,7 +717,7 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
             language=db_language,
         )
 
-    # Локализованное название языка
+    # Localized language name
     language_name = get_localized_language_name(db_language, db_language)
 
     # Get life expectancy

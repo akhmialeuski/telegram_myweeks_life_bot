@@ -40,8 +40,8 @@ Dependencies:
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from telegram.ext import Application
 from telegram import User as TelegramUser
+from telegram.ext import Application
 
 from ..core.messages import generate_message_week
 from ..database.models import WeekDay
@@ -211,7 +211,6 @@ def add_user_to_scheduler(user_id: int) -> bool:
     :returns: True if user was added successfully, False otherwise
     :rtype: bool
     """
-    global _scheduler_instance, _application_instance
 
     if not _scheduler_instance or not _application_instance:
         logger.error("Scheduler not initialized, cannot add user")
@@ -252,7 +251,6 @@ def remove_user_from_scheduler(user_id: int) -> bool:
     :returns: True if user was removed successfully, False otherwise
     :rtype: bool
     """
-    global _scheduler_instance
 
     if not _scheduler_instance:
         logger.error("Scheduler not initialized, cannot remove user")
@@ -294,7 +292,6 @@ def update_user_schedule(user_id: int) -> bool:
     :returns: True if schedule was updated successfully, False otherwise
     :rtype: bool
     """
-    global _scheduler_instance, _application_instance
 
     if not _scheduler_instance or not _application_instance:
         logger.error("Scheduler not initialized, cannot update user schedule")

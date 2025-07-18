@@ -178,9 +178,7 @@ class TestSubscriptionMessages:
     ):
         """Test basic subscription message generation with exact probability threshold."""
         mock_randint = mocker.patch("src.core.subscription_messages.random.randint")
-        mock_randint.return_value = (
-            20  # Exactly 20% probability, сообщение показывается
-        )
+        mock_randint.return_value = 20  # Exactly 20% probability, message is shown
         mock_get_message = mocker.patch("src.core.subscription_messages.get_message")
         mock_get_message.return_value = "Test message"
 
