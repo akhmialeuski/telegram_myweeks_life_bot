@@ -36,7 +36,6 @@ from ..core.messages import (
     generate_message_language_updated,
     generate_message_life_expectancy_updated,
     generate_message_registration_error,
-    generate_message_registration_success,
     generate_message_settings_basic,
     generate_message_settings_error,
     generate_message_settings_premium,
@@ -57,10 +56,11 @@ from ..core.messages import (
 )
 from ..database.models import SubscriptionType
 from ..database.service import (
-    UserAlreadyExistsError,
     UserDeletionError,
+    UserNotFoundError,
     UserRegistrationError,
     UserServiceError,
+    UserSettingsUpdateError,
     user_service,
 )
 from ..utils.config import (
@@ -72,6 +72,7 @@ from ..utils.config import (
 from ..utils.localization import LANGUAGES, get_localized_language_name, get_message
 from ..utils.logger import get_logger
 from ..visualization.grid import generate_visualization
+from .scheduler import add_user_to_scheduler, remove_user_from_scheduler, update_user_schedule
 
 logger = get_logger(BOT_NAME)
 
@@ -175,7 +176,9 @@ async def command_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     # Extract user information from the update
     user = update.effective_user
-    logger.info(f"User {user.id} ({user.username}) started the bot")
+    logger.info(
+        f"User {user.id} ({user.username}) started the bot"
+    )
 
     # Check if user has already completed registration
     if user_service.is_valid_user_profile(user.id):
@@ -254,49 +257,41 @@ async def command_start_handle_birth_date(
             return WAITING_USER_INPUT
 
         # Attempt to create user profile in the database
-        try:
-            user_service.create_user_profile(user_info=user, birth_date=birth_date)
+        user_service.create_user_profile(user_info=user, birth_date=birth_date)
 
-            # Send success message with calculated statistics
-            await update.message.reply_text(
-                text=generate_message_registration_success(
-                    user_info=user,
-                    birth_date=birth_date.strftime("%d.%m.%Y"),
-                ),
-                parse_mode="HTML",
-            )
+        # Add user to notification scheduler
+        scheduler_success = add_user_to_scheduler(user.id)
+        if scheduler_success:
+            logger.info(f"User {user.id} added to notification scheduler")
+        else:
+            logger.warning(
+            f"Failed to add user {user.id} to notification scheduler"
+        )
 
-            logger.info(f"User {user.id} registered with birth date {birth_date}")
-            return ConversationHandler.END
+        # Send success message with calculated statistics
+        await update.message.reply_text(
+            text=generate_message_start_welcome_existing(user_info=user),
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
 
-        except UserAlreadyExistsError as error:
-            # Handle case where user somehow already exists
-            await update.message.reply_text(
-                text=generate_message_start_welcome_existing(user_info=user),
-                parse_mode="HTML",
-            )
-            logger.info(
-                f"User {user.id} already exists, showing welcome message: {error}"
-            )
-            return ConversationHandler.END
+    except UserRegistrationError as error:
+        # Handle database registration failures
+        await update.message.reply_text(
+            text=generate_message_registration_error(user_info=user),
+            parse_mode="HTML",
+        )
+        logger.error(f"Failed to register user {user.id}: {error}")
+        return ConversationHandler.END
 
-        except UserRegistrationError as error:
-            # Handle database registration failures
-            await update.message.reply_text(
-                text=generate_message_registration_error(user_info=user),
-                parse_mode="HTML",
-            )
-            logger.error(f"Failed to register user {user.id}: {error}")
-            return ConversationHandler.END
-
-        except UserServiceError as error:
-            # Handle general service errors
-            await update.message.reply_text(
-                text=generate_message_registration_error(user_info=user),
-                parse_mode="HTML",
-            )
-            logger.error(f"Service error during user {user.id} registration: {error}")
-            return ConversationHandler.END
+    except UserServiceError as error:
+        # Handle general service errors
+        await update.message.reply_text(
+            text=generate_message_registration_error(user_info=user),
+            parse_mode="HTML",
+        )
+        logger.error(f"Service error during user {user.id} registration: {error}")
+        return ConversationHandler.END
 
     except ValueError:
         # Handle invalid date format
@@ -339,14 +334,25 @@ async def command_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Extract user information
     user = update.effective_user
     user_id = user.id
+    logger.info(f"Handling /cancel command from user {user_id}")
 
     try:
-        # Attempt to delete user profile and all associated data
+        # First remove user from notification scheduler
+        scheduler_success = remove_user_from_scheduler(user_id)
+        if scheduler_success:
+            logger.info(f"User {user_id} removed from notification scheduler")
+        else:
+            logger.warning(
+            f"Failed to remove user {user_id} from notification scheduler"
+        )
+
+        # Then attempt to delete user profile and all associated data
+        user_lang = get_user_language(user)
         user_service.delete_user_profile(user_id)
 
         # Send success confirmation message
         await update.message.reply_text(
-            text=generate_message_cancel_success(user_info=user),
+            text=generate_message_cancel_success(user_info=user, language=user_lang),
             parse_mode="HTML",
         )
         logger.info(f"User {user_id} data deleted via /cancel command")
@@ -504,7 +510,8 @@ async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            button["text"], callback_data=button["callback_data"]
+                            button["text"],
+                            callback_data=button["callback_data"]
                         )
                     ]
                 )
@@ -512,7 +519,9 @@ async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
-            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
         )
 
     except Exception as error:
@@ -561,7 +570,10 @@ async def command_subscription(
         keyboard = []
         for subscription_type in SubscriptionType:
             # Add checkmark for current subscription
-            text = f"{'✅ ' if subscription_type == current_subscription else ''}{subscription_type.value.title()}"
+            text = (
+                f"{'✅ ' if subscription_type == current_subscription else ''}"
+                f"{subscription_type.value.title()}"
+            )
             callback_data = f"subscription_{subscription_type.value}"
             keyboard.append([InlineKeyboardButton(text, callback_data=callback_data)])
 
@@ -571,7 +583,9 @@ async def command_subscription(
         message_text = generate_message_subscription_current(user_info=user)
 
         await update.message.reply_text(
-            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
         )
 
     except Exception as error:
@@ -767,27 +781,34 @@ async def command_language_callback(
         language_name = get_localized_language_name(language_code, language_code)
 
         # Update user's language preference in database
-        success = user_service.update_user_settings(
+        user_service.update_user_settings(
             telegram_id=user.id, language=language_code
         )
 
-        if success:
-            # Show success message
-            success_message = generate_message_language_updated(
-                user_info=user, new_language=language_name
-            )
+        # Update user's notification schedule
+        scheduler_success = update_user_schedule(user.id)
+        if scheduler_success:
+            logger.info(f"Updated notification schedule for user {user.id}")
         else:
-            await query.edit_message_text(
-                text=generate_message_settings_error(user_info=user),
-                parse_mode="HTML",
-            )
-            return
+            logger.warning(f"Failed to update notification schedule for user {user.id}")
+
+        # Show success message
+        success_message = generate_message_language_updated(
+            user_info=user, new_language=language_name
+        )
         await query.edit_message_text(
             text=success_message,
             parse_mode="HTML",
         )
 
         logger.info(f"User {user.id} changed language to {language_code}")
+
+    except (UserNotFoundError, UserSettingsUpdateError) as error:
+        logger.error(f"Failed to update language for user {user.id}: {error}")
+        await query.edit_message_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
 
     except Exception as error:
         logger.error(f"Error in language callback handler: {error}")
@@ -894,39 +915,50 @@ async def handle_birth_date_input(
             return
 
         # Update birth date in database
-        success = user_service.update_user_settings(
-            telegram_id=user.id, birth_date=birth_date
+        user_service.update_user_settings(
+            telegram_id=user.id,
+            birth_date=birth_date
         )
 
-        if success:
-            # Calculate new age
-            from ..core.life_calculator import LifeCalculatorEngine
-
-            user_profile = user_service.get_user_profile(user.id)
-            if user_profile:
-                calculator = LifeCalculatorEngine(user=user_profile)
-                new_age = calculator.calculate_age()
-            else:
-                new_age = 0
-
-            # Send success message
-            success_message = generate_message_birth_date_updated(
-                user_info=user, new_birth_date=birth_date, new_age=new_age
-            )
-            await update.message.reply_text(
-                text=success_message,
-                parse_mode="HTML",
-            )
-
-            # Clear waiting state
-            context.user_data.pop("waiting_for", None)
-
-            logger.info(f"User {user.id} updated birth date to {birth_date}")
+        # Update user's notification schedule
+        scheduler_success = update_user_schedule(user.id)
+        if scheduler_success:
+            logger.info(f"Updated notification schedule for user {user.id}")
         else:
-            await update.message.reply_text(
-                text=generate_message_settings_error(user_info=user),
-                parse_mode="HTML",
-            )
+            logger.warning(f"Failed to update notification schedule for user {user.id}")
+
+        # Calculate new age
+        from ..core.life_calculator import LifeCalculatorEngine
+
+        user_profile = user_service.get_user_profile(user.id)
+        if user_profile:
+            calculator = LifeCalculatorEngine(user=user_profile)
+            new_age = calculator.calculate_age()
+        else:
+            new_age = 0
+
+        # Send success message
+        success_message = generate_message_birth_date_updated(
+            user_info=user,
+            new_birth_date=birth_date,
+            new_age=new_age
+        )
+        await update.message.reply_text(
+            text=success_message,
+            parse_mode="HTML",
+        )
+
+        # Clear waiting state
+        context.user_data.pop("waiting_for", None)
+
+        logger.info(f"User {user.id} updated birth date to {birth_date}")
+
+    except (UserNotFoundError, UserSettingsUpdateError) as error:
+        logger.error(f"Failed to update birth date for user {user.id}: {error}")
+        await update.message.reply_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
 
     except ValueError:
         # Invalid date format
@@ -963,29 +995,37 @@ async def handle_life_expectancy_input(
             return
 
         # Update life expectancy in database
-        success = user_service.update_user_settings(
+        user_service.update_user_settings(
             telegram_id=user.id, life_expectancy=life_expectancy
         )
 
-        if success:
-            # Send success message
-            success_message = generate_message_life_expectancy_updated(
-                user_info=user, new_life_expectancy=life_expectancy
-            )
-            await update.message.reply_text(
-                text=success_message,
-                parse_mode="HTML",
-            )
-
-            # Clear waiting state
-            context.user_data.pop("waiting_for", None)
-
-            logger.info(f"User {user.id} updated life expectancy to {life_expectancy}")
+        # Update user's notification schedule
+        scheduler_success = update_user_schedule(user.id)
+        if scheduler_success:
+            logger.info(f"Updated notification schedule for user {user.id}")
         else:
-            await update.message.reply_text(
-                text=generate_message_settings_error(user_info=user),
-                parse_mode="HTML",
-            )
+            logger.warning(f"Failed to update notification schedule for user {user.id}")
+
+        # Send success message
+        success_message = generate_message_life_expectancy_updated(
+            user_info=user, new_life_expectancy=life_expectancy
+        )
+        await update.message.reply_text(
+            text=success_message,
+            parse_mode="HTML",
+        )
+
+        # Clear waiting state
+        context.user_data.pop("waiting_for", None)
+
+        logger.info(f"User {user.id} updated life expectancy to {life_expectancy}")
+
+    except (UserNotFoundError, UserSettingsUpdateError) as error:
+        logger.error(f"Failed to update life expectancy for user {user.id}: {error}")
+        await update.message.reply_text(
+            text=generate_message_settings_error(user_info=user),
+            parse_mode="HTML",
+        )
 
     except ValueError:
         # Invalid number format

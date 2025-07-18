@@ -1,7 +1,7 @@
 """Main entry point for the Telegram bot that tracks and reports life weeks.
 
-This script initializes and runs the Telegram bot that helps users track their life weeks.
-The bot provides functionality for:
+This script initializes and runs the Telegram bot that helps users track their
+life weeks. The bot provides functionality for:
     - Tracking life weeks
     - Visualizing week progress
     - Weekly notifications

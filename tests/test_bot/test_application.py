@@ -372,14 +372,22 @@ class TestLifeWeeksBot:
 
     @patch("src.bot.application.Application")
     @patch("src.bot.application.logger")
-    def test_start_without_setup(self, mock_logger, mock_application_class, bot):
+    @patch("src.bot.application.setup_user_notification_schedules")
+    def test_start_without_setup(self, mock_setup_scheduler, mock_logger, mock_application_class, bot):
         """Test start method calls setup if not already done.
 
+        :param mock_setup_scheduler: Mock setup_user_notification_schedules function
         :param mock_logger: Mock logger
         :param mock_application_class: Mock Application class
         :param bot: LifeWeeksBot instance
         :returns: None
         """
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         # Setup
         mock_app = Mock(spec=Application)
         mock_app.add_handler = Mock()
@@ -387,6 +395,7 @@ class TestLifeWeeksBot:
         mock_application_class.builder.return_value.token.return_value.build.return_value = (
             mock_app
         )
+        mock_setup_scheduler.return_value = True
 
         # Execute
         bot.start()
@@ -578,6 +587,92 @@ class TestLifeWeeksBot:
         )
 
         assert mock_app.add_handler.call_count == total_expected_handlers
+
+    @patch("src.bot.application.Application")
+    @patch("src.bot.application.logger")
+    @patch("src.bot.application.setup_user_notification_schedules")
+    def test_setup_scheduler_failure(self, mock_setup_scheduler, mock_logger, mock_application_class, bot):
+        """Test setup when scheduler setup fails.
+
+        :param mock_setup_scheduler: Mock setup_user_notification_schedules function
+        :param mock_logger: Mock logger
+        :param mock_application_class: Mock Application class
+        :param bot: LifeWeeksBot instance
+        :returns: None
+        """
+        # Setup
+        mock_app = Mock(spec=Application)
+        mock_app.add_handler = Mock()
+        mock_application_class.builder.return_value.token.return_value.build.return_value = (
+            mock_app
+        )
+        mock_setup_scheduler.return_value = False
+
+        # Execute
+        bot.setup()
+
+        # Assert
+        assert bot._app is mock_app
+        mock_setup_scheduler.assert_called_once_with(mock_app)
+        error_calls = [
+            call
+            for call in mock_logger.error.call_args_list
+            if "Failed to set up weekly notification scheduler" in str(call)
+        ]
+        assert len(error_calls) > 0
+
+    @patch("src.bot.application.logger")
+    @patch("src.bot.application.stop_scheduler")
+    def test_stop_method(self, mock_stop_scheduler, mock_logger, bot):
+        """Test stop method functionality.
+
+        :param mock_stop_scheduler: Mock stop_scheduler function
+        :param mock_logger: Mock logger
+        :param bot: LifeWeeksBot instance
+        :returns: None
+        """
+        # Setup - create a mock scheduler
+        mock_scheduler = Mock()
+        bot._scheduler = mock_scheduler
+
+        # Execute
+        bot.stop()
+
+        # Assert
+        mock_stop_scheduler.assert_called_once_with(mock_scheduler)
+        assert bot._scheduler is None
+        stop_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if "Life Weeks Bot stopped" in str(call)
+        ]
+        assert len(stop_calls) > 0
+
+    @patch("src.bot.application.logger")
+    @patch("src.bot.application.stop_scheduler")
+    def test_stop_method_no_scheduler(self, mock_stop_scheduler, mock_logger, bot):
+        """Test stop method when no scheduler is set.
+
+        :param mock_stop_scheduler: Mock stop_scheduler function
+        :param mock_logger: Mock logger
+        :param bot: LifeWeeksBot instance
+        :returns: None
+        """
+        # Setup - no scheduler
+        bot._scheduler = None
+
+        # Execute
+        bot.stop()
+
+        # Assert
+        mock_stop_scheduler.assert_not_called()
+        assert bot._scheduler is None
+        stop_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if "Life Weeks Bot stopped" in str(call)
+        ]
+        assert len(stop_calls) > 0
 
     def test_bot_class_constants(self):
         """Test bot class and module constants.

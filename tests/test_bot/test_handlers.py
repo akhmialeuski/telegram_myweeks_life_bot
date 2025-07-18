@@ -5,7 +5,7 @@ with proper mocking, edge cases, and error handling coverage.
 """
 
 # from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch, call
 
 import pytest
 from telegram import InlineKeyboardMarkup, Update
@@ -34,8 +34,19 @@ from src.database.models import SubscriptionType
 from src.database.service import (
     UserAlreadyExistsError,
     UserDeletionError,
+    UserNotFoundError,
     UserRegistrationError,
     UserServiceError,
+    UserSettingsUpdateError,
+)
+from src.bot.scheduler import (
+    add_user_to_scheduler,
+    remove_user_from_scheduler,
+    setup_user_notification_schedules,
+    start_scheduler,
+    stop_scheduler,
+    send_weekly_message_to_user,
+    update_user_schedule,
 )
 
 
@@ -300,24 +311,41 @@ class TestCommandStartHandleBirthDate:
         # Setup
         with patch("src.bot.handlers.user_service") as mock_user_service:
             with patch(
-                "src.bot.handlers.generate_message_registration_success"
+                "src.bot.handlers.generate_message_start_welcome_existing"
             ) as mock_generate_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.create_user_profile.return_value = True
-                    mock_generate_message.return_value = "Registration successful!"
+                    with patch("src.bot.handlers.add_user_to_scheduler") as mock_add_scheduler:
+                        # Create a mock user profile that will be returned by get_user_profile
+                        from datetime import date
+                        mock_user_profile = Mock()
+                        mock_user_profile.settings = Mock()
+                        mock_user_profile.settings.birth_date = date(1990, 3, 15)
+                        mock_user_profile.subscription = Mock()
 
-                    # Execute
-                    result = await command_start_handle_birth_date(
-                        mock_update, mock_context
-                    )
+                        mock_user_service.create_user_profile.return_value = None
+                        mock_user_service.get_user_profile.return_value = mock_user_profile
+                        mock_generate_message.return_value = "Registration successful!"
 
-                    # Assert
-                    assert result == ConversationHandler.END
-                    mock_update.message.reply_text.assert_called_once_with(
-                        text="Registration successful!", parse_mode="HTML"
-                    )
-                    mock_user_service.create_user_profile.assert_called_once()
-                    mock_logger.info.assert_called_once()
+                        # Mock add_user_to_scheduler to return True and call logger.info
+                        def mock_add_scheduler_side_effect(user_id):
+                            mock_logger.info(f"User {user_id} added to notification scheduler")
+                            return True
+
+                        mock_add_scheduler.side_effect = mock_add_scheduler_side_effect
+
+                        # Execute
+                        result = await command_start_handle_birth_date(
+                            mock_update, mock_context
+                        )
+
+                        # Assert
+                        assert result == ConversationHandler.END
+                        mock_update.message.reply_text.assert_called_once_with(
+                            text="Registration successful!", parse_mode="HTML"
+                        )
+                        mock_user_service.create_user_profile.assert_called_once()
+                        # Check that logger.info was called with the expected message
+                        mock_logger.info.assert_any_call("User 123456789 added to notification scheduler")
 
     @pytest.mark.asyncio
     async def test_handle_birth_date_future_date(self, mock_update, mock_context):
@@ -410,13 +438,13 @@ class TestCommandStartHandleBirthDate:
         # Setup
         with patch("src.bot.handlers.user_service") as mock_user_service:
             with patch(
-                "src.bot.handlers.generate_message_start_welcome_existing"
+                "src.bot.handlers.generate_message_registration_error"
             ) as mock_generate_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
                     mock_user_service.create_user_profile.side_effect = (
-                        UserAlreadyExistsError("User exists")
+                        UserRegistrationError("User already exists")
                     )
-                    mock_generate_message.return_value = "Welcome back!"
+                    mock_generate_message.return_value = "Registration error"
 
                     # Execute
                     result = await command_start_handle_birth_date(
@@ -426,9 +454,9 @@ class TestCommandStartHandleBirthDate:
                     # Assert
                     assert result == ConversationHandler.END
                     mock_update.message.reply_text.assert_called_once_with(
-                        text="Welcome back!", parse_mode="HTML"
+                        text="Registration error", parse_mode="HTML"
                     )
-                    mock_logger.info.assert_called_once()
+                    mock_logger.error.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_birth_date_registration_error(
@@ -494,6 +522,40 @@ class TestCommandStartHandleBirthDate:
                     )
                     mock_logger.error.assert_called_once()
 
+    @patch("src.bot.handlers.add_user_to_scheduler")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_scheduler_failure(
+        self, mock_logger, mock_user_service, mock_add_user_to_scheduler, mock_update
+    ):
+        """Test birth date handling when scheduler addition fails.
+
+        :param mock_add_user_to_scheduler: Mock add_user_to_scheduler function
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        mock_update.message.text = "15.03.1990"
+        mock_user_service.create_user_profile.return_value = None
+        mock_add_user_to_scheduler.return_value = False
+
+        # Execute
+        result = await command_start_handle_birth_date(mock_update, None)
+
+        # Assert
+        assert result == ConversationHandler.END
+        mock_user_service.create_user_profile.assert_called_once()
+        mock_add_user_to_scheduler.assert_called_once_with(mock_update.effective_user.id)
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to add user" in str(call) and "notification scheduler" in str(call)
+        ]
+        assert len(warning_calls) > 0
+
 
 class TestCommandCancel:
     """Test suite for command_cancel handler."""
@@ -531,87 +593,151 @@ class TestCommandCancel:
         :returns: None
         """
         # Setup
-        with patch("src.bot.handlers.user_service") as mock_user_service:
-            with patch(
-                "src.bot.handlers.generate_message_cancel_success"
-            ) as mock_generate_message:
-                with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.is_valid_user_profile.return_value = True
-                    mock_user_service.delete_user_profile.return_value = None
-                    mock_generate_message.return_value = "User deleted successfully"
+        mock_user_service = Mock()
+        mock_user_service.is_valid_user_profile.return_value = True
+        mock_user_service.delete_user_profile.return_value = None
+        mock_generate_message = Mock()
+        mock_generate_message.return_value = "User deleted successfully"
+        mock_get_language = Mock()
+        mock_get_language.return_value = "en"
+        mock_remove_scheduler = Mock()
+        mock_remove_scheduler.return_value = True
 
-                    # Execute
-                    result = await command_cancel(mock_update, mock_context)
+        # Execute
+        result = await command_cancel(mock_update, mock_context)
 
-                    # Assert
-                    assert result == ConversationHandler.END
-                    mock_update.message.reply_text.assert_called_once_with(
-                        text="User deleted successfully", parse_mode="HTML"
-                    )
-                    mock_user_service.delete_user_profile.assert_called_once_with(
-                        123456789
-                    )
-                    mock_logger.info.assert_called_once()
+        # Assert
+        assert result == ConversationHandler.END
+        mock_update.message.reply_text.assert_called_once_with(
+            text="User deleted successfully", parse_mode="HTML"
+        )
+        mock_user_service.delete_user_profile.assert_called_once_with(
+            123456789
+        )
+        # Check that logger.info was called three times: once for handling command, once for scheduler removal, once for successful deletion
+        assert mock_logger.info.call_count == 3
 
+    @patch("src.bot.handlers.generate_message_settings_error")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
     @pytest.mark.asyncio
-    async def test_command_cancel_deletion_error(self, mock_update, mock_context):
+    async def test_command_cancel_deletion_error(self, mock_logger, mock_user_service, mock_generate_message, mock_update, mock_context):
         """Test user cancellation with deletion error.
 
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_generate_message: Mock generate_message_settings_error function
         :returns: None
         """
         # Setup
-        with patch("src.bot.handlers.user_service") as mock_user_service:
-            with patch(
-                "src.bot.handlers.generate_message_cancel_error"
-            ) as mock_generate_message:
-                with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.is_valid_user_profile.return_value = True
-                    mock_user_service.delete_user_profile.side_effect = (
-                        UserDeletionError("Deletion failed")
-                    )
-                    mock_generate_message.return_value = "Deletion error"
+        mock_user_service.is_valid_user_profile.return_value = True
+        mock_user_service.delete_user_profile.side_effect = (
+            UserDeletionError("Deletion failed")
+        )
+        mock_generate_message.return_value = "Deletion error"
 
-                    # Execute
-                    result = await command_cancel(mock_update, mock_context)
+        # Execute
+        result = await command_cancel(mock_update, mock_context)
 
-                    # Assert
-                    assert result == ConversationHandler.END
-                    mock_update.message.reply_text.assert_called_once_with(
-                        text="Deletion error", parse_mode="HTML"
-                    )
-                    mock_logger.error.assert_called_once()
+        # Assert
+        assert result == ConversationHandler.END
+        mock_update.message.reply_text.assert_called_once()
+        mock_logger.error.assert_called_once()
 
+    @patch("src.bot.handlers.generate_message_settings_error")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
     @pytest.mark.asyncio
-    async def test_command_cancel_service_error(self, mock_update, mock_context):
+    async def test_command_cancel_service_error(self, mock_logger, mock_user_service, mock_generate_message, mock_update, mock_context):
         """Test user cancellation with service error.
+
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_generate_message: Mock generate_message_settings_error function
+        :returns: None
+        """
+        # Setup
+        mock_user_service.is_valid_user_profile.return_value = True
+        mock_user_service.delete_user_profile.side_effect = (
+            UserServiceError("Service error")
+        )
+        mock_generate_message.return_value = "Deletion error"
+
+        # Execute
+        result = await command_cancel(mock_update, mock_context)
+
+        # Assert
+        assert result == ConversationHandler.END
+        mock_update.message.reply_text.assert_called_once()
+        mock_logger.error.assert_called_once()
+
+    @patch("src.bot.handlers.remove_user_from_scheduler")
+    @patch("src.bot.handlers.generate_message_cancel_success")
+    @patch("src.bot.handlers.get_user_language")
+    @patch("src.bot.handlers.user_service")
+    @pytest.mark.asyncio
+    async def test_command_cancel_success(self, mock_user_service, mock_get_language, mock_generate_message, mock_remove_scheduler, mock_update):
+        """Test successful user cancellation.
 
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         :returns: None
         """
         # Setup
-        with patch("src.bot.handlers.user_service") as mock_user_service:
-            with patch(
-                "src.bot.handlers.generate_message_cancel_error"
-            ) as mock_generate_message:
-                with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.is_valid_user_profile.return_value = True
-                    mock_user_service.delete_user_profile.side_effect = (
-                        UserServiceError("Service error")
-                    )
-                    mock_generate_message.return_value = "Deletion error"
+        mock_user_service.is_valid_user_profile.return_value = True
+        mock_user_service.delete_user_profile.return_value = None
+        mock_generate_message.return_value = "User deleted successfully"
+        mock_get_language.return_value = "en"
+        mock_remove_scheduler.return_value = True
 
-                    # Execute
-                    result = await command_cancel(mock_update, mock_context)
+        # Execute
+        result = await command_cancel(mock_update, None)
 
-                    # Assert
-                    assert result == ConversationHandler.END
-                    mock_update.message.reply_text.assert_called_once_with(
-                        text="Deletion error", parse_mode="HTML"
-                    )
-                    mock_logger.error.assert_called_once()
+        # Assert
+        assert result == ConversationHandler.END
+        mock_update.message.reply_text.assert_called_once_with(
+            text="User deleted successfully", parse_mode="HTML"
+        )
+        mock_user_service.delete_user_profile.assert_called_once_with(
+            123456789
+        )
+
+    @patch("src.bot.handlers.remove_user_from_scheduler")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_command_cancel_scheduler_removal_failure(
+        self, mock_logger, mock_user_service, mock_remove_user_from_scheduler, mock_update
+    ):
+        """Test cancel command when scheduler removal fails.
+
+        :param mock_remove_user_from_scheduler: Mock remove_user_from_scheduler function
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        mock_remove_user_from_scheduler.return_value = False
+        mock_user_service.delete_user_profile.return_value = None
+
+        # Execute
+        result = await command_cancel(mock_update, None)
+
+        # Assert
+        assert result == ConversationHandler.END
+        mock_remove_user_from_scheduler.assert_called_once_with(mock_update.effective_user.id)
+        mock_user_service.delete_user_profile.assert_called_once_with(mock_update.effective_user.id)
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to remove user" in str(call) and "notification scheduler" in str(call)
+        ]
+        assert len(warning_calls) > 0
 
 
 class TestCommandWeeks:
@@ -1678,7 +1804,8 @@ class TestCommandLanguageCallback:
                 "src.bot.handlers.generate_message_language_updated"
             ) as mock_generate_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.update_user_settings.return_value = True
+                    # update_user_settings теперь не возвращает значение, а может выбросить исключение
+                    mock_user_service.update_user_settings.return_value = None
                     mock_generate_message.return_value = "Language updated"
 
                     await command_language_callback(mock_update, mock_context)
@@ -1716,14 +1843,17 @@ class TestCommandLanguageCallback:
             with patch(
                 "src.bot.handlers.generate_message_settings_error"
             ) as mock_error_message:
-                mock_user_service.update_user_settings.return_value = False
-                mock_error_message.return_value = "Settings error"
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    from src.database.service import UserSettingsUpdateError
+                    mock_user_service.update_user_settings.side_effect = UserSettingsUpdateError("Update failed")
+                    mock_error_message.return_value = "Settings error"
 
-                await command_language_callback(mock_update, mock_context)
+                    await command_language_callback(mock_update, mock_context)
 
-                mock_update.callback_query.edit_message_text.assert_called_once_with(
-                    text="Settings error", parse_mode="HTML"
-                )
+                    mock_update.callback_query.edit_message_text.assert_called_once_with(
+                        text="Settings error", parse_mode="HTML"
+                    )
+                    mock_logger.error.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_language_callback_exception(self, mock_update, mock_context):
@@ -1746,6 +1876,113 @@ class TestCommandLanguageCallback:
                     # Проверяем, что logger.error был вызван хотя бы один раз
                     assert mock_logger.error.call_count >= 1
                     mock_update.callback_query.edit_message_text.assert_called_once()
+
+    @patch("src.bot.handlers.update_user_schedule")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_language_callback_scheduler_update_failure(
+        self, mock_logger, mock_user_service, mock_update_schedule, mock_update
+    ):
+        """Test language callback when scheduler update fails.
+
+        :param mock_update_schedule: Mock update_user_schedule function
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        mock_update.callback_query.data = "language_en"
+        mock_user_service.update_user_settings.return_value = None
+        mock_update_schedule.return_value = False
+
+        # Execute
+        await command_language_callback(mock_update, None)
+
+        # Assert
+        mock_update_schedule.assert_called_once_with(mock_update.effective_user.id)
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to update notification schedule" in str(call)
+        ]
+        assert len(warning_calls) > 0
+
+    @patch("src.bot.handlers.update_user_schedule")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
+    @patch("src.bot.handlers.LifeCalculatorEngine", create=True)
+    @pytest.mark.asyncio
+    async def test_birth_date_input_scheduler_update_failure(
+        self, mock_calculator, mock_logger, mock_user_service, mock_update_schedule, mock_update
+    ):
+        """Test birth date input when scheduler update fails.
+
+        :param mock_calculator: Mock LifeCalculatorEngine
+        :param mock_update_schedule: Mock update_user_schedule function
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        from datetime import date
+        mock_context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        mock_context.user_data = {"waiting_for": "birth_date"}
+        mock_update.message.text = "15.03.1990"
+        mock_update.message.reply_text = AsyncMock()
+        mock_user_service.update_user_settings.return_value = None
+
+        # Создаем правильный мок для user_profile
+        mock_user_profile = Mock()
+        mock_user_profile.settings = Mock()
+        mock_user_profile.settings.birth_date = date(1990, 3, 15)
+        mock_user_service.get_user_profile.return_value = mock_user_profile
+
+        # Мокаем LifeCalculatorEngine
+        mock_calculator_instance = Mock()
+        mock_calculator_instance.calculate_age.return_value = 25
+        mock_calculator.return_value = mock_calculator_instance
+
+        mock_update_schedule.return_value = False
+
+        # Execute
+        await handle_birth_date_input(mock_update, mock_context, "15.03.1990")
+
+        # Assert
+        mock_update_schedule.assert_called_once_with(mock_update.effective_user.id)
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to update notification schedule" in str(call)
+        ]
+        assert len(warning_calls) > 0
+
+    @patch("src.bot.handlers.generate_message_help")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_command_help_success(self, mock_logger, mock_generate_message, mock_update):
+        """Test /help command success.
+
+        :param mock_update: Mock Update object
+        :param mock_logger: Mock logger
+        :param mock_generate_message: Mock generate_message_help function
+        :returns: None
+        """
+        # Setup
+        mock_context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        mock_generate_message.return_value = "Help message"
+        mock_update.message.reply_text = AsyncMock()
+
+        # Execute
+        await command_help(mock_update, mock_context)
+
+        # Assert
+        mock_generate_message.assert_called_once_with(user_info=mock_update.effective_user)
+        mock_update.message.reply_text.assert_called_once_with(
+            text="Help message", parse_mode="HTML"
+        )
 
 
 class TestHandleSettingsInput:
@@ -1865,7 +2102,8 @@ class TestHandleBirthDateInput:
                     "src.bot.handlers.LifeCalculatorEngine", create=True
                 ) as mock_calculator:
                     with patch("src.bot.handlers.logger") as mock_logger:
-                        mock_user_service.update_user_settings.return_value = True
+                        # update_user_settings теперь не возвращает значение, а может выбросить исключение
+                        mock_user_service.update_user_settings.return_value = None
 
                         # Создаем правильный мок для user_profile
                         mock_user_profile = Mock()
@@ -1946,14 +2184,17 @@ class TestHandleBirthDateInput:
             with patch(
                 "src.bot.handlers.generate_message_settings_error"
             ) as mock_error_message:
-                mock_user_service.update_user_settings.return_value = False
-                mock_error_message.return_value = "Settings error"
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    from src.database.service import UserSettingsUpdateError
+                    mock_user_service.update_user_settings.side_effect = UserSettingsUpdateError("Update failed")
+                    mock_error_message.return_value = "Settings error"
 
-                await handle_birth_date_input(mock_update, mock_context, "15.03.1990")
+                    await handle_birth_date_input(mock_update, mock_context, "15.03.1990")
 
-                mock_update.message.reply_text.assert_called_once_with(
-                    text="Settings error", parse_mode="HTML"
-                )
+                    mock_update.message.reply_text.assert_called_once_with(
+                        text="Settings error", parse_mode="HTML"
+                    )
+                    mock_logger.error.assert_called_once()
 
 
 class TestHandleLifeExpectancyInput:
@@ -1986,7 +2227,8 @@ class TestHandleLifeExpectancyInput:
                 "src.bot.handlers.generate_message_life_expectancy_updated"
             ) as mock_success_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    mock_user_service.update_user_settings.return_value = True
+                    # update_user_settings теперь не возвращает значение, а может выбросить исключение
+                    mock_user_service.update_user_settings.return_value = None
                     mock_success_message.return_value = "Life expectancy updated"
 
                     await handle_life_expectancy_input(mock_update, mock_context, "80")
@@ -2057,11 +2299,311 @@ class TestHandleLifeExpectancyInput:
             with patch(
                 "src.bot.handlers.generate_message_settings_error"
             ) as mock_error_message:
-                mock_user_service.update_user_settings.return_value = False
-                mock_error_message.return_value = "Settings error"
+                with patch("src.bot.handlers.logger") as mock_logger:
+                    from src.database.service import UserSettingsUpdateError
+                    mock_user_service.update_user_settings.side_effect = UserSettingsUpdateError("Update failed")
+                    mock_error_message.return_value = "Settings error"
 
-                await handle_life_expectancy_input(mock_update, mock_context, "80")
+                    await handle_life_expectancy_input(mock_update, mock_context, "80")
 
-                mock_update.message.reply_text.assert_called_once_with(
-                    text="Settings error", parse_mode="HTML"
-                )
+                    mock_update.message.reply_text.assert_called_once_with(
+                        text="Settings error", parse_mode="HTML"
+                    )
+                    mock_logger.error.assert_called_once()
+
+    @patch("src.bot.handlers.update_user_schedule")
+    @patch("src.bot.handlers.user_service")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_life_expectancy_input_scheduler_update_failure(
+        self, mock_logger, mock_user_service, mock_update_schedule, mock_update
+    ):
+        """Test life expectancy input when scheduler update fails.
+
+        :param mock_update_schedule: Mock update_user_schedule function
+        :param mock_logger: Mock logger
+        :param mock_user_service: Mock user_service
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        mock_context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        mock_context.user_data = {"waiting_for": "life_expectancy"}
+        mock_update.message.text = "80"
+        mock_user_service.update_user_settings.return_value = None
+        mock_update_schedule.return_value = False
+
+        # Execute
+        await handle_life_expectancy_input(mock_update, mock_context, "80")
+
+        # Assert
+        mock_update_schedule.assert_called_once_with(mock_update.effective_user.id)
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to update notification schedule" in str(call)
+        ]
+        assert len(warning_calls) > 0
+
+    @patch("src.bot.handlers.generate_message_unknown_command")
+    @patch("src.bot.handlers.logger")
+    @pytest.mark.asyncio
+    async def test_handle_unknown_message_success(self, mock_logger, mock_generate_message, mock_update):
+        """Test handle unknown message success.
+
+        :param mock_logger: Mock logger
+        :param mock_generate_message: Mock generate_message_unknown_command function
+        :param mock_update: Mock update object
+        :returns: None
+        """
+        # Setup
+        mock_context = Mock(spec=ContextTypes.DEFAULT_TYPE)
+        mock_generate_message.return_value = "Unknown command message"
+
+        # Execute
+        await handle_unknown_message(mock_update, mock_context)
+
+        # Assert
+        mock_generate_message.assert_called_once_with(mock_update.effective_user)
+        mock_update.message.reply_text.assert_called_once_with(
+            "Unknown command message"
+        )
+
+
+
+@pytest.mark.asyncio
+async def test_command_language_callback_invalid_callback(monkeypatch):
+    """Test command_language_callback with invalid callback data.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.callback_query = Mock()
+    update.callback_query.data = "invalid_data"
+    update.callback_query.answer = AsyncMock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    context = Mock()
+    # Не должно быть вызова edit_message_text
+    update.callback_query.edit_message_text = AsyncMock()
+    result = await command_language_callback(update, context)
+    assert result is None
+    update.callback_query.edit_message_text.assert_not_called()
+
+
+
+@pytest.mark.asyncio
+async def test_command_settings_callback_invalid_callback(monkeypatch):
+    """Test command_settings_callback with invalid callback data.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.callback_query = Mock()
+    update.callback_query.data = "invalid_data"
+    update.callback_query.answer = AsyncMock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    context = Mock()
+    update.callback_query.edit_message_text = AsyncMock()
+    result = await command_settings_callback(update, context)
+    assert result is None
+    update.callback_query.edit_message_text.assert_not_called()
+
+
+
+@pytest.mark.asyncio
+async def test_handle_settings_input_exception(monkeypatch):
+    """Test handle_settings_input with exception in handler.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.text = "test"
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    context.user_data = {"waiting_for": "birth_date"}
+    # Мокаем handle_birth_date_input чтобы выбрасывал исключение
+    monkeypatch.setattr("src.bot.handlers.handle_birth_date_input", AsyncMock(side_effect=Exception("fail")))
+    with patch("src.bot.handlers.logger") as mock_logger:
+        with patch("src.bot.handlers.generate_message_settings_error") as mock_generate:
+            mock_generate.return_value = "Error message"
+        # Проверяем, что reply_text вызван с ошибкой
+            result = await handle_settings_input(update, context)
+            assert result is None
+        mock_logger.error.assert_called()
+            update.message.reply_text.assert_called_once_with(
+                text="Error message",
+                parse_mode="HTML"
+            )
+
+
+
+@pytest.mark.asyncio
+async def test_handle_birth_date_input_value_error(monkeypatch):
+    """Test handle_birth_date_input with invalid date format.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    # Некорректная дата
+    result = await handle_birth_date_input(update, context, "not_a_date")
+    assert result is None
+    update.message.reply_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_handle_life_expectancy_input_value_error(monkeypatch):
+    """Test handle_life_expectancy_input with invalid number format.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    # Некорректное число
+    result = await handle_life_expectancy_input(update, context, "not_a_number")
+    assert result is None
+    update.message.reply_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_command_language_callback_exception(monkeypatch):
+    """Test command_language_callback with exception in user service.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.callback_query = Mock()
+    update.callback_query.data = "language_en"
+    update.callback_query.answer = AsyncMock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    context = Mock()
+    update.callback_query.edit_message_text = AsyncMock()
+    # Мокаем user_service чтобы выбрасывал Exception
+    monkeypatch.setattr("src.bot.handlers.user_service.update_user_settings", Mock(side_effect=Exception("fail")))
+    with patch("src.bot.handlers.logger") as mock_logger:
+        with patch("src.bot.handlers.generate_message_settings_error") as mock_generate:
+            mock_generate.return_value = "Error message"
+            result = await command_language_callback(update, context)
+            assert result is None
+        mock_logger.error.assert_called()
+        update.callback_query.edit_message_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_command_settings_callback_exception(monkeypatch):
+    """Test command_settings_callback with exception in message generation.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.callback_query = Mock()
+    update.callback_query.data = "settings_birth_date"
+    update.callback_query.answer = AsyncMock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    context = Mock()
+    context.user_data = {}
+    update.callback_query.edit_message_text = AsyncMock()
+    # Мокаем generate_message_change_birth_date чтобы выбрасывал Exception
+    monkeypatch.setattr("src.bot.handlers.generate_message_change_birth_date", Mock(side_effect=Exception("fail")))
+    with patch("src.bot.handlers.logger") as mock_logger:
+        with patch("src.bot.handlers.generate_message_settings_error") as mock_generate:
+            mock_generate.return_value = "Error message"
+            result = await command_settings_callback(update, context)
+            assert result is None
+        mock_logger.error.assert_called()
+        update.callback_query.edit_message_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_handle_birth_date_input_user_error(monkeypatch):
+    """Test handle_birth_date_input with UserNotFoundError.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    # Мокаем user_service чтобы выбрасывал UserNotFoundError
+    monkeypatch.setattr("src.bot.handlers.user_service.update_user_settings", Mock(side_effect=UserNotFoundError("fail")))
+    with patch("src.bot.handlers.generate_message_settings_error") as mock_generate:
+        mock_generate.return_value = "Error message"
+        result = await handle_birth_date_input(update, context, "01.01.2000")
+        assert result is None
+    update.message.reply_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_handle_life_expectancy_input_user_error(monkeypatch):
+    """Test handle_life_expectancy_input with UserSettingsUpdateError.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    # Мокаем user_service чтобы выбрасывал UserSettingsUpdateError
+    monkeypatch.setattr("src.bot.handlers.user_service.update_user_settings", Mock(side_effect=UserSettingsUpdateError("fail")))
+    with patch("src.bot.handlers.generate_message_settings_error") as mock_generate:
+        mock_generate.return_value = "Error message"
+        result = await handle_life_expectancy_input(update, context, "80")
+        assert result is None
+    update.message.reply_text.assert_called()
+
+
+
+@pytest.mark.asyncio
+async def test_handle_settings_input_unknown(monkeypatch):
+    """Test handle_settings_input with unknown waiting_for value.
+
+    :param monkeypatch: Pytest monkeypatch fixture
+    :returns: None
+    """
+    update = Mock()
+    update.effective_user = Mock()
+    update.effective_user.id = 123456789
+    update.message = Mock()
+    update.message.reply_text = AsyncMock()
+    context = Mock()
+    context.user_data = {"waiting_for": "unknown"}
+    # Мокаем handle_unknown_message
+    mock_handle_unknown = AsyncMock()
+    monkeypatch.setattr("src.bot.handlers.handle_unknown_message", mock_handle_unknown)
+    result = await handle_settings_input(update, context)
+    assert result is None
+    # Проверяем, что handle_unknown_message был вызван
+    mock_handle_unknown.assert_called_once_with(update, context)

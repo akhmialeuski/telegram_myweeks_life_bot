@@ -39,6 +39,7 @@ from .handlers import (
     handle_settings_input,
     handle_unknown_message,
 )
+from .scheduler import setup_user_notification_schedules, start_scheduler, stop_scheduler
 
 logger = get_logger(BOT_NAME)
 
@@ -72,6 +73,8 @@ class LifeWeeksBot:
 
     :ivar _app: The telegram.ext.Application instance
     :type _app: Optional[Application]
+    :ivar _scheduler: The weekly notification scheduler
+    :type _scheduler: Optional[AsyncIOScheduler]
     """
 
     def __init__(self) -> None:
@@ -83,6 +86,7 @@ class LifeWeeksBot:
         :returns: None
         """
         self._app: Optional[Application] = None
+        self._scheduler = None
         logger.info("Initializing LifeWeeksBot")
 
     def setup(self) -> None:
@@ -92,6 +96,7 @@ class LifeWeeksBot:
             - Creates the telegram.ext.Application instance
             - Registers all command handlers including conversation handler for /start
             - Configures the bot for operation
+            - Sets up weekly notification scheduler
 
         :returns: None
         :raises RuntimeError: If application creation fails
@@ -134,18 +139,23 @@ class LifeWeeksBot:
 
         # Register settings callback handlers
         self._app.add_handler(
-            CallbackQueryHandler(command_settings_callback, pattern="^settings_")
+            CallbackQueryHandler(
+                command_settings_callback, pattern="^settings_"
+            )
         )
         logger.debug("Registered callback query handler for settings")
 
         self._app.add_handler(
-            CallbackQueryHandler(command_language_callback, pattern="^language_")
+            CallbackQueryHandler(command_language_callback, pattern="^language_"
+            )
         )
         logger.debug("Registered callback query handler for language selection")
 
         # Register handler for settings text input (must be before unknown messages)
         self._app.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_input)
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, handle_settings_input
+            )
         )
         logger.debug("Registered handler for settings text input")
 
@@ -153,8 +163,19 @@ class LifeWeeksBot:
         self._app.add_handler(MessageHandler(filters.ALL, handle_unknown_message))
         logger.debug("Registered handler for unknown messages")
 
+        # Set up weekly notification scheduler
+        success = setup_user_notification_schedules(self._app)
+        if success:
+            # Get the scheduler instance from the global variable
+            from .scheduler import _scheduler_instance
+            self._scheduler = _scheduler_instance
+            logger.debug("Set up weekly notification scheduler")
+        else:
+            logger.error("Failed to set up weekly notification scheduler")
+
         logger.info(
-            f"Command handlers registered: /start, {', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"
+            f"Command handlers registered: /start, "
+            f"{', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"
         )
 
     def start(self) -> None:
@@ -162,6 +183,7 @@ class LifeWeeksBot:
 
         This method:
             - Ensures the application is set up
+            - Starts the weekly notification scheduler
             - Starts the bot in polling mode
             - Handles incoming updates
 
@@ -171,5 +193,24 @@ class LifeWeeksBot:
         if not self._app:
             self.setup()
 
+        # Start the weekly notification scheduler
+        if self._scheduler:
+            start_scheduler(self._scheduler)
+
         logger.info("Starting Life Weeks Bot")
         self._app.run_polling()
+
+    def stop(self) -> None:
+        """Stop the life weeks bot and cleanup resources.
+
+        This method:
+            - Stops the weekly notification scheduler
+            - Performs any necessary cleanup
+
+        :returns: None
+        """
+        if self._scheduler:
+            stop_scheduler(self._scheduler)
+            self._scheduler = None
+
+        logger.info("Life Weeks Bot stopped")

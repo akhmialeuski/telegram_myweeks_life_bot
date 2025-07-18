@@ -183,7 +183,7 @@ def generate_message_help(user_info: TelegramUser) -> str:
     )
 
 
-def generate_message_cancel_success(user_info: TelegramUser) -> str:
+def generate_message_cancel_success(user_info: TelegramUser, language: str) -> str:
     """Generate cancel success message for the user.
 
     This function creates a localized success message when the user
@@ -194,14 +194,10 @@ def generate_message_cancel_success(user_info: TelegramUser) -> str:
     :returns: Localized cancel success message
     :rtype: str
     """
-    # Get user's language preference
-    user_lang = get_user_language(user_info)
-
-    # Generate localized cancel success message
     return get_message(
         message_key="command_cancel",
         sub_key="success",
-        language=user_lang,
+        language=language,
         first_name=user_info.first_name,
     )
 

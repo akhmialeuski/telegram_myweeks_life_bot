@@ -383,7 +383,7 @@ class TestMessageGeneration:
         mock_get_message.return_value = "Cancel success message"
 
         # Execute
-        result = generate_message_cancel_success(mock_telegram_user)
+        result = generate_message_cancel_success(mock_telegram_user, "en")
 
         # Assert
         assert result == "Cancel success message"

@@ -4,17 +4,25 @@ This module provides high-level business logic for database operations,
 working with models and repositories to handle complex operations.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, time
 from typing import Optional
 
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
+from .constants import (
+    DEFAULT_LIFE_EXPECTANCY,
+    DEFAULT_NOTIFICATIONS_DAY,
+    DEFAULT_NOTIFICATIONS_ENABLED,
+    DEFAULT_NOTIFICATIONS_TIME,
+    DEFAULT_TIMEZONE,
+)
 from .models import (
     DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
     SubscriptionType,
     User,
     UserSettings,
     UserSubscription,
+    WeekDay,
 )
 from .repositories.sqlite.user_repository import SQLiteUserRepository
 from .repositories.sqlite.user_settings_repository import SQLiteUserSettingsRepository
@@ -85,6 +93,16 @@ class UserAlreadyExistsError(UserServiceError):
     pass
 
 
+class UserSettingsUpdateError(UserServiceError):
+    """Exception raised when user settings update fails.
+
+    This exception is raised when the system fails to update
+    user settings in the database.
+    """
+
+    pass
+
+
 class UserService:
     """Service for managing user data in the database."""
 
@@ -123,6 +141,11 @@ class UserService:
         user_info,
         birth_date: date,
         subscription_type: SubscriptionType = SubscriptionType.BASIC,
+        notifications: bool = DEFAULT_NOTIFICATIONS_ENABLED,
+        notifications_day: WeekDay = WeekDay(DEFAULT_NOTIFICATIONS_DAY),
+        notifications_time: time = datetime.strptime(DEFAULT_NOTIFICATIONS_TIME, "%H:%M:%S").time(),
+        life_expectancy: int = DEFAULT_LIFE_EXPECTANCY,
+        timezone: str = DEFAULT_TIMEZONE,
     ) -> Optional[User]:
         """Create new user with default settings.
 
@@ -151,6 +174,11 @@ class UserService:
             settings = UserSettings(
                 telegram_id=user_info.id,
                 birth_date=birth_date,
+                notifications=notifications,
+                notifications_day=notifications_day,
+                notifications_time=notifications_time,
+                life_expectancy=life_expectancy,
+                timezone=timezone,
                 updated_at=datetime.now(UTC),
             )
 
@@ -292,7 +320,7 @@ class UserService:
         birth_date: Optional[date] = None,
         life_expectancy: Optional[int] = None,
         language: Optional[str] = None,
-    ) -> bool:
+    ) -> None:
         """Update user settings.
 
         :param telegram_id: Telegram user ID
@@ -303,14 +331,14 @@ class UserService:
         :type life_expectancy: Optional[int]
         :param language: New language preference (optional)
         :type language: Optional[str]
-        :returns: True if successful, False otherwise
-        :rtype: bool
+        :raises UserSettingsUpdateError: If settings update fails
+        :raises UserNotFoundError: If user settings not found
         """
         try:
             settings = self.settings_repository.get_user_settings(telegram_id)
             if not settings:
                 logger.warning(f"Settings not found for user {telegram_id}")
-                return False
+                raise UserNotFoundError(f"Settings not found for user {telegram_id}")
 
             # Update only provided fields
             if birth_date is not None:
@@ -330,15 +358,18 @@ class UserService:
                 logger.info(f"Updated language for user {telegram_id} to {language}")
 
             success = self.settings_repository.update_user_settings(settings)
-            if success:
-                logger.info(f"Successfully updated settings for user {telegram_id}")
-            else:
+            if not success:
                 logger.warning(f"Failed to update settings for user {telegram_id}")
-            return success
+                raise UserSettingsUpdateError(f"Failed to update settings for user {telegram_id}")
 
+            logger.info(f"Successfully updated settings for user {telegram_id}")
+
+        except (UserNotFoundError, UserSettingsUpdateError):
+            # Re-raise our custom exceptions
+            raise
         except Exception as e:
             logger.error(f"Error updating settings for {telegram_id}: {e}")
-            return False
+            raise UserSettingsUpdateError(f"Error updating settings for {telegram_id}: {e}")
 
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
@@ -372,45 +403,72 @@ class UserService:
         :raises UserServiceError: If any other service operation fails
         """
         try:
-            logger.info(f"Starting complete profile deletion for user {telegram_id}")
-
-            # Step 1: Delete user settings first
+            # First delete user settings
             settings_deleted = self.settings_repository.delete_user_settings(
                 telegram_id
             )
-            if settings_deleted:
-                logger.info(f"Deleted settings for user {telegram_id}")
-            else:
-                logger.warning(
-                    f"No settings found for user {telegram_id} (this is OK if user was not fully registered)"
-                )
+            if not settings_deleted:
+                logger.warning(f"Settings not found for user {telegram_id}")
 
-            # Step 2: Delete user record
-            user_deleted = self.user_repository.delete_user(telegram_id)
-            if user_deleted:
-                logger.info(f"Deleted user record for {telegram_id}")
-            else:
-                logger.warning(f"No user record found for {telegram_id}")
-
-            # Consider success if at least user was deleted (settings might not exist)
-            if user_deleted:
-                logger.info(
-                    f"Successfully completed profile deletion for user {telegram_id}"
-                )
-            else:
-                error_msg = f"Failed to delete user record for {telegram_id}"
-                logger.error(error_msg)
-                raise UserDeletionError(error_msg)
-
-        except UserDeletionError:
-            # Re-raise UserDeletionError as-is
-            raise
-        except Exception as e:
-            error_msg = (
-                f"Error during complete profile deletion for user {telegram_id}: {e}"
+            # Then delete user subscription
+            subscription_deleted = self.subscription_repository.delete_subscription(
+                telegram_id
             )
-            logger.error(error_msg)
-            raise UserServiceError(error_msg) from e
+            if not subscription_deleted:
+                logger.warning(f"Subscription not found for user {telegram_id}")
+
+            # Finally delete user
+            user_deleted = self.user_repository.delete_user(telegram_id)
+            if not user_deleted:
+                raise UserDeletionError(f"User {telegram_id} not found")
+
+            logger.info(f"Successfully deleted user profile for {telegram_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to delete user profile for {telegram_id}: {e}")
+            raise UserDeletionError(f"Failed to delete user profile: {e}")
+
+    def get_all_users(self) -> list[User]:
+        """Get all users from the database.
+
+        This method retrieves all users with their settings and subscriptions
+        for sending weekly notifications.
+
+        :returns: List of all users with their profiles
+        :rtype: list[User]
+        """
+        try:
+            users = self.user_repository._get_all_entities(User, "users")
+            complete_users = []
+
+            for user in users:
+                try:
+                    # Get settings and subscription for each user
+                    settings = self.settings_repository.get_user_settings(user.telegram_id)
+                    subscription = self.subscription_repository.get_subscription(user.telegram_id)
+
+                    # Create complete user profile
+                    complete_user = User(
+                        telegram_id=user.telegram_id,
+                        username=user.username,
+                        first_name=user.first_name,
+                        last_name=user.last_name,
+                        created_at=user.created_at,
+                    )
+                    complete_user.settings = settings
+                    complete_user.subscription = subscription
+                    complete_users.append(complete_user)
+
+                except Exception as e:
+                    logger.warning(f"Failed to get complete profile for user {user.telegram_id}: {e}")
+                    continue
+
+            logger.info(f"Retrieved {len(complete_users)} users for weekly notifications")
+            return complete_users
+
+        except Exception as e:
+            logger.error(f"Failed to get all users: {e}")
+            return []
 
 
 # Global service instance
