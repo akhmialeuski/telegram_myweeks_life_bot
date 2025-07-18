@@ -17,12 +17,11 @@ The bot handlers are responsible for:
 from ..database.service import user_service
 from .application import LifeWeeksBot
 from .handlers import (
-    command_cancel,
-    command_help,
-    command_start,
-    command_subscription_callback,
-    command_visualize,
-    command_weeks,
+    BaseHandler,
+    SettingsHandler,
+    StartHandler,
+    UnknownHandler,
+    WeeksHandler,
 )
 
 # Initialize database
@@ -31,4 +30,9 @@ user_service.initialize()
 __all__ = [
     "LifeWeeksBot",
     "user_service",
+    "BaseHandler",
+    "SettingsHandler",
+    "StartHandler",
+    "UnknownHandler",
+    "WeeksHandler",
 ]

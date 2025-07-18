@@ -56,6 +56,33 @@ _scheduler_instance: AsyncIOScheduler = None
 _application_instance: Application = None
 
 
+class SchedulerSetupError(Exception):
+    """Exception raised when scheduler setup fails.
+
+    This exception is raised when there are critical errors during
+    the notification scheduler setup process that prevent the scheduler
+    from functioning properly.
+
+    :param message: Error message describing the setup failure
+    :type message: str
+    :param original_error: Original exception that caused the setup failure
+    :type original_error: Exception, optional
+    """
+
+    def __init__(self, message: str, original_error: Exception = None) -> None:
+        """Initialize the SchedulerSetupError.
+
+        :param message: Error message describing the setup failure
+        :type message: str
+        :param original_error: Original exception that caused the setup failure
+        :type original_error: Exception, optional
+        :returns: None
+        """
+        super().__init__(message)
+        self.message = message
+        self.original_error = original_error
+
+
 async def send_weekly_message_to_user(application: Application, user_id: int) -> None:
     """Send a weekly notification message to a specific user.
 
@@ -339,7 +366,7 @@ def update_user_schedule(user_id: int) -> bool:
 def setup_user_notification_schedules(
     application: Application,
     scheduler: AsyncIOScheduler = None,
-) -> bool:
+) -> None:
     """Set up individual notification schedules for each user.
 
     This function implements a comprehensive notification scheduling system that:
@@ -361,16 +388,15 @@ def setup_user_notification_schedules(
     - Individual error handling and logging
     - Automatic replacement of existing jobs (replace_existing=True)
 
-    The function returns a configured AsyncIOScheduler instance that can be
+    The function configures the AsyncIOScheduler instance that can be
     started and stopped by the application lifecycle management.
 
     :param application: The running Application instance for message sending
     :type application: Application
     :param scheduler: Optional existing scheduler instance to use
     :type scheduler: AsyncIOScheduler
-    :returns: True if setup was successful, False otherwise
-    :rtype: bool
-    :raises Exception: If critical database or scheduler setup fails
+    :returns: None
+    :raises SchedulerSetupError: If critical database or scheduler setup fails
     """
     global _scheduler_instance, _application_instance
 
@@ -389,7 +415,7 @@ def setup_user_notification_schedules(
 
         if not users:
             logger.info("No users found for notification schedules")
-            return True
+            return
 
         logger.info(f"Setting up notification schedules for {len(users)} users")
 
@@ -401,11 +427,11 @@ def setup_user_notification_schedules(
         logger.info(
             f"Successfully set up notification schedules for {len(users)} users"
         )
-        return True
 
     except Exception as error:  # pylint: disable=broad-exception-caught
-        logger.error(f"Error setting up notification schedules: {error}")
-        return False
+        error_message = f"Error setting up notification schedules: {error}"
+        logger.error(error_message)
+        raise SchedulerSetupError(error_message, error)
 
 
 def start_scheduler(scheduler: AsyncIOScheduler) -> None:

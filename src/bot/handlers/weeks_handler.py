@@ -1,0 +1,97 @@
+"""Weeks command handler for life statistics.
+
+This module contains the WeeksHandler class which handles the /weeks command
+and displays detailed life statistics to users. It provides information about
+age, weeks lived, remaining weeks, and life percentage.
+
+The statistics include:
+- Current age in years
+- Total weeks lived
+- Estimated remaining weeks (based on life expectancy)
+- Percentage of life lived
+- Days until next birthday
+"""
+
+from typing import Optional
+
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from ...core.messages import generate_message_week
+from ..constants import COMMAND_WEEKS
+from .base_handler import BaseHandler
+
+
+class WeeksHandler(BaseHandler):
+    """Handler for /weeks command - display life statistics.
+
+    This handler provides users with detailed statistics about their life
+    including age, weeks lived, remaining weeks, life percentage, and
+    days until next birthday. It's the core functionality of the bot.
+
+    Attributes:
+        command_name: Name of the command this handler processes
+    """
+
+    def __init__(self) -> None:
+        """Initialize the weeks handler.
+
+        Sets up the command name and initializes the base handler.
+        """
+        super().__init__()
+        self.command_name = f"/{COMMAND_WEEKS}"
+
+    async def handle(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> Optional[int]:
+        """Handle /weeks command - display life statistics.
+
+        This command provides users with detailed statistics about their life
+        including age, weeks lived, remaining weeks, life percentage, and
+        days until next birthday. It's the core functionality of the bot.
+
+        The statistics calculation:
+        1. Retrieves user profile from database
+        2. Uses LifeCalculatorEngine to compute various metrics
+        3. Formats statistics into a localized message
+        4. Sends the formatted message to the user
+
+        The statistics include:
+        - Current age in years
+        - Total weeks lived
+        - Estimated remaining weeks (based on life expectancy)
+        - Percentage of life lived
+        - Days until next birthday
+
+        :param update: The update object containing the weeks command
+        :type update: Update
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :returns: None
+
+        Example:
+            User sends /weeks → Bot calculates statistics → Shows detailed life info
+        """
+        return await self._wrap_with_registration(self._handle_weeks)(update, context)
+
+    async def _handle_weeks(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> Optional[int]:
+        """Internal method to handle /weeks command with registration check.
+
+        :param update: The update object containing the weeks command
+        :type update: Update
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :returns: None
+        """
+        # Extract user information
+        user = update.effective_user
+        self.log_command(user.id, self.command_name)
+        self.logger.info(f"Handling /weeks command from user {user.id}")
+
+        # Generate and send life statistics message
+        await update.message.reply_text(
+            text=generate_message_week(user_info=user),
+            parse_mode="HTML",
+        )

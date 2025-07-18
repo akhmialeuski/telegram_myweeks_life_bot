@@ -10,36 +10,41 @@ The module uses a class-based approach to encapsulate all bot functionality
 and provide a clean interface for bot management.
 """
 
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
-    ConversationHandler,
     MessageHandler,
     filters,
 )
 
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
+from .constants import (
+    COMMAND_CANCEL,
+    COMMAND_HELP,
+    COMMAND_SETTINGS,
+    COMMAND_START,
+    COMMAND_SUBSCRIPTION,
+    COMMAND_UNKNOWN,
+    COMMAND_VISUALIZE,
+    COMMAND_WEEKS,
+)
 from .handlers import (
-    WAITING_USER_INPUT,
-    command_cancel,
-    command_help,
-    command_language_callback,
-    command_settings,
-    command_settings_callback,
-    command_start,
-    command_start_handle_birth_date,
-    command_subscription,
-    command_subscription_callback,
-    command_visualize,
-    command_weeks,
-    handle_settings_input,
-    handle_unknown_message,
+    CancelHandler,
+    HelpHandler,
+    SettingsHandler,
+    StartHandler,
+    SubscriptionHandler,
+    UnknownHandler,
+    VisualizeHandler,
+    WeeksHandler,
 )
 from .scheduler import (
+    SchedulerSetupError,
+    _scheduler_instance,
     setup_user_notification_schedules,
     start_scheduler,
     stop_scheduler,
@@ -47,14 +52,33 @@ from .scheduler import (
 
 logger = get_logger(BOT_NAME)
 
-# Command handlers mapping
-COMMAND_HANDLERS: Dict[str, Callable] = {
-    "weeks": command_weeks,
-    "visualize": command_visualize,
-    "help": command_help,
-    "cancel": command_cancel,
-    "settings": command_settings,
-    "subscription": command_subscription,
+
+# Unified handlers mapping
+HANDLERS = {
+    COMMAND_START: {
+        "class": StartHandler,
+        "callbacks": [],
+        "text_input": "handle_birth_date_input",
+    },
+    COMMAND_WEEKS: {"class": WeeksHandler, "callbacks": []},
+    COMMAND_SETTINGS: {
+        "class": SettingsHandler,
+        "callbacks": [
+            {"method": "handle_settings_callback", "pattern": "^settings_"},
+            {"method": "handle_language_callback", "pattern": "^language_"},
+        ],
+        "text_input": "handle_settings_input",
+    },
+    COMMAND_VISUALIZE: {"class": VisualizeHandler, "callbacks": []},
+    COMMAND_HELP: {"class": HelpHandler, "callbacks": []},
+    COMMAND_SUBSCRIPTION: {
+        "class": SubscriptionHandler,
+        "callbacks": [
+            {"method": "handle_subscription_callback", "pattern": "^subscription_"}
+        ],
+    },
+    COMMAND_CANCEL: {"class": CancelHandler, "callbacks": []},
+    COMMAND_UNKNOWN: {"class": UnknownHandler, "callbacks": []},
 }
 
 
@@ -74,6 +98,7 @@ class LifeWeeksBot:
         - /settings - Show user settings
         - /subscription - Show user subscription
         - /help - Show help information
+        - /cancel - Cancel current conversation
 
     :ivar _app: The telegram.ext.Application instance
     :type _app: Optional[Application]
@@ -111,81 +136,22 @@ class LifeWeeksBot:
         logger.info("Setting up bot application")
         self._app = Application.builder().token(TOKEN).build()
 
-        # Create conversation handler for /start command
-        conv_handler = ConversationHandler(
-            entry_points=[CommandHandler("start", command_start)],
-            states={
-                WAITING_USER_INPUT: [
-                    MessageHandler(
-                        filters.TEXT & ~filters.COMMAND, command_start_handle_birth_date
-                    )
-                ]
-            },
-            fallbacks=[CommandHandler("cancel", command_cancel)],
-        )
+        # Automatically register all handlers from HANDLERS
+        self._register_handlers()
 
-        # Register conversation handler first
-        self._app.add_handler(conv_handler)
-        logger.debug("Registered conversation handler for /start command")
-
-        # Register other command handlers from mapping
-        for command, handler in COMMAND_HANDLERS.items():
-            self._app.add_handler(CommandHandler(command, handler))
-            logger.debug(f"Registered command handler: /{command}")
-
-        # Register callback query handlers
-        self._app.add_handler(
-            CallbackQueryHandler(
-                command_subscription_callback, pattern="^subscription_"
-            )
-        )
-        logger.debug("Registered callback query handler for subscription")
-
-        # Register settings callback handlers
-        self._app.add_handler(
-            CallbackQueryHandler(command_settings_callback, pattern="^settings_")
-        )
-        logger.debug("Registered callback query handler for settings")
-
-        self._app.add_handler(
-            CallbackQueryHandler(command_language_callback, pattern="^language_")
-        )
-        logger.debug("Registered callback query handler for language selection")
-
-        # Register handler for settings text input (must be before unknown messages)
-        self._app.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_input)
-        )
-        logger.debug("Registered handler for settings text input")
-
-        # Register handler for unknown messages and commands (must be last)
-        self._app.add_handler(MessageHandler(filters.ALL, handle_unknown_message))
-        logger.debug("Registered handler for unknown messages")
+        # Register unknown handler separately
+        self._register_unknown_handler()
 
         # Set up weekly notification scheduler
-        success = setup_user_notification_schedules(self._app)
-        if success:
-            # Get the scheduler instance from the global variable
-            from .scheduler import _scheduler_instance
-
-            self._scheduler = _scheduler_instance
-            logger.debug("Set up weekly notification scheduler")
-        else:
-            logger.error("Failed to set up weekly notification scheduler")
-
-        logger.info(
-            f"Command handlers registered: /start, "
-            f"{', '.join(f'/{cmd}' for cmd in COMMAND_HANDLERS.keys())}"
-        )
+        self._setup_scheduler()
 
     def start(self) -> None:
         """Start the life weeks bot in polling mode.
 
         This method:
-            - Ensures the application is set up
-            - Starts the weekly notification scheduler
-            - Starts the bot in polling mode
-            - Handles incoming updates
+            - Ensures the application is set up (calls setup() if needed)
+            - Starts the weekly notification scheduler if it is configured
+            - Runs the bot in polling mode to process incoming updates
 
         :returns: None
         :raises RuntimeError: If application is not properly configured
@@ -214,3 +180,119 @@ class LifeWeeksBot:
             self._scheduler = None
 
         logger.info("Life Weeks Bot stopped")
+
+    def _register_handlers(self) -> None:
+        """Register all command handlers, callbacks, and text input handlers.
+
+        This private method automatically registers all handlers defined in the
+        HANDLERS dictionary. It processes each handler configuration and creates
+        the appropriate handler instances for commands, callbacks, and text input.
+
+        The registration process performs the following actions:
+        - Registers a command handler for each command defined in HANDLERS
+        - Registers callback query handlers for each callback specified in the handler configuration
+        - Registers text input handlers if specified in the handler configuration
+        - Registers a message handler for unknown messages if indicated in the handler configuration
+
+        :returns: None
+        """
+        registered_commands = []
+        registered_callbacks = []
+        registered_text_handlers = []
+
+        for command, config in HANDLERS.items():
+            # Get handler class and create instance
+            handler_class = config["class"]
+            handler_instance = handler_class()
+
+            # Register command handler
+            self._app.add_handler(CommandHandler(command, handler_instance.handle))
+            logger.debug(f"Registered command handler: /{command}")
+            registered_commands.append(command)
+            logger.info(f"Command handlers registered: /{command}")
+
+            # Register callbacks if any
+            for callback in config.get("callbacks", []):
+                callback_method = getattr(handler_instance, callback["method"])
+                self._app.add_handler(
+                    CallbackQueryHandler(callback_method, pattern=callback["pattern"])
+                )
+                logger.debug(
+                    f"Registered callback: {callback['method']} for /{command}"
+                )
+                registered_callbacks.append(f"{command}_{callback['method']}")
+                logger.info(
+                    f"Callback handlers registered: {', '.join(f'/{cmd}' for cmd in registered_callbacks)}"
+                )
+
+            # Register text input handler if specified
+            if "text_input" in config:
+                text_input_method = getattr(handler_instance, config["text_input"])
+                self._app.add_handler(
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, text_input_method)
+                )
+                logger.debug(
+                    f"Registered text input: {config['text_input']} for /{command}"
+                )
+                registered_text_handlers.append(f"{command}_{config['text_input']}")
+                logger.info(
+                    f"Text input handlers registered: {', '.join(f'/{cmd}' for cmd in registered_text_handlers)}"
+                )
+
+            # Register message handler if specified (for unknown messages)
+            if config.get("message_handler", False):
+                self._app.add_handler(
+                    MessageHandler(filters.ALL, handler_instance.handle)
+                )
+                logger.debug(f"Registered message handler: {command}")
+                registered_text_handlers.append(f"{command}_message_handler")
+                logger.info(
+                    f"Message handlers registered: {', '.join(f'/{cmd}' for cmd in registered_text_handlers)}"
+                )
+
+    def _register_unknown_handler(self) -> None:
+        """Register the unknown handler for handling unknown messages and commands.
+
+        This private method registers the UnknownHandler as a MessageHandler
+        with filters.ALL to catch all messages and commands that are not handled
+        by other handlers. This handler must be registered last to act as a fallback
+        for any unrecognized input.
+
+        The handler will:
+        - Catch all unknown commands (e.g., /invalid_command)
+        - Catch all unknown text messages
+        - Catch all other message types (photos, documents, etc.)
+        - Route text input to appropriate handlers based on context.user_data["waiting_for"]
+        - Provide error message and help suggestion for truly unknown input
+
+        :returns: None
+        """
+        unknown_handler = UnknownHandler()
+
+        # Register universal handler for all messages and commands
+        # This will catch everything that wasn't handled by other handlers
+        self._app.add_handler(MessageHandler(filters.ALL, unknown_handler.handle))
+
+        logger.debug(
+            "Registered universal unknown handler for all messages and commands"
+        )
+        logger.info(
+            "Unknown handler registered as universal fallback with routing capability"
+        )
+
+    def _setup_scheduler(self) -> None:
+        """Set up the weekly notification scheduler.
+
+        This method:
+            - Sets up the weekly notification scheduler
+            - Sets up the scheduler instance
+            - Logs the setup status
+        """
+        try:
+            setup_user_notification_schedules(self._app)
+            self._scheduler = _scheduler_instance
+            logger.debug("Set up weekly notification scheduler")
+        except SchedulerSetupError as error:
+            logger.error(
+                f"Failed to set up weekly notification scheduler: {error.message}"
+            )

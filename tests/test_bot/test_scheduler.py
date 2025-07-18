@@ -10,6 +10,7 @@ import pytest
 from telegram.ext import Application
 
 from src.bot.scheduler import (
+    SchedulerSetupError,
     add_user_to_scheduler,
     remove_user_from_scheduler,
     send_weekly_message_to_user,
@@ -660,31 +661,28 @@ class TestScheduler:
                 "Error updating schedule for user 123456789: Database error"
             )
 
-    @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
     def test_setup_user_notification_schedules_success(
-        self, mock_logger, mock_user_service, mock_create_job
+        self, mock_logger, mock_user_service
     ):
-        """Test setup_user_notification_schedules with successful setup.
+        """Test successful setup of user notification schedules.
 
         :param mock_logger: Mock logger
-        :param mock_user_service: Mock user_service
-        :param mock_create_job: Mock _create_user_notification_job function
+        :param mock_user_service: Mock user service
         :returns: None
         """
-        # Setup mocks
-        mock_users = [Mock(), Mock()]
-        mock_user_service.get_all_users.return_value = mock_users
-        mock_create_job.return_value = True
+        # Setup
+        mock_user = Mock()
+        mock_user.telegram_id = 123456789
+        mock_user_service.get_all_users.return_value = [mock_user]
 
         # Execute
         result = setup_user_notification_schedules(Mock())
 
         # Assert
-        assert result is True
+        assert result is None  # Function returns None, not True
         mock_user_service.get_all_users.assert_called_once()
-        assert mock_create_job.call_count == 2
         mock_logger.info.assert_called()
 
     @patch("src.bot.scheduler.user_service")
@@ -692,20 +690,20 @@ class TestScheduler:
     def test_setup_user_notification_schedules_no_users(
         self, mock_logger, mock_user_service
     ):
-        """Test setup_user_notification_schedules with no users.
+        """Test setup of user notification schedules with no users.
 
         :param mock_logger: Mock logger
-        :param mock_user_service: Mock user_service
+        :param mock_user_service: Mock user service
         :returns: None
         """
-        # Setup mocks
+        # Setup
         mock_user_service.get_all_users.return_value = []
 
         # Execute
         result = setup_user_notification_schedules(Mock())
 
         # Assert
-        assert result is True
+        assert result is None  # Function returns None, not True
         mock_user_service.get_all_users.assert_called_once()
         mock_logger.info.assert_called_with("No users found for notification schedules")
 
@@ -714,23 +712,24 @@ class TestScheduler:
     def test_setup_user_notification_schedules_exception(
         self, mock_logger, mock_user_service
     ):
-        """Test setup_user_notification_schedules handles exceptions.
+        """Test setup of user notification schedules with exception.
 
         :param mock_logger: Mock logger
-        :param mock_user_service: Mock user_service
+        :param mock_user_service: Mock user service
         :returns: None
         """
-        # Setup mocks
+        # Setup
         mock_user_service.get_all_users.side_effect = Exception("Database error")
 
-        # Execute
-        result = setup_user_notification_schedules(Mock())
+        # Execute & Assert
+        with pytest.raises(SchedulerSetupError) as exc_info:
+            setup_user_notification_schedules(Mock())
 
-        # Assert
-        assert result is False
-        mock_logger.error.assert_called_once_with(
-            "Error setting up notification schedules: Database error"
+        assert "Error setting up notification schedules: Database error" in str(
+            exc_info.value
         )
+        mock_user_service.get_all_users.assert_called_once()
+        mock_logger.error.assert_called()
 
     @patch("src.bot.scheduler.logger")
     def test_start_scheduler(self, mock_logger):
