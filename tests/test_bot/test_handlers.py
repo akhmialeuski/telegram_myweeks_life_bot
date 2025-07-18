@@ -1804,7 +1804,6 @@ class TestCommandLanguageCallback:
                 "src.bot.handlers.generate_message_language_updated"
             ) as mock_generate_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    # update_user_settings теперь не возвращает значение, а может выбросить исключение
                     mock_user_service.update_user_settings.return_value = None
                     mock_generate_message.return_value = "Language updated"
 
@@ -1865,7 +1864,6 @@ class TestCommandLanguageCallback:
                 "src.bot.handlers.generate_message_settings_error"
             ) as mock_error_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    # Симулируем исключение при вызове update_user_settings
                     mock_user_service.update_user_settings.side_effect = Exception(
                         "Test error"
                     )
@@ -1873,7 +1871,6 @@ class TestCommandLanguageCallback:
 
                     await command_language_callback(mock_update, mock_context)
 
-                    # Проверяем, что logger.error был вызван хотя бы один раз
                     assert mock_logger.error.call_count >= 1
                     mock_update.callback_query.edit_message_text.assert_called_once()
 
@@ -1934,13 +1931,11 @@ class TestCommandLanguageCallback:
         mock_update.message.reply_text = AsyncMock()
         mock_user_service.update_user_settings.return_value = None
 
-        # Создаем правильный мок для user_profile
         mock_user_profile = Mock()
         mock_user_profile.settings = Mock()
         mock_user_profile.settings.birth_date = date(1990, 3, 15)
         mock_user_service.get_user_profile.return_value = mock_user_profile
 
-        # Мокаем LifeCalculatorEngine
         mock_calculator_instance = Mock()
         mock_calculator_instance.calculate_age.return_value = 25
         mock_calculator.return_value = mock_calculator_instance
@@ -2102,10 +2097,8 @@ class TestHandleBirthDateInput:
                     "src.bot.handlers.LifeCalculatorEngine", create=True
                 ) as mock_calculator:
                     with patch("src.bot.handlers.logger") as mock_logger:
-                        # update_user_settings теперь не возвращает значение, а может выбросить исключение
                         mock_user_service.update_user_settings.return_value = None
 
-                        # Создаем правильный мок для user_profile
                         mock_user_profile = Mock()
                         mock_user_profile.settings = Mock()
                         mock_user_profile.settings.birth_date = date(1990, 3, 15)
@@ -2227,7 +2220,6 @@ class TestHandleLifeExpectancyInput:
                 "src.bot.handlers.generate_message_life_expectancy_updated"
             ) as mock_success_message:
                 with patch("src.bot.handlers.logger") as mock_logger:
-                    # update_user_settings теперь не возвращает значение, а может выбросить исключение
                     mock_user_service.update_user_settings.return_value = None
                     mock_success_message.return_value = "Life expectancy updated"
 
@@ -2385,7 +2377,6 @@ async def test_command_language_callback_invalid_callback(monkeypatch):
     update.effective_user = Mock()
     update.effective_user.id = 123456789
     context = Mock()
-    # Не должно быть вызова edit_message_text
     update.callback_query.edit_message_text = AsyncMock()
     result = await command_language_callback(update, context)
     assert result is None

@@ -72,7 +72,11 @@ from ..utils.config import (
 from ..utils.localization import LANGUAGES, get_localized_language_name, get_message
 from ..utils.logger import get_logger
 from ..visualization.grid import generate_visualization
-from .scheduler import add_user_to_scheduler, remove_user_from_scheduler, update_user_schedule
+from .scheduler import (
+    add_user_to_scheduler,
+    remove_user_from_scheduler,
+    update_user_schedule,
+)
 
 logger = get_logger(BOT_NAME)
 
@@ -176,9 +180,7 @@ async def command_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """
     # Extract user information from the update
     user = update.effective_user
-    logger.info(
-        f"User {user.id} ({user.username}) started the bot"
-    )
+    logger.info(f"User {user.id} ({user.username}) started the bot")
 
     # Check if user has already completed registration
     if user_service.is_valid_user_profile(user.id):
@@ -264,9 +266,7 @@ async def command_start_handle_birth_date(
         if scheduler_success:
             logger.info(f"User {user.id} added to notification scheduler")
         else:
-            logger.warning(
-            f"Failed to add user {user.id} to notification scheduler"
-        )
+            logger.warning(f"Failed to add user {user.id} to notification scheduler")
 
         # Send success message with calculated statistics
         await update.message.reply_text(
@@ -343,8 +343,8 @@ async def command_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             logger.info(f"User {user_id} removed from notification scheduler")
         else:
             logger.warning(
-            f"Failed to remove user {user_id} from notification scheduler"
-        )
+                f"Failed to remove user {user_id} from notification scheduler"
+            )
 
         # Then attempt to delete user profile and all associated data
         user_lang = get_user_language(user)
@@ -510,8 +510,7 @@ async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            button["text"],
-                            callback_data=button["callback_data"]
+                            button["text"], callback_data=button["callback_data"]
                         )
                     ]
                 )
@@ -519,9 +518,7 @@ async def command_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
+            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
         )
 
     except Exception as error:
@@ -583,9 +580,7 @@ async def command_subscription(
         message_text = generate_message_subscription_current(user_info=user)
 
         await update.message.reply_text(
-            text=message_text,
-            reply_markup=reply_markup,
-            parse_mode="HTML"
+            text=message_text, reply_markup=reply_markup, parse_mode="HTML"
         )
 
     except Exception as error:
@@ -781,9 +776,7 @@ async def command_language_callback(
         language_name = get_localized_language_name(language_code, language_code)
 
         # Update user's language preference in database
-        user_service.update_user_settings(
-            telegram_id=user.id, language=language_code
-        )
+        user_service.update_user_settings(telegram_id=user.id, language=language_code)
 
         # Update user's notification schedule
         scheduler_success = update_user_schedule(user.id)
@@ -915,10 +908,7 @@ async def handle_birth_date_input(
             return
 
         # Update birth date in database
-        user_service.update_user_settings(
-            telegram_id=user.id,
-            birth_date=birth_date
-        )
+        user_service.update_user_settings(telegram_id=user.id, birth_date=birth_date)
 
         # Update user's notification schedule
         scheduler_success = update_user_schedule(user.id)
@@ -939,9 +929,7 @@ async def handle_birth_date_input(
 
         # Send success message
         success_message = generate_message_birth_date_updated(
-            user_info=user,
-            new_birth_date=birth_date,
-            new_age=new_age
+            user_info=user, new_birth_date=birth_date, new_age=new_age
         )
         await update.message.reply_text(
             text=success_message,

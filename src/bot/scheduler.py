@@ -120,7 +120,9 @@ async def send_weekly_message_to_user(application: Application, user_id: int) ->
         logger.error(f"Failed to send weekly notification to user {user_id}: {error}")
 
 
-def _create_user_notification_job(user, application: Application, scheduler: AsyncIOScheduler) -> bool:
+def _create_user_notification_job(
+    user, application: Application, scheduler: AsyncIOScheduler
+) -> bool:
     """Create a notification job for a specific user.
 
     This helper function creates a cron job for a single user based on their
@@ -152,7 +154,9 @@ def _create_user_notification_job(user, application: Application, scheduler: Asy
 
         # Validate that both day and time are configured
         if not notification_day or not notification_time:
-            logger.warning(f"Incomplete notification settings for user {user.telegram_id}")
+            logger.warning(
+                f"Incomplete notification settings for user {user.telegram_id}"
+            )
             return False
 
         # Convert WeekDay enum to cron-compatible weekday number (0-6)
@@ -189,7 +193,9 @@ def _create_user_notification_job(user, application: Application, scheduler: Asy
         return True
 
     except Exception as error:  # pylint: disable=broad-exception-caught
-        logger.error(f"Failed to create notification job for user {user.telegram_id}: {error}")
+        logger.error(
+            f"Failed to create notification job for user {user.telegram_id}: {error}"
+        )
         return False
 
 
@@ -219,7 +225,9 @@ def add_user_to_scheduler(user_id: int) -> bool:
             return False
 
         # Create notification job for this user
-        success = _create_user_notification_job(user, _application_instance, _scheduler_instance)
+        success = _create_user_notification_job(
+            user, _application_instance, _scheduler_instance
+        )
 
         if success:
             logger.info(f"Successfully added user {user_id} to notification scheduler")
@@ -258,10 +266,14 @@ def remove_user_from_scheduler(user_id: int) -> bool:
         # Try to remove the job - if it doesn't exist, it will raise an exception
         try:
             _scheduler_instance.remove_job(job_id)
-            logger.info(f"Successfully removed user {user_id} from notification scheduler")
+            logger.info(
+                f"Successfully removed user {user_id} from notification scheduler"
+            )
         except Exception as job_error:
             # Job might not exist, which is fine
-            logger.debug(f"Job for user {user_id} not found in scheduler (already removed): {job_error}")
+            logger.debug(
+                f"Job for user {user_id} not found in scheduler (already removed): {job_error}"
+            )
 
         return True
 
@@ -298,7 +310,9 @@ def update_user_schedule(user_id: int) -> bool:
             logger.debug(f"Removed existing notification job for user {user_id}")
         except Exception as job_error:
             # Job might not exist, which is fine
-            logger.debug(f"Job for user {user_id} not found in scheduler (already removed): {job_error}")
+            logger.debug(
+                f"Job for user {user_id} not found in scheduler (already removed): {job_error}"
+            )
 
         # Get updated user profile from database
         user = user_service.get_user_profile(user_id)
@@ -307,10 +321,14 @@ def update_user_schedule(user_id: int) -> bool:
             return False
 
         # Create new notification job with updated settings
-        success = _create_user_notification_job(user, _application_instance, _scheduler_instance)
+        success = _create_user_notification_job(
+            user, _application_instance, _scheduler_instance
+        )
 
         if success:
-            logger.info(f"Successfully updated notification schedule for user {user_id}")
+            logger.info(
+                f"Successfully updated notification schedule for user {user_id}"
+            )
         else:
             logger.warning(f"Failed to update notification schedule for user {user_id}")
 
@@ -383,7 +401,9 @@ def setup_user_notification_schedules(
             logger.info(f"Setting up notification schedule for user {user.telegram_id}")
             _create_user_notification_job(user, application, scheduler)
 
-        logger.info(f"Successfully set up notification schedules for {len(users)} users")
+        logger.info(
+            f"Successfully set up notification schedules for {len(users)} users"
+        )
         return True
 
     except Exception as error:  # pylint: disable=broad-exception-caught

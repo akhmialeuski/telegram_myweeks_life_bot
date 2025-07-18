@@ -373,7 +373,9 @@ class TestLifeWeeksBot:
     @patch("src.bot.application.Application")
     @patch("src.bot.application.logger")
     @patch("src.bot.application.setup_user_notification_schedules")
-    def test_start_without_setup(self, mock_setup_scheduler, mock_logger, mock_application_class, bot):
+    def test_start_without_setup(
+        self, mock_setup_scheduler, mock_logger, mock_application_class, bot
+    ):
         """Test start method calls setup if not already done.
 
         :param mock_setup_scheduler: Mock setup_user_notification_schedules function
@@ -383,6 +385,7 @@ class TestLifeWeeksBot:
         :returns: None
         """
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -591,7 +594,9 @@ class TestLifeWeeksBot:
     @patch("src.bot.application.Application")
     @patch("src.bot.application.logger")
     @patch("src.bot.application.setup_user_notification_schedules")
-    def test_setup_scheduler_failure(self, mock_setup_scheduler, mock_logger, mock_application_class, bot):
+    def test_setup_scheduler_failure(
+        self, mock_setup_scheduler, mock_logger, mock_application_class, bot
+    ):
         """Test setup when scheduler setup fails.
 
         :param mock_setup_scheduler: Mock setup_user_notification_schedules function

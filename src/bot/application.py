@@ -39,7 +39,11 @@ from .handlers import (
     handle_settings_input,
     handle_unknown_message,
 )
-from .scheduler import setup_user_notification_schedules, start_scheduler, stop_scheduler
+from .scheduler import (
+    setup_user_notification_schedules,
+    start_scheduler,
+    stop_scheduler,
+)
 
 logger = get_logger(BOT_NAME)
 
@@ -139,23 +143,18 @@ class LifeWeeksBot:
 
         # Register settings callback handlers
         self._app.add_handler(
-            CallbackQueryHandler(
-                command_settings_callback, pattern="^settings_"
-            )
+            CallbackQueryHandler(command_settings_callback, pattern="^settings_")
         )
         logger.debug("Registered callback query handler for settings")
 
         self._app.add_handler(
-            CallbackQueryHandler(command_language_callback, pattern="^language_"
-            )
+            CallbackQueryHandler(command_language_callback, pattern="^language_")
         )
         logger.debug("Registered callback query handler for language selection")
 
         # Register handler for settings text input (must be before unknown messages)
         self._app.add_handler(
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND, handle_settings_input
-            )
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_settings_input)
         )
         logger.debug("Registered handler for settings text input")
 
@@ -168,6 +167,7 @@ class LifeWeeksBot:
         if success:
             # Get the scheduler instance from the global variable
             from .scheduler import _scheduler_instance
+
             self._scheduler = _scheduler_instance
             logger.debug("Set up weekly notification scheduler")
         else:

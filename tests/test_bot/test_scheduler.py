@@ -103,7 +103,9 @@ class TestScheduler:
         :returns: None
         """
         assert send_weekly_message_to_user.__doc__ is not None
-        assert "Send a weekly notification message" in send_weekly_message_to_user.__doc__
+        assert (
+            "Send a weekly notification message" in send_weekly_message_to_user.__doc__
+        )
         assert ":param application:" in send_weekly_message_to_user.__doc__
         assert ":returns: None" in send_weekly_message_to_user.__doc__
 
@@ -248,7 +250,9 @@ class TestScheduler:
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.generate_message_week")
     @pytest.mark.asyncio
-    async def test_send_weekly_message_success(self, mock_generate_message, mock_user_service, mock_application, mock_user):
+    async def test_send_weekly_message_success(
+        self, mock_generate_message, mock_user_service, mock_application, mock_user
+    ):
         """Test send_weekly_message_to_user with successful user retrieval.
 
         :param mock_generate_message: Mock generate_message_week function
@@ -277,7 +281,9 @@ class TestScheduler:
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
     @pytest.mark.asyncio
-    async def test_send_weekly_message_user_not_found(self, mock_logger, mock_user_service, mock_application):
+    async def test_send_weekly_message_user_not_found(
+        self, mock_logger, mock_user_service, mock_application
+    ):
         """Test send_weekly_message_to_user when user not found.
 
         :param mock_logger: Mock logger
@@ -293,12 +299,16 @@ class TestScheduler:
 
         # Assert
         mock_user_service.get_user_profile.assert_called_once_with(123456789)
-        mock_logger.warning.assert_called_once_with("User 123456789 not found for weekly notification")
+        mock_logger.warning.assert_called_once_with(
+            "User 123456789 not found for weekly notification"
+        )
 
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
     @pytest.mark.asyncio
-    async def test_send_weekly_message_exception(self, mock_logger, mock_user_service, mock_application):
+    async def test_send_weekly_message_exception(
+        self, mock_logger, mock_user_service, mock_application
+    ):
         """Test send_weekly_message_to_user handles exceptions.
 
         :param mock_logger: Mock logger
@@ -313,7 +323,9 @@ class TestScheduler:
         await send_weekly_message_to_user(mock_application, 123456789)
 
         # Assert
-        mock_logger.error.assert_called_once_with("Failed to send weekly notification to user 123456789: Database error")
+        mock_logger.error.assert_called_once_with(
+            "Failed to send weekly notification to user 123456789: Database error"
+        )
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.user_service")
@@ -334,8 +346,9 @@ class TestScheduler:
         mock_create_job.return_value = True
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", Mock()), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch("src.bot.scheduler._scheduler_instance", Mock()), patch(
+            "src.bot.scheduler._application_instance", Mock()
+        ):
 
             # Execute
             result = add_user_to_scheduler(123456789)
@@ -344,13 +357,13 @@ class TestScheduler:
             assert result is True
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
             mock_create_job.assert_called_once()
-            mock_logger.info.assert_called_once_with("Successfully added user 123456789 to notification scheduler")
+            mock_logger.info.assert_called_once_with(
+                "Successfully added user 123456789 to notification scheduler"
+            )
 
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
-    def test_add_user_to_scheduler_user_not_found(
-        self, mock_logger, mock_user_service
-    ):
+    def test_add_user_to_scheduler_user_not_found(self, mock_logger, mock_user_service):
         """Test add_user_to_scheduler when user not found.
 
         :param mock_logger: Mock logger
@@ -361,8 +374,9 @@ class TestScheduler:
         mock_user_service.get_user_profile.return_value = None
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", Mock()), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch("src.bot.scheduler._scheduler_instance", Mock()), patch(
+            "src.bot.scheduler._application_instance", Mock()
+        ):
 
             # Execute
             result = add_user_to_scheduler(123456789)
@@ -370,7 +384,9 @@ class TestScheduler:
             # Assert
             assert result is False
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
-            mock_logger.warning.assert_called_once_with("User 123456789 not found for scheduler addition")
+            mock_logger.warning.assert_called_once_with(
+                "User 123456789 not found for scheduler addition"
+            )
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.user_service")
@@ -391,8 +407,9 @@ class TestScheduler:
         mock_create_job.return_value = False
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", Mock()), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch("src.bot.scheduler._scheduler_instance", Mock()), patch(
+            "src.bot.scheduler._application_instance", Mock()
+        ):
 
             # Execute
             result = add_user_to_scheduler(123456789)
@@ -401,13 +418,13 @@ class TestScheduler:
             assert result is False
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
             mock_create_job.assert_called_once()
-            mock_logger.warning.assert_called_once_with("Failed to add user 123456789 to notification scheduler")
+            mock_logger.warning.assert_called_once_with(
+                "Failed to add user 123456789 to notification scheduler"
+            )
 
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
-    def test_add_user_to_scheduler_exception(
-        self, mock_logger, mock_user_service
-    ):
+    def test_add_user_to_scheduler_exception(self, mock_logger, mock_user_service):
         """Test add_user_to_scheduler handles exceptions.
 
         :param mock_logger: Mock logger
@@ -418,15 +435,18 @@ class TestScheduler:
         mock_user_service.get_user_profile.side_effect = Exception("Database error")
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", Mock()), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch("src.bot.scheduler._scheduler_instance", Mock()), patch(
+            "src.bot.scheduler._application_instance", Mock()
+        ):
 
             # Execute
             result = add_user_to_scheduler(123456789)
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Error adding user 123456789 to scheduler: Database error")
+            mock_logger.error.assert_called_once_with(
+                "Error adding user 123456789 to scheduler: Database error"
+            )
 
     @patch("src.bot.scheduler.logger")
     def test_remove_user_from_scheduler_success(self, mock_logger):
@@ -447,8 +467,12 @@ class TestScheduler:
 
             # Assert
             assert result is True
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
-            mock_logger.info.assert_called_once_with("Successfully removed user 123456789 from notification scheduler")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
+            mock_logger.info.assert_called_once_with(
+                "Successfully removed user 123456789 from notification scheduler"
+            )
 
     @patch("src.bot.scheduler.logger")
     def test_remove_user_from_scheduler_job_not_found(self, mock_logger):
@@ -459,7 +483,9 @@ class TestScheduler:
         """
         # Setup mocks
         mock_scheduler_instance = Mock()
-        mock_scheduler_instance.remove_job = Mock(side_effect=Exception("Job not found"))
+        mock_scheduler_instance.remove_job = Mock(
+            side_effect=Exception("Job not found")
+        )
 
         # Mock global variables
         with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance):
@@ -469,7 +495,9 @@ class TestScheduler:
 
             # Assert
             assert result is True
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_logger.debug.assert_called_once()
 
     @patch("src.bot.scheduler.logger")
@@ -481,7 +509,9 @@ class TestScheduler:
         """
         # Setup mocks
         mock_scheduler_instance = Mock()
-        mock_scheduler_instance.remove_job = Mock(side_effect=Exception("Scheduler error"))
+        mock_scheduler_instance.remove_job = Mock(
+            side_effect=Exception("Scheduler error")
+        )
 
         # Mock global variables
         with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance):
@@ -514,24 +544,27 @@ class TestScheduler:
         mock_create_job.return_value = True
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is True
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
             mock_create_job.assert_called_once()
-            mock_logger.info.assert_called_once_with("Successfully updated notification schedule for user 123456789")
+            mock_logger.info.assert_called_once_with(
+                "Successfully updated notification schedule for user 123456789"
+            )
 
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
-    def test_update_user_schedule_user_not_found(
-        self, mock_logger, mock_user_service
-    ):
+    def test_update_user_schedule_user_not_found(self, mock_logger, mock_user_service):
         """Test update_user_schedule when user not found.
 
         :param mock_logger: Mock logger
@@ -544,17 +577,22 @@ class TestScheduler:
         mock_user_service.get_user_profile.return_value = None
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
-            mock_logger.warning.assert_called_once_with("User 123456789 not found for schedule update")
+            mock_logger.warning.assert_called_once_with(
+                "User 123456789 not found for schedule update"
+            )
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.user_service")
@@ -577,24 +615,27 @@ class TestScheduler:
         mock_create_job.return_value = False
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_user_service.get_user_profile.assert_called_once_with(123456789)
             mock_create_job.assert_called_once()
-            mock_logger.warning.assert_called_once_with("Failed to update notification schedule for user 123456789")
+            mock_logger.warning.assert_called_once_with(
+                "Failed to update notification schedule for user 123456789"
+            )
 
     @patch("src.bot.scheduler.user_service")
     @patch("src.bot.scheduler.logger")
-    def test_update_user_schedule_exception(
-        self, mock_logger, mock_user_service
-    ):
+    def test_update_user_schedule_exception(self, mock_logger, mock_user_service):
         """Test update_user_schedule handles exceptions.
 
         :param mock_logger: Mock logger
@@ -607,15 +648,18 @@ class TestScheduler:
         mock_user_service.get_user_profile.side_effect = Exception("Database error")
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Error updating schedule for user 123456789: Database error")
+            mock_logger.error.assert_called_once_with(
+                "Error updating schedule for user 123456789: Database error"
+            )
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.user_service")
@@ -685,7 +729,9 @@ class TestScheduler:
 
         # Assert
         assert result is False
-        mock_logger.error.assert_called_once_with("Error setting up notification schedules: Database error")
+        mock_logger.error.assert_called_once_with(
+            "Error setting up notification schedules: Database error"
+        )
 
     @patch("src.bot.scheduler.logger")
     def test_start_scheduler(self, mock_logger):
@@ -703,7 +749,9 @@ class TestScheduler:
 
         # Assert
         mock_scheduler_instance.start.assert_called_once()
-        mock_logger.info.assert_called_once_with("User notification scheduler started successfully")
+        mock_logger.info.assert_called_once_with(
+            "User notification scheduler started successfully"
+        )
 
     @patch("src.bot.scheduler.logger")
     def test_stop_scheduler(self, mock_logger):
@@ -721,7 +769,9 @@ class TestScheduler:
 
         # Assert
         mock_scheduler_instance.shutdown.assert_called_once()
-        mock_logger.info.assert_called_once_with("User notification scheduler stopped successfully")
+        mock_logger.info.assert_called_once_with(
+            "User notification scheduler stopped successfully"
+        )
 
     @patch("src.bot.scheduler.logger")
     def test_add_user_to_scheduler_not_initialized(self, mock_logger):
@@ -731,15 +781,18 @@ class TestScheduler:
         :returns: None
         """
         # Mock global variables as None to simulate not initialized
-        with patch("src.bot.scheduler._scheduler_instance", None), \
-             patch("src.bot.scheduler._application_instance", None):
+        with patch("src.bot.scheduler._scheduler_instance", None), patch(
+            "src.bot.scheduler._application_instance", None
+        ):
 
             # Execute
             result = add_user_to_scheduler(123456789)
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Scheduler not initialized, cannot add user")
+            mock_logger.error.assert_called_once_with(
+                "Scheduler not initialized, cannot add user"
+            )
 
     @patch("src.bot.scheduler.logger")
     def test_remove_user_from_scheduler_not_initialized(self, mock_logger):
@@ -756,7 +809,9 @@ class TestScheduler:
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Scheduler not initialized, cannot remove user")
+            mock_logger.error.assert_called_once_with(
+                "Scheduler not initialized, cannot remove user"
+            )
 
     @patch("src.bot.scheduler.logger")
     def test_update_user_schedule_not_initialized(self, mock_logger):
@@ -766,19 +821,24 @@ class TestScheduler:
         :returns: None
         """
         # Mock global variables as None to simulate not initialized
-        with patch("src.bot.scheduler._scheduler_instance", None), \
-             patch("src.bot.scheduler._application_instance", None):
+        with patch("src.bot.scheduler._scheduler_instance", None), patch(
+            "src.bot.scheduler._application_instance", None
+        ):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Scheduler not initialized, cannot update user schedule")
+            mock_logger.error.assert_called_once_with(
+                "Scheduler not initialized, cannot update user schedule"
+            )
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_success(self, mock_logger, mock_create_job, mock_user, mock_application):
+    def test_create_user_notification_job_success(
+        self, mock_logger, mock_create_job, mock_user, mock_application
+    ):
         """Test _create_user_notification_job with successful job creation.
 
         :param mock_logger: Mock logger
@@ -793,7 +853,9 @@ class TestScheduler:
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_no_settings(self, mock_logger, mock_create_job, mock_application):
+    def test_create_user_notification_job_no_settings(
+        self, mock_logger, mock_create_job, mock_application
+    ):
         """Test _create_user_notification_job when user has no settings.
 
         :param mock_logger: Mock logger
@@ -807,7 +869,9 @@ class TestScheduler:
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_notifications_disabled(self, mock_logger, mock_create_job, mock_application):
+    def test_create_user_notification_job_notifications_disabled(
+        self, mock_logger, mock_create_job, mock_application
+    ):
         """Test _create_user_notification_job when notifications are disabled.
 
         :param mock_logger: Mock logger
@@ -821,7 +885,9 @@ class TestScheduler:
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_incomplete_settings(self, mock_logger, mock_create_job, mock_application):
+    def test_create_user_notification_job_incomplete_settings(
+        self, mock_logger, mock_create_job, mock_application
+    ):
         """Test _create_user_notification_job when settings are incomplete.
 
         :param mock_logger: Mock logger
@@ -835,7 +901,9 @@ class TestScheduler:
 
     @patch("src.bot.scheduler._create_user_notification_job")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_exception(self, mock_logger, mock_create_job, mock_application):
+    def test_create_user_notification_job_exception(
+        self, mock_logger, mock_create_job, mock_application
+    ):
         """Test _create_user_notification_job handles exceptions.
 
         :param mock_logger: Mock logger
@@ -850,7 +918,9 @@ class TestScheduler:
     # Test private function _create_user_notification_job directly
     @patch("src.bot.scheduler.WeekDay")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_no_settings_direct(self, mock_logger, mock_weekday):
+    def test_create_user_notification_job_no_settings_direct(
+        self, mock_logger, mock_weekday
+    ):
         """Test _create_user_notification_job when user has no settings.
 
         :param mock_logger: Mock logger
@@ -867,15 +937,21 @@ class TestScheduler:
         mock_scheduler = Mock()
 
         # Execute
-        result = _create_user_notification_job(mock_user, mock_application, mock_scheduler)
+        result = _create_user_notification_job(
+            mock_user, mock_application, mock_scheduler
+        )
 
         # Assert
         assert result is False
-        mock_logger.warning.assert_called_once_with("No settings found for user 123456789")
+        mock_logger.warning.assert_called_once_with(
+            "No settings found for user 123456789"
+        )
 
     @patch("src.bot.scheduler.WeekDay")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_notifications_disabled_direct(self, mock_logger, mock_weekday):
+    def test_create_user_notification_job_notifications_disabled_direct(
+        self, mock_logger, mock_weekday
+    ):
         """Test _create_user_notification_job when notifications are disabled.
 
         :param mock_logger: Mock logger
@@ -893,15 +969,21 @@ class TestScheduler:
         mock_scheduler = Mock()
 
         # Execute
-        result = _create_user_notification_job(mock_user, mock_application, mock_scheduler)
+        result = _create_user_notification_job(
+            mock_user, mock_application, mock_scheduler
+        )
 
         # Assert
         assert result is False
-        mock_logger.debug.assert_called_once_with("Notifications disabled for user 123456789")
+        mock_logger.debug.assert_called_once_with(
+            "Notifications disabled for user 123456789"
+        )
 
     @patch("src.bot.scheduler.WeekDay")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_incomplete_settings_direct(self, mock_logger, mock_weekday):
+    def test_create_user_notification_job_incomplete_settings_direct(
+        self, mock_logger, mock_weekday
+    ):
         """Test _create_user_notification_job when settings are incomplete.
 
         :param mock_logger: Mock logger
@@ -921,15 +1003,21 @@ class TestScheduler:
         mock_scheduler = Mock()
 
         # Execute
-        result = _create_user_notification_job(mock_user, mock_application, mock_scheduler)
+        result = _create_user_notification_job(
+            mock_user, mock_application, mock_scheduler
+        )
 
         # Assert
         assert result is False
-        mock_logger.warning.assert_called_once_with("Incomplete notification settings for user 123456789")
+        mock_logger.warning.assert_called_once_with(
+            "Incomplete notification settings for user 123456789"
+        )
 
     @patch("src.bot.scheduler.WeekDay")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_success_direct(self, mock_logger, mock_weekday):
+    def test_create_user_notification_job_success_direct(
+        self, mock_logger, mock_weekday
+    ):
         """Test _create_user_notification_job with successful job creation.
 
         :param mock_logger: Mock logger
@@ -956,7 +1044,9 @@ class TestScheduler:
         mock_scheduler.add_job = Mock()
 
         # Execute
-        result = _create_user_notification_job(mock_user, mock_application, mock_scheduler)
+        result = _create_user_notification_job(
+            mock_user, mock_application, mock_scheduler
+        )
 
         # Assert
         assert result is True
@@ -967,7 +1057,9 @@ class TestScheduler:
 
     @patch("src.bot.scheduler.WeekDay")
     @patch("src.bot.scheduler.logger")
-    def test_create_user_notification_job_exception_direct(self, mock_logger, mock_weekday):
+    def test_create_user_notification_job_exception_direct(
+        self, mock_logger, mock_weekday
+    ):
         """Test _create_user_notification_job handles exceptions.
 
         :param mock_logger: Mock logger
@@ -993,11 +1085,15 @@ class TestScheduler:
         mock_scheduler = Mock()
 
         # Execute
-        result = _create_user_notification_job(mock_user, mock_application, mock_scheduler)
+        result = _create_user_notification_job(
+            mock_user, mock_application, mock_scheduler
+        )
 
         # Assert
         assert result is False
-        mock_logger.error.assert_called_once_with("Failed to create notification job for user 123456789: WeekDay error")
+        mock_logger.error.assert_called_once_with(
+            "Failed to create notification job for user 123456789: WeekDay error"
+        )
 
     @patch("src.bot.scheduler.logger")
     def test_remove_user_from_scheduler_exception_handling(self, mock_logger):
@@ -1008,7 +1104,9 @@ class TestScheduler:
         """
         # Setup mocks
         mock_scheduler_instance = Mock()
-        mock_scheduler_instance.remove_job = Mock(side_effect=Exception("Scheduler error"))
+        mock_scheduler_instance.remove_job = Mock(
+            side_effect=Exception("Scheduler error")
+        )
 
         # Mock global variables
         with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance):
@@ -1018,7 +1116,9 @@ class TestScheduler:
 
             # Assert
             assert result is True
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_logger.debug.assert_called_once()
 
     @patch("src.bot.scheduler.logger")
@@ -1030,18 +1130,23 @@ class TestScheduler:
         """
         # Setup mocks
         mock_scheduler_instance = Mock()
-        mock_scheduler_instance.remove_job = Mock(side_effect=Exception("Scheduler error"))
+        mock_scheduler_instance.remove_job = Mock(
+            side_effect=Exception("Scheduler error")
+        )
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
             mock_logger.debug.assert_called_once()
 
     @patch("src.bot.scheduler.user_service")
@@ -1056,19 +1161,26 @@ class TestScheduler:
         # Setup mocks - make user_service raise an exception
         mock_scheduler_instance = Mock()
         mock_scheduler_instance.remove_job = Mock()
-        mock_user_service.get_user_profile = Mock(side_effect=Exception("Database access error"))
+        mock_user_service.get_user_profile = Mock(
+            side_effect=Exception("Database access error")
+        )
 
         # Mock global variables
-        with patch("src.bot.scheduler._scheduler_instance", mock_scheduler_instance), \
-             patch("src.bot.scheduler._application_instance", Mock()):
+        with patch(
+            "src.bot.scheduler._scheduler_instance", mock_scheduler_instance
+        ), patch("src.bot.scheduler._application_instance", Mock()):
 
             # Execute
             result = update_user_schedule(123456789)
 
             # Assert
             assert result is False
-            mock_scheduler_instance.remove_job.assert_called_once_with("weekly_notification_user_123456789")
-            mock_logger.error.assert_called_once_with("Error updating schedule for user 123456789: Database access error")
+            mock_scheduler_instance.remove_job.assert_called_once_with(
+                "weekly_notification_user_123456789"
+            )
+            mock_logger.error.assert_called_once_with(
+                "Error updating schedule for user 123456789: Database access error"
+            )
 
     @patch("src.bot.scheduler.logger")
     def test_remove_user_from_scheduler_outer_exception_coverage(self, mock_logger):
@@ -1077,6 +1189,7 @@ class TestScheduler:
         :param mock_logger: Mock logger
         :returns: None
         """
+
         # Setup mocks - create a scheduler that raises exception when accessed
         class ExplodingScheduler:
             def remove_job(self, job_id):
@@ -1097,4 +1210,6 @@ class TestScheduler:
 
             # Assert
             assert result is False
-            mock_logger.error.assert_called_once_with("Error removing user 123456789 from scheduler: Logger debug error")
+            mock_logger.error.assert_called_once_with(
+                "Error removing user 123456789 from scheduler: Logger debug error"
+            )

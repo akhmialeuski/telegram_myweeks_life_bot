@@ -143,7 +143,9 @@ class UserService:
         subscription_type: SubscriptionType = SubscriptionType.BASIC,
         notifications: bool = DEFAULT_NOTIFICATIONS_ENABLED,
         notifications_day: WeekDay = WeekDay(DEFAULT_NOTIFICATIONS_DAY),
-        notifications_time: time = datetime.strptime(DEFAULT_NOTIFICATIONS_TIME, "%H:%M:%S").time(),
+        notifications_time: time = datetime.strptime(
+            DEFAULT_NOTIFICATIONS_TIME, "%H:%M:%S"
+        ).time(),
         life_expectancy: int = DEFAULT_LIFE_EXPECTANCY,
         timezone: str = DEFAULT_TIMEZONE,
     ) -> Optional[User]:
@@ -360,7 +362,9 @@ class UserService:
             success = self.settings_repository.update_user_settings(settings)
             if not success:
                 logger.warning(f"Failed to update settings for user {telegram_id}")
-                raise UserSettingsUpdateError(f"Failed to update settings for user {telegram_id}")
+                raise UserSettingsUpdateError(
+                    f"Failed to update settings for user {telegram_id}"
+                )
 
             logger.info(f"Successfully updated settings for user {telegram_id}")
 
@@ -369,7 +373,9 @@ class UserService:
             raise
         except Exception as e:
             logger.error(f"Error updating settings for {telegram_id}: {e}")
-            raise UserSettingsUpdateError(f"Error updating settings for {telegram_id}: {e}")
+            raise UserSettingsUpdateError(
+                f"Error updating settings for {telegram_id}: {e}"
+            )
 
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
@@ -444,8 +450,12 @@ class UserService:
             for user in users:
                 try:
                     # Get settings and subscription for each user
-                    settings = self.settings_repository.get_user_settings(user.telegram_id)
-                    subscription = self.subscription_repository.get_subscription(user.telegram_id)
+                    settings = self.settings_repository.get_user_settings(
+                        user.telegram_id
+                    )
+                    subscription = self.subscription_repository.get_subscription(
+                        user.telegram_id
+                    )
 
                     # Create complete user profile
                     complete_user = User(
@@ -460,10 +470,14 @@ class UserService:
                     complete_users.append(complete_user)
 
                 except Exception as e:
-                    logger.warning(f"Failed to get complete profile for user {user.telegram_id}: {e}")
+                    logger.warning(
+                        f"Failed to get complete profile for user {user.telegram_id}: {e}"
+                    )
                     continue
 
-            logger.info(f"Retrieved {len(complete_users)} users for weekly notifications")
+            logger.info(
+                f"Retrieved {len(complete_users)} users for weekly notifications"
+            )
             return complete_users
 
         except Exception as e:

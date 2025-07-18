@@ -792,7 +792,8 @@ class TestUserService:
         mock_user_repository.delete_user.return_value = False
 
         with pytest.raises(
-            UserDeletionError, match="Failed to delete user profile: User 123456789 not found"
+            UserDeletionError,
+            match="Failed to delete user profile: User 123456789 not found",
         ):
             user_service.delete_user_profile(123456789)
 
