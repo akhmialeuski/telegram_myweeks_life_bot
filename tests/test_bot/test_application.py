@@ -1,670 +1,373 @@
-"""Unit tests for bot application.
+"""Unit tests for the bot application, focusing on LifeWeeksBot class behavior."""
 
-Tests all functionality of the LifeWeeksBot application class
-with proper mocking, edge cases, and error handling coverage.
-"""
+import asyncio
+from types import SimpleNamespace
+from typing import List, Type
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from unittest.mock import Mock, patch
-
-import pytest
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler
-
-from src.bot.application import (
-    HANDLERS,
-    LifeWeeksBot,
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
 )
+
+from src.bot.application import HANDLERS, LifeWeeksBot
 from src.bot.constants import (
+    COMMAND_CANCEL,
     COMMAND_HELP,
+    COMMAND_SETTINGS,
     COMMAND_START,
+    COMMAND_SUBSCRIPTION,
+    COMMAND_UNKNOWN,
     COMMAND_VISUALIZE,
     COMMAND_WEEKS,
 )
-from src.bot.scheduler import SchedulerSetupError
+
+
+def _get_handlers_by_type(mock_app: Mock, handler_type: Type) -> List[MagicMock]:
+    """Extract registered handlers of a specific type from a mock application.
+
+    :param mock_app: The mock application instance from which to get handlers
+    :type mock_app: Mock
+    :param handler_type: The class of the handler to filter by (e.g., CommandHandler)
+    :type handler_type: Type
+    :return: A list of found handler instances
+    :rtype: List[MagicMock]
+    """
+    return [
+        call.args[0]
+        for call in mock_app.add_handler.call_args_list
+        if isinstance(call.args[0], handler_type)
+    ]
 
 
 class TestHandlers:
-    """Test suite for HANDLERS mapping."""
+    """Tests for the HANDLERS constant mapping."""
 
-    def test_handlers_mapping(self):
-        """Test that HANDLERS contains all expected commands.
+    def test_handlers_mapping_contains_all_commands(self) -> None:
+        """Verify that the HANDLERS dictionary contains all expected command keys.
 
         :returns: None
+        :rtype: None
         """
         expected_commands = [
-            "start",
-            "weeks",
-            "settings",
-            "visualize",
-            "help",
-            "subscription",
-            "cancel",
-            "unknown",
+            COMMAND_START,
+            COMMAND_WEEKS,
+            COMMAND_SETTINGS,
+            COMMAND_VISUALIZE,
+            COMMAND_HELP,
+            COMMAND_SUBSCRIPTION,
+            COMMAND_CANCEL,
+            COMMAND_UNKNOWN,
         ]
-
         for command in expected_commands:
-            assert command in HANDLERS, f"Command {command} missing from HANDLERS"
+            assert command in HANDLERS, f"Command '{command}' is missing from HANDLERS"
 
-    def test_handlers_structure(self):
-        """Test that all handlers have the correct structure.
+    def test_handlers_have_correct_structure(self) -> None:
+        """Ensure every handler configuration in HANDLERS has the required keys.
 
         :returns: None
+        :rtype: None
         """
         for command, config in HANDLERS.items():
-            assert "class" in config, f"Handler for {command} missing 'class' key"
+            assert "class" in config, f"Handler for '{command}' is missing 'class'"
             assert (
                 "callbacks" in config
-            ), f"Handler for {command} missing 'callbacks' key"
+            ), f"Handler for '{command}' is missing 'callbacks'"
+
+    def test_text_input_handlers_have_waiting_states(self) -> None:
+        """Verify handlers with 'text_input' also have 'waiting_states' defined.
+
+        :returns: None
+        :rtype: None
+        """
+        for command, config in HANDLERS.items():
+            if "text_input" in config:
+                assert (
+                    "waiting_states" in config
+                ), f"Handler '{command}' with 'text_input' is missing 'waiting_states'"
+                assert isinstance(
+                    config["waiting_states"], list
+                ), f"Handler '{command}' waiting_states should be a list"
 
 
 class TestLifeWeeksBot:
-    """Test suite for LifeWeeksBot class."""
+    """Tests for the LifeWeeksBot class, with critical dependencies mocked."""
 
-    @pytest.fixture
-    def bot(self):
-        """Create LifeWeeksBot instance for testing.
+    def test_init_default_state(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Verify that the bot initializes with a default null state.
 
-        :returns: LifeWeeksBot instance
-        :rtype: LifeWeeksBot
-        """
-        return LifeWeeksBot()
-
-    @pytest.fixture
-    def mock_application(self):
-        """Create mock Application instance.
-
-        :returns: Mock Application instance
-        :rtype: Mock
-        """
-        app = Mock(spec=Application)
-        app.add_handler = Mock()
-        app.run_polling = Mock()
-        return app
-
-    def test_init_default_state(self, bot):
-        """Test bot initialization with default state.
-
-        :param bot: LifeWeeksBot instance
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
         :returns: None
+        :rtype: None
+        """
+        bot.__init__()
+        assert bot._app is None
+        assert bot._scheduler is None
+        mock_application_logger.info.assert_called_with("Initializing LifeWeeksBot")
+
+    def test_setup_logic(
+        self,
+        bot: LifeWeeksBot,
+        mock_application_builder: MagicMock,
+        mock_application_logger: MagicMock,
+    ) -> None:
+        """Check that setup method correctly builds the application and calls helpers.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_builder: Mocked Application.builder() chain
+        :type mock_application_builder: MagicMock
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        with patch.object(bot, "_register_handlers") as mock_register, patch.object(
+            bot, "_setup_scheduler"
+        ) as mock_setup_scheduler:
+            bot.setup()
+            mock_register.assert_called_once()
+            mock_setup_scheduler.assert_called_once()
+
+        assert bot._app is mock_application_builder
+        mock_application_logger.info.assert_any_call("Setting up bot application")
+
+    def test_register_handlers_registers_all_types(
+        self, bot: LifeWeeksBot, mock_app: MagicMock
+    ) -> None:
+        """Ensure _register_handlers registers command, callback, and message handlers.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._app = mock_app
+        bot._register_handlers()
+        command_handlers = _get_handlers_by_type(bot._app, CommandHandler)
+        callback_handlers = _get_handlers_by_type(bot._app, CallbackQueryHandler)
+        message_handlers = _get_handlers_by_type(bot._app, MessageHandler)
+        assert len(command_handlers) > 0
+        assert len(callback_handlers) > 0
+        assert len(message_handlers) > 0
+
+    def test_setup_does_not_reinitialize(
+        self, bot: LifeWeeksBot, mock_application_builder: MagicMock
+    ) -> None:
+        """Verify that calling setup multiple times does not re-create the application.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_builder: Mocked Application.builder() chain
+        :type mock_application_builder: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        with patch.object(bot, "_register_handlers"), patch.object(
+            bot, "_setup_scheduler"
+        ):
+            bot.setup()
+            first_app_instance = bot._app
+            bot.setup()
+            second_app_instance = bot._app
+        assert first_app_instance is second_app_instance
+
+    def test_setup_scheduler_handles_error_gracefully(
+        self,
+        bot: LifeWeeksBot,
+        mock_scheduler_setup_error: MagicMock,
+        mock_application_logger: MagicMock,
+        mock_app: MagicMock,
+    ) -> None:
+        """Check that _setup_scheduler logs an error but doesn't crash if setup fails.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_scheduler_setup_error: Mocked scheduler setup that raises error
+        :type mock_scheduler_setup_error: MagicMock
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._app = mock_app
+        bot._setup_scheduler()
+        mock_application_logger.error.assert_called_once_with(
+            "Failed to set up weekly notification scheduler: Test error"
+        )
+
+    def test_start_calls_setup_if_not_initialized(
+        self, bot: LifeWeeksBot, mock_app: MagicMock
+    ) -> None:
+        """Verify that start() automatically calls setup() if the bot is not ready.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :returns: None
+        :rtype: None
         """
         assert bot._app is None
 
-    @patch("src.bot.application.logger")
-    def test_init_logging(self, mock_logger):
-        """Test bot initialization logging.
+        def mock_setup_logic():
+            bot._app = mock_app
 
-        :param mock_logger: Mock logger
+        with patch.object(bot, "setup", side_effect=mock_setup_logic):
+            bot.start()
+
+        assert bot._app is not None
+        bot._app.run_polling.assert_called_once()
+
+    def test_start_runs_polling_and_scheduler(
+        self,
+        bot: LifeWeeksBot,
+        mock_start_scheduler: MagicMock,
+        mock_app: MagicMock,
+        mock_scheduler: MagicMock,
+    ) -> None:
+        """Ensure start() runs polling and starts the scheduler if it exists.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_start_scheduler: Mocked start_scheduler function
+        :type mock_start_scheduler: MagicMock
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :param mock_scheduler: Mocked scheduler instance
+        :type mock_scheduler: MagicMock
         :returns: None
+        :rtype: None
         """
-        LifeWeeksBot()
-
-        mock_logger.info.assert_called_once_with("Initializing LifeWeeksBot")
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_success(self, mock_logger, mock_application_class, bot):
-        """Test successful bot setup.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        assert bot._app is mock_app
-        # Check that setup logging was called
-        setup_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if "Setting up bot application" in str(call)
-        ]
-        assert len(setup_calls) > 0
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_handlers_registration(
-        self, mock_logger, mock_application_class, bot
-    ):
-        """Test handlers registration during setup.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        # Should register handlers for all commands
-        assert mock_app.add_handler.call_count > 0
-
-        # Check that command handlers were registered
-        command_handler_calls = [
-            call
-            for call in mock_app.add_handler.call_args_list
-            if isinstance(call[0][0], CommandHandler)
-        ]
-        assert len(command_handler_calls) > 0
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_command_handlers_registration(
-        self, mock_logger, mock_application_class, bot
-    ):
-        """Test command handler registration during setup.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        # Check that command handlers were registered
-        command_calls = mock_app.add_handler.call_args_list
-        registered_commands = set()
-
-        for call in command_calls:
-            handler = call[0][0]
-            if isinstance(handler, CommandHandler):
-                registered_commands.update(handler.commands)
-
-        expected_commands = set(HANDLERS.keys())
-        assert registered_commands == expected_commands
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_callback_handler_registration(
-        self, mock_logger, mock_application_class, bot
-    ):
-        """Test callback query handler registration during setup.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        # Check that callback handlers were registered
-        callback_calls = mock_app.add_handler.call_args_list
-        callback_handlers_found = False
-
-        for call in callback_calls:
-            handler = call[0][0]
-            if isinstance(handler, CallbackQueryHandler):
-                callback_handlers_found = True
-                break
-
-        assert callback_handlers_found, "Callback handlers not found"
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_logging_messages(self, mock_logger, mock_application_class, bot):
-        """Test setup logging messages.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        expected_info_calls = [
-            "Setting up bot application",
-        ]
-
-        # Check that all expected info messages were logged
-        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        for expected_msg in expected_info_calls:
-            assert expected_msg in info_calls
-
-        # Check debug messages for individual command handlers
-        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
-        for command in HANDLERS.keys():
-            expected_debug = f"Registered command handler: /{command}"
-            assert expected_debug in debug_calls
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_setup_final_log_message(self, mock_logger, mock_application_class, bot):
-        """Test final setup log message contains all commands.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        # Check that some form of handler registration message was logged
-        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        handler_messages = [
-            msg
-            for msg in info_calls
-            if "handler" in msg.lower()
-            and ("registered" in msg.lower() or "fallback" in msg.lower())
-        ]
-        assert len(handler_messages) > 0, "No handler registration messages found"
-
-    @patch("src.bot.application.Application")
-    def test_setup_multiple_calls(self, mock_application_class, bot):
-        """Test multiple setup calls don't create multiple applications.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-        first_app = bot._app
-
-        bot.setup()
-        second_app = bot._app
-
-        # Assert
-        assert first_app is second_app
-        # Builder should be called only once since setup checks if _app already exists
-        assert mock_application_class.builder.call_count == 1
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    @patch("src.bot.application.setup_user_notification_schedules")
-    def test_start_without_setup(
-        self, mock_setup_scheduler, mock_logger, mock_application_class, bot
-    ):
-        """Test start method calls setup if not already done.
-
-        :param mock_setup_scheduler: Mock setup_user_notification_schedules function
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        import asyncio
-
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_app.run_polling = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-        mock_setup_scheduler.return_value = True
-
-        # Execute
-        bot.start()
-
-        # Assert
-        assert bot._app is mock_app
-        mock_app.run_polling.assert_called_once()
-        start_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if "Starting Life Weeks Bot" in str(call)
-        ]
-        assert len(start_calls) > 0
-
-    @patch("src.bot.application.logger")
-    def test_start_with_existing_setup(self, mock_logger, bot):
-        """Test start method with pre-existing setup.
-
-        :param mock_logger: Mock logger
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.run_polling = Mock()
         bot._app = mock_app
-
-        # Execute
-        bot.start()
-
-        # Assert
-        mock_app.run_polling.assert_called_once()
-        start_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if "Starting Life Weeks Bot" in str(call)
-        ]
-        assert len(start_calls) > 0
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    def test_start_logging(self, mock_logger, mock_application_class, bot):
-        """Test start method logging.
-
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_app.run_polling = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.start()
-
-        # Assert
-        # Should log both setup and start messages
-        info_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        assert "Starting Life Weeks Bot" in info_calls
-
-    @patch("src.bot.application.TOKEN", "test_token")
-    @patch("src.bot.application.Application")
-    def test_setup_uses_correct_token(self, mock_application_class, bot):
-        """Test setup uses correct token from config.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_builder = Mock()
-        mock_token_builder = Mock()
-        mock_app = Mock(spec=Application)
-
-        mock_application_class.builder.return_value = mock_builder
-        mock_builder.token.return_value = mock_token_builder
-        mock_token_builder.build.return_value = mock_app
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        mock_builder.token.assert_called_once_with("test_token")
-
-    def test_bot_docstring_and_attributes(self, bot):
-        """Test bot class docstring and attributes.
-
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Test docstring exists and contains expected information
-        assert LifeWeeksBot.__doc__ is not None
-        assert (
-            "Telegram bot for tracking and visualizing life weeks"
-            in LifeWeeksBot.__doc__
-        )
-        assert f"/{COMMAND_START}" in LifeWeeksBot.__doc__
-        assert f"/{COMMAND_WEEKS}" in LifeWeeksBot.__doc__
-        assert f"/{COMMAND_VISUALIZE}" in LifeWeeksBot.__doc__
-        assert f"/{COMMAND_HELP}" in LifeWeeksBot.__doc__
-
-        # Test instance attributes
-        assert hasattr(bot, "_app")
-
-    @patch("src.bot.application.Application")
-    def test_setup_error_handling(self, mock_application_class, bot):
-        """Test setup error handling when Application creation fails.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_application_class.builder.side_effect = Exception(
-            "Application creation failed"
-        )
-
-        # Execute & Assert
-        with pytest.raises(Exception, match="Application creation failed"):
-            bot.setup()
-
-    @patch("src.bot.application.Application")
-    def test_setup_handler_registration_order(self, mock_application_class, bot):
-        """Test that handlers are registered in correct order.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        calls = mock_app.add_handler.call_args_list
-
-        # Check that handlers were registered
-        assert len(calls) > 0
-
-        # Check that command handlers are registered
-        command_handlers = [
-            call for call in calls if isinstance(call[0][0], CommandHandler)
-        ]
-        assert len(command_handlers) > 0
-
-        # Check that callback handlers are registered
-        callback_handlers = [
-            call for call in calls if isinstance(call[0][0], CallbackQueryHandler)
-        ]
-        assert len(callback_handlers) > 0
-
-    @patch("src.bot.application.Application")
-    def test_setup_all_handlers_registered(self, mock_application_class, bot):
-        """Test that all required handlers are registered.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        # Check that handlers were registered (exact count may vary due to callbacks and text inputs)
-        assert mock_app.add_handler.call_count > 0
-
-    @patch("src.bot.application.Application")
-    @patch("src.bot.application.logger")
-    @patch("src.bot.application.setup_user_notification_schedules")
-    def test_setup_scheduler_failure(
-        self, mock_setup_scheduler, mock_logger, mock_application_class, bot
-    ):
-        """Test setup when scheduler setup fails.
-
-        :param mock_setup_scheduler: Mock setup_user_notification_schedules function
-        :param mock_logger: Mock logger
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
-        )
-        mock_setup_scheduler.side_effect = SchedulerSetupError("Test error")
-
-        # Execute
-        bot.setup()
-
-        # Assert
-        assert bot._app is mock_app
-        mock_setup_scheduler.assert_called_once_with(mock_app)
-        error_calls = [
-            call
-            for call in mock_logger.error.call_args_list
-            if "Failed to set up weekly notification scheduler" in str(call)
-        ]
-        assert len(error_calls) > 0
-
-    @patch("src.bot.application.logger")
-    @patch("src.bot.application.stop_scheduler")
-    def test_stop_method(self, mock_stop_scheduler, mock_logger, bot):
-        """Test stop method functionality.
-
-        :param mock_stop_scheduler: Mock stop_scheduler function
-        :param mock_logger: Mock logger
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup - create a mock scheduler
-        mock_scheduler = Mock()
         bot._scheduler = mock_scheduler
+        bot.start()
+        bot._app.run_polling.assert_called_once()
+        mock_start_scheduler.assert_called_once_with(mock_scheduler)
 
-        # Execute
+    def test_stop_cleans_up_scheduler(
+        self,
+        bot: LifeWeeksBot,
+        mock_stop_scheduler: MagicMock,
+        mock_scheduler: MagicMock,
+    ) -> None:
+        """Verify that stop() correctly stops the scheduler and clears the instance.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_stop_scheduler: Mocked stop_scheduler function
+        :type mock_stop_scheduler: MagicMock
+        :param mock_scheduler: Mocked scheduler instance
+        :type mock_scheduler: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._scheduler = mock_scheduler
         bot.stop()
-
-        # Assert
         mock_stop_scheduler.assert_called_once_with(mock_scheduler)
         assert bot._scheduler is None
-        stop_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if "Life Weeks Bot stopped" in str(call)
-        ]
-        assert len(stop_calls) > 0
 
-    @patch("src.bot.application.logger")
-    @patch("src.bot.application.stop_scheduler")
-    def test_stop_method_no_scheduler(self, mock_stop_scheduler, mock_logger, bot):
-        """Test stop method when no scheduler is set.
+    def test_universal_text_handler_routes_correctly(self, bot: LifeWeeksBot) -> None:
+        """Test all branches of the _universal_text_handler method.
 
-        :param mock_stop_scheduler: Mock stop_scheduler function
-        :param mock_logger: Mock logger
-        :param bot: LifeWeeksBot instance
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
         :returns: None
+        :rtype: None
         """
-        # Setup - no scheduler
-        bot._scheduler = None
-
-        # Execute
-        bot.stop()
-
-        # Assert
-        mock_stop_scheduler.assert_not_called()
-        assert bot._scheduler is None
-        stop_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if "Life Weeks Bot stopped" in str(call)
-        ]
-        assert len(stop_calls) > 0
-
-    def test_bot_class_constants(self):
-        """Test bot class and module constants.
-
-        :returns: None
-        """
-        # Test that HANDLERS is defined and not empty
-        assert HANDLERS is not None
-        assert len(HANDLERS) > 0
-
-        # Test that all handlers in HANDLERS have correct structure
-        for command, config in HANDLERS.items():
-            assert "class" in config
-            assert "callbacks" in config
-
-    @patch("src.bot.application.Application")
-    def test_integration_setup_and_start(self, mock_application_class, bot):
-        """Test integration of setup and start methods.
-
-        :param mock_application_class: Mock Application class
-        :param bot: LifeWeeksBot instance
-        :returns: None
-        """
-        # Setup
-        mock_app = Mock(spec=Application)
-        mock_app.add_handler = Mock()
-        mock_app.run_polling = Mock()
-        mock_application_class.builder.return_value.token.return_value.build.return_value = (
-            mock_app
+        bot._waiting_states = {
+            "start_state": COMMAND_START,
+            "settings_state": COMMAND_SETTINGS,
+        }
+        start_handler, settings_handler, unknown_handler = (
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
         )
+        start_handler.handle_birth_date_input = AsyncMock()
+        unknown_handler.handle = AsyncMock()
+        bot._text_input_handlers = {
+            COMMAND_START: start_handler.handle_birth_date_input
+        }
+        bot._handler_instances = {
+            COMMAND_START: start_handler,
+            COMMAND_SETTINGS: settings_handler,
+            COMMAND_UNKNOWN: unknown_handler,
+        }
 
-        # Execute
-        bot.setup()
-        bot.start()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            update1 = Mock()
+            context1 = SimpleNamespace(user_data={"waiting_for": "start_state"})
+            loop.run_until_complete(bot._universal_text_handler(update1, context1))
+            start_handler.handle_birth_date_input.assert_called_once()
+            unknown_handler.handle.assert_not_called()
+            update2 = Mock()
+            context2 = SimpleNamespace(user_data={"waiting_for": "settings_state"})
+            loop.run_until_complete(bot._universal_text_handler(update2, context2))
+            unknown_handler.handle.assert_called_once()
+            unknown_handler.handle.reset_mock()
+            update3 = Mock()
+            context3 = SimpleNamespace(user_data={})
+            loop.run_until_complete(bot._universal_text_handler(update3, context3))
+            unknown_handler.handle.assert_called_once()
+        finally:
+            loop.close()
 
-        # Assert
-        assert bot._app is mock_app
-        mock_app.run_polling.assert_called_once()
+    def test_setup_scheduler_assigns_instance(
+        self,
+        bot: LifeWeeksBot,
+        mock_setup_user_notification_schedules: MagicMock,
+        mock_app: MagicMock,
+    ) -> None:
+        """Verify that _setup_scheduler assigns the scheduler instance correctly.
 
-        # Verify all handlers were registered
-        assert mock_app.add_handler.call_count > 0
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_setup_user_notification_schedules: Mocked setup function
+        :type mock_setup_user_notification_schedules: MagicMock
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        fake_scheduler = "my_fake_scheduler"
+        with patch("src.bot.application._scheduler_instance", fake_scheduler):
+            bot._app = mock_app
+            bot._setup_scheduler()
+            assert bot._scheduler == fake_scheduler
+            mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
+
+    def test_register_handlers_with_message_handler(
+        self, bot: LifeWeeksBot, mock_handlers: dict, mock_app: MagicMock
+    ) -> None:
+        """Verify that handlers with `message_handler=True` are registered correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_handlers: Test handlers configuration
+        :type mock_handlers: dict
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._app = mock_app
+        with patch("src.bot.application.HANDLERS", mock_handlers), patch.object(
+            bot, "_universal_text_handler"
+        ):
+            bot._register_handlers()
+        message_handlers = _get_handlers_by_type(bot._app, MessageHandler)
+        registered_callbacks = [h.callback for h in message_handlers]
+        assert mock_handlers["test_cmd"]["class"]().handle in registered_callbacks

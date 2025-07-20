@@ -16,21 +16,25 @@ from typing import Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from ...core.enums import SubscriptionType
 from ...core.messages import (
     generate_message_subscription_already_active,
     generate_message_subscription_change_error,
     generate_message_subscription_change_failed,
     generate_message_subscription_change_success,
     generate_message_subscription_current,
-    generate_message_subscription_invalid_type,
-    generate_message_subscription_profile_error,
-    get_user_language,
 )
-from ...database.models import SubscriptionType
-from ...database.service import user_service
-from ...utils.localization import get_message
+from ...database.service import (
+    UserSubscriptionUpdateError,
+    user_service,
+)
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ..constants import COMMAND_SUBSCRIPTION
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class SubscriptionHandler(BaseHandler):
@@ -66,12 +70,17 @@ class SubscriptionHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        return await self._wrap_with_registration(self._handle_subscription)(
-            update, context
+        return await self._wrap_with_registration(
+            handler_method=self._handle_subscription
+        )(
+            update=update,
+            context=context,
         )
 
     async def _handle_subscription(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
     ) -> Optional[int]:
         """Internal method to handle /subscription command with registration check.
 
@@ -81,32 +90,16 @@ class SubscriptionHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        # Extract user information
-        user = update.effective_user
-        self.log_command(user.id, self.command_name)
-        self.logger.info(f"Handling /subscription command from user {user.id}")
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+        user_profile = cmd_context.user_profile
+        current_subscription = user_profile.subscription.subscription_type
 
-        language = None
+        logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         try:
-            # Get user profile with current subscription
-            user_profile = user_service.get_user_profile(user.id)
-
-            # Get user's language preference
-            language = get_user_language(user, user_profile)
-
-            if not user_profile or not user_profile.subscription:
-                await update.message.reply_text(
-                    get_message(
-                        message_key="common",
-                        sub_key="error",
-                        language=language,
-                    )
-                )
-                return
-
-            current_subscription = user_profile.subscription.subscription_type
-
             # Create subscription selection keyboard
             keyboard = []
             for subscription_type in SubscriptionType:
@@ -120,29 +113,23 @@ class SubscriptionHandler(BaseHandler):
                     [InlineKeyboardButton(text, callback_data=callback_data)]
                 )
 
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            # Generate message using messages module
-            message_text = generate_message_subscription_current(user_info=user)
-
-            await update.message.reply_text(
-                text=message_text, reply_markup=reply_markup, parse_mode="HTML"
+            await self.send_message(
+                update=update,
+                message_text=generate_message_subscription_current(user_info=user),
+                reply_markup=InlineKeyboardMarkup(keyboard),
             )
 
         except Exception as error:
-            self.logger.error(f"Error in subscription command: {error}")
-            # Use default language if language is not set
-            fallback_language = language or get_user_language(user, None)
-            await update.message.reply_text(
-                get_message(
-                    message_key="common",
-                    sub_key="error",
-                    language=fallback_language,
-                )
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=str(error),
             )
 
     async def handle_subscription_callback(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
     ) -> None:
         """Handle subscription selection callback from inline keyboard.
 
@@ -156,75 +143,69 @@ class SubscriptionHandler(BaseHandler):
         :returns: None
         """
         query = update.callback_query
-        user = update.effective_user
-        self.log_callback(user.id, query.data)
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+        user_profile = cmd_context.user_profile
+
+        callback_data = query.data
+        logger.info(
+            f"{self.command_name}: [{user_id}]: Callback executed: {callback_data}"
+        )
 
         try:
             # Answer the callback query to remove loading state
             await query.answer()
 
             # Extract subscription type from callback data
-            callback_data = query.data
-            if not callback_data.startswith("subscription_"):
-                return
-
-            subscription_value = callback_data.replace("subscription_", "")
-
-            # Validate subscription type
-            try:
-                new_subscription_type = SubscriptionType(subscription_value)
-            except ValueError:
-                await query.edit_message_text(
-                    text=generate_message_subscription_invalid_type(user_info=user),
-                    parse_mode="HTML",
-                )
-                return
-
-            # Get current user profile
-            user_profile = user_service.get_user_profile(user.id)
-            if not user_profile or not user_profile.subscription:
-                await query.edit_message_text(
-                    text=generate_message_subscription_profile_error(user_info=user),
-                    parse_mode="HTML",
-                )
-                return
+            new_subscription_type = SubscriptionType(
+                callback_data.replace("subscription_", "")
+            )
 
             current_subscription = user_profile.subscription.subscription_type
 
             # Check if subscription actually changed
             if current_subscription == new_subscription_type:
-                await query.edit_message_text(
-                    text=generate_message_subscription_already_active(
+                await self.edit_message(
+                    query=query,
+                    message_text=generate_message_subscription_already_active(
                         user_info=user, subscription_type=new_subscription_type.value
                     ),
-                    parse_mode="HTML",
                 )
                 return
 
             # Update subscription in database
-            success = user_service.update_user_subscription(
-                user.id, new_subscription_type
+            user_service.update_user_subscription(
+                user_id,
+                new_subscription_type,
             )
 
-            if success:
-                success_message = generate_message_subscription_change_success(
+            # Show success message
+            await self.edit_message(
+                query=query,
+                message_text=generate_message_subscription_change_success(
                     user_info=user, subscription_type=new_subscription_type.value
-                )
+                ),
+            )
 
-                await query.edit_message_text(text=success_message, parse_mode="HTML")
+            logger.info(
+                f"{self.command_name}: [{user_id}]: Subscription changed from {current_subscription} to {new_subscription_type}"
+            )
 
-                self.logger.info(
-                    f"User {user.id} changed subscription from {current_subscription} to {new_subscription_type}"
-                )
-            else:
-                await query.edit_message_text(
-                    text=generate_message_subscription_change_failed(user_info=user),
-                    parse_mode="HTML",
-                )
+        except UserSubscriptionUpdateError:
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=generate_message_subscription_change_failed(
+                    user_info=user
+                ),
+            )
 
-        except Exception as error:
-            self.logger.error(f"Error in subscription callback handler: {error}")
-            await query.edit_message_text(
-                text=generate_message_subscription_change_error(user_info=user),
-                parse_mode="HTML",
+        except Exception:
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=generate_message_subscription_change_error(
+                    user_info=user
+                ),
             )

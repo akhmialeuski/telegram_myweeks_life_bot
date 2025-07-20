@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import update
 
 from ....utils.config import BOT_NAME
-from ...models import UserSettings
+from ...models.user_settings import UserSettings
 from ..abstract.user_settings_repository import AbstractUserSettingsRepository
 from .base_repository import BaseSQLiteRepository
 

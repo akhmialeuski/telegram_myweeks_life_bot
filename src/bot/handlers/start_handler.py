@@ -29,10 +29,14 @@ from ...database.service import (
     UserServiceError,
     user_service,
 )
-from ...utils.config import MIN_BIRTH_YEAR
+from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
+from ...utils.logger import get_logger
 from ..constants import COMMAND_START
 from ..scheduler import add_user_to_scheduler
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class StartHandler(BaseHandler):
@@ -75,28 +79,30 @@ class StartHandler(BaseHandler):
         Example:
             User sends /start → Bot checks registration → Sends appropriate message
         """
-        # Extract user information from the update
-        user = update.effective_user
-        self.log_command(user.id, self.command_name)
-        self.logger.info(f"User {user.id} ({user.username}) started the bot")
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+
+        logger.info(f"{self.command_name}: [{user_id}]: User started the bot")
 
         # Check if user has already completed registration
-        if user_service.is_valid_user_profile(user.id):
+        if user_service.is_valid_user_profile(user_id):
             # User is already registered - send welcome back message
-            await update.message.reply_text(
-                text=generate_message_start_welcome_existing(user_info=user),
-                parse_mode="HTML",
+            await self.send_message(
+                update=update,
+                message_text=generate_message_start_welcome_existing(user_info=user),
             )
             return
 
         # User needs to register - request birth date
-        await update.message.reply_text(
-            text=generate_message_start_welcome_new(user_info=user),
-            parse_mode="HTML",
+        await self.send_message(
+            update=update,
+            message_text=generate_message_start_welcome_new(user_info=user),
         )
 
         # Set waiting state for birth date input
-        context.user_data["waiting_for"] = "birth_date"
+        context.user_data["waiting_for"] = "start_birth_date"
 
     async def handle_birth_date_input(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -130,18 +136,10 @@ class StartHandler(BaseHandler):
         Example:
             User sends "15.03.1990" → Bot validates → Creates profile → Shows success message
         """
-        # Check if we're waiting for birth date input
-        waiting_for = context.user_data.get("waiting_for")
-        if waiting_for != "birth_date":
-            # Not waiting for birth date input, route to unknown handler
-            from .unknown_handler import UnknownHandler
-
-            unknown_handler = UnknownHandler()
-            await unknown_handler.handle(update, context)
-            return
-
-        # Extract user information and birth date input
-        user = update.effective_user
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
         birth_date_text = update.message.text.strip()
 
         try:
@@ -150,17 +148,19 @@ class StartHandler(BaseHandler):
 
             # Validate that birth date is not in the future
             if birth_date > date.today():
-                await update.message.reply_text(
-                    text=generate_message_birth_date_future_error(user_info=user),
-                    parse_mode="HTML",
+                await self.send_message(
+                    update=update,
+                    message_text=generate_message_birth_date_future_error(
+                        user_info=user
+                    ),
                 )
                 return
 
             # Validate that birth date is not unreasonably old
             if birth_date.year < MIN_BIRTH_YEAR:
-                await update.message.reply_text(
-                    text=generate_message_birth_date_old_error(user_info=user),
-                    parse_mode="HTML",
+                await self.send_message(
+                    update=update,
+                    message_text=generate_message_birth_date_old_error(user_info=user),
                 )
                 return
 
@@ -168,48 +168,45 @@ class StartHandler(BaseHandler):
             user_service.create_user_profile(user_info=user, birth_date=birth_date)
 
             # Add user to notification scheduler
-            scheduler_success = add_user_to_scheduler(user.id)
+            scheduler_success = add_user_to_scheduler(user_id)
             if scheduler_success:
-                self.logger.info(f"User {user.id} added to notification scheduler")
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: User added to notification scheduler"
+                )
             else:
-                self.logger.warning(
-                    f"Failed to add user {user.id} to notification scheduler"
+                logger.warning(
+                    f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler"
                 )
 
             # Send success message with calculated statistics
-            await update.message.reply_text(
-                text=generate_message_start_welcome_existing(user_info=user),
-                parse_mode="HTML",
+            await self.send_message(
+                update=update,
+                message_text=generate_message_start_welcome_existing(user_info=user),
             )
 
             # Clear waiting state
             context.user_data.pop("waiting_for", None)
 
-        except UserRegistrationError as error:
-            # Handle database registration failures
-            await update.message.reply_text(
-                text=generate_message_registration_error(user_info=user),
-                parse_mode="HTML",
+        except (UserRegistrationError, UserServiceError) as error:
+            # Handle all database errors with a single error message
+            logger.error(
+                f"{self.command_name}: [{user_id}]: Registration error: {error}"
             )
-            self.logger.error(f"Failed to register user {user.id}: {error}")
-            # Clear waiting state on error
-            context.user_data.pop("waiting_for", None)
-
-        except UserServiceError as error:
-            # Handle general service errors
-            await update.message.reply_text(
-                text=generate_message_registration_error(user_info=user),
-                parse_mode="HTML",
-            )
-            self.logger.error(
-                f"Service error during user {user.id} registration: {error}"
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=generate_message_registration_error(user_info=user),
             )
             # Clear waiting state on error
             context.user_data.pop("waiting_for", None)
 
-        except ValueError:
+        except Exception as error:
             # Handle invalid date format
-            await update.message.reply_text(
-                text=generate_message_birth_date_format_error(user_info=user),
-                parse_mode="HTML",
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=generate_message_birth_date_format_error(user_info=user),
+            )
+            logger.error(
+                f"{self.command_name}: [{user_id}]: Error in handle_birth_date_input: {error}"
             )

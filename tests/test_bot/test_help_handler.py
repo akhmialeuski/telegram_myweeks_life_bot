@@ -3,12 +3,12 @@
 Tests the HelpHandler class which handles /help command.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 
+from src.bot.constants import COMMAND_HELP
 from src.bot.handlers.help_handler import HelpHandler
 
 
@@ -24,61 +24,50 @@ class TestHelpHandler:
         """
         return HelpHandler()
 
-    @pytest.fixture
-    def mock_update(self) -> Mock:
-        """Create mock Update object.
-
-        :returns: Mock Update object
-        :rtype: Mock
-        """
-        update = Mock(spec=Update)
-        update.effective_user = Mock()
-        update.effective_user.id = 123456789
-        update.effective_user.username = "testuser"
-        update.message = Mock()
-        update.message.reply_text = AsyncMock()
-        return update
-
-    @pytest.fixture
-    def mock_context(self) -> Mock:
-        """Create mock ContextTypes object.
-
-        :returns: Mock ContextTypes object
-        :rtype: Mock
-        """
-        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-        context.user_data = {}
-        return context
-
     def test_handler_creation(self, handler: HelpHandler) -> None:
         """Test HelpHandler creation.
 
         :param handler: HelpHandler instance
+        :type handler: HelpHandler
         :returns: None
+        :rtype: None
         """
-        assert handler.command_name == "/help"
+        assert handler.command_name == f"/{COMMAND_HELP}"
 
     @pytest.mark.asyncio
     async def test_handle_success(
-        self, handler: HelpHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: HelpHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle method with successful help message.
 
         :param handler: HelpHandler instance
+        :type handler: HelpHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_get_user_language: Mocked get_user_language function
+        :type mock_get_user_language: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
+        mock_get_user_language.return_value = "en"
+
         with patch(
             "src.bot.handlers.help_handler.generate_message_help"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Here's the help message!"
+        ) as mock_generate_message_help:
+            mock_generate_message_help.return_value = "Here's the help message!"
 
-            # Execute
             await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with(
-                text="Here's the help message!", parse_mode="HTML"
+            mock_generate_message_help.assert_called_once_with(
+                user_info=mock_update.effective_user
             )
+            mock_update.message.reply_text.assert_called_once()
+            call_args = mock_update.message.reply_text.call_args
+            assert call_args.kwargs["text"] == "Here's the help message!"
+            assert call_args.kwargs["parse_mode"] == ParseMode.HTML

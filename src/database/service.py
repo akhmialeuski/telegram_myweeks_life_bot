@@ -7,22 +7,21 @@ working with models and repositories to handle complex operations.
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Optional
 
-from ..utils.config import BOT_NAME
-from ..utils.logger import get_logger
-from .constants import (
+from ..constants import (
     DEFAULT_LIFE_EXPECTANCY,
     DEFAULT_NOTIFICATIONS_DAY,
     DEFAULT_NOTIFICATIONS_ENABLED,
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
-from .models import (
+from ..core.enums import SubscriptionType, WeekDay
+from ..utils.config import BOT_NAME
+from ..utils.logger import get_logger
+from .models.user import User
+from .models.user_settings import UserSettings
+from .models.user_subscription import (
     DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
-    SubscriptionType,
-    User,
-    UserSettings,
     UserSubscription,
-    WeekDay,
 )
 from .repositories.sqlite.user_repository import SQLiteUserRepository
 from .repositories.sqlite.user_settings_repository import SQLiteUserSettingsRepository
@@ -98,6 +97,16 @@ class UserSettingsUpdateError(UserServiceError):
 
     This exception is raised when the system fails to update
     user settings in the database.
+    """
+
+    pass
+
+
+class UserSubscriptionUpdateError(UserServiceError):
+    """Exception raised when user subscription update fails.
+
+    This exception is raised when the system fails to update
+    user subscription in the database.
     """
 
     pass
@@ -287,34 +296,44 @@ class UserService:
 
     def update_user_subscription(
         self, telegram_id: int, subscription_type: SubscriptionType
-    ) -> bool:
+    ) -> None:
         """Update user subscription type.
 
         :param telegram_id: Telegram user ID
         :param subscription_type: New subscription type
-        :returns: True if successful, False otherwise
+        :raises UserSubscriptionUpdateError: If subscription update fails
+        :raises UserNotFoundError: If user subscription not found
         """
         try:
             subscription = self.subscription_repository.get_subscription(telegram_id)
             if not subscription:
                 logger.warning(f"Subscription not found for user {telegram_id}")
-                return False
+                raise UserNotFoundError(
+                    f"Subscription not found for user {telegram_id}"
+                )
 
             # Update subscription type
             subscription.subscription_type = subscription_type
 
             success = self.subscription_repository.update_subscription(subscription)
-            if success:
-                logger.info(
-                    f"Updated subscription for user {telegram_id} to {subscription_type}"
-                )
-            else:
+            if not success:
                 logger.warning(f"Failed to update subscription for user {telegram_id}")
-            return success
+                raise UserSubscriptionUpdateError(
+                    f"Failed to update subscription for user {telegram_id}"
+                )
 
+            logger.info(
+                f"Updated subscription for user {telegram_id} to {subscription_type}"
+            )
+
+        except (UserNotFoundError, UserSubscriptionUpdateError):
+            # Re-raise our custom exceptions
+            raise
         except Exception as e:
             logger.error(f"Error updating subscription for {telegram_id}: {e}")
-            return False
+            raise UserSubscriptionUpdateError(
+                f"Error updating subscription for {telegram_id}: {e}"
+            )
 
     def update_user_settings(
         self,
@@ -409,10 +428,16 @@ class UserService:
         :raises UserServiceError: If any other service operation fails
         """
         try:
+            logger.info(f"Starting deletion of user profile for {telegram_id}")
+
             # First delete user settings
             settings_deleted = self.settings_repository.delete_user_settings(
                 telegram_id
             )
+            logger.info(
+                f"Settings deletion result for {telegram_id}: {settings_deleted}"
+            )
+
             if not settings_deleted:
                 logger.warning(f"Settings not found for user {telegram_id}")
 
@@ -420,11 +445,17 @@ class UserService:
             subscription_deleted = self.subscription_repository.delete_subscription(
                 telegram_id
             )
+            logger.info(
+                f"Subscription deletion result for {telegram_id}: {subscription_deleted}"
+            )
+
             if not subscription_deleted:
                 logger.warning(f"Subscription not found for user {telegram_id}")
 
             # Finally delete user
             user_deleted = self.user_repository.delete_user(telegram_id)
+            logger.info(f"User deletion result for {telegram_id}: {user_deleted}")
+
             if not user_deleted:
                 raise UserDeletionError(f"User {telegram_id} not found")
 

@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import update
 
 from ....utils.config import BOT_NAME
-from ...models import User
+from ...models.user import User
 from ..abstract.user_repository import AbstractUserRepository
 from .base_repository import BaseSQLiteRepository
 

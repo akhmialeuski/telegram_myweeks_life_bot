@@ -13,21 +13,26 @@ The cancel functionality includes:
 from typing import Optional
 
 from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler
+from telegram.ext import (
+    ContextTypes,
+    ConversationHandler,
+)
 
 from ...core.messages import (
     generate_message_cancel_error,
     generate_message_cancel_success,
-    get_user_language,
 )
 from ...database.service import (
-    UserDeletionError,
-    UserServiceError,
     user_service,
 )
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ..constants import COMMAND_CANCEL
 from ..scheduler import remove_user_from_scheduler
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class CancelHandler(BaseHandler):
@@ -67,7 +72,8 @@ class CancelHandler(BaseHandler):
         Error handling:
         - UserDeletionError: Specific deletion failures
         - UserServiceError: General service errors
-        - Both cases: Show error message to user
+        - SchedulerOperationError: Scheduler operation failures
+        - All cases: Show error message to user
 
         :param update: The update object containing the cancel command
         :type update: Update
@@ -79,7 +85,10 @@ class CancelHandler(BaseHandler):
         Example:
             User sends /cancel → Bot deletes profile → Shows confirmation message
         """
-        return await self._wrap_with_registration(self._handle_cancel)(update, context)
+        return await self._wrap_with_registration(self._handle_cancel)(
+            update=update,
+            context=context,
+        )
 
     async def _handle_cancel(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -93,54 +102,48 @@ class CancelHandler(BaseHandler):
         :returns: Conversation state (always END)
         :rtype: Optional[int]
         """
-        # Extract user information
-        user = update.effective_user
-        user_id = user.id
-        self.log_command(user_id, self.command_name)
-        self.logger.info(f"Handling /cancel command from user {user_id}")
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+        user_lang = cmd_context.language
+
+        logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         try:
             # First remove user from notification scheduler
-            scheduler_success = remove_user_from_scheduler(user_id)
-            if scheduler_success:
-                self.logger.info(f"User {user_id} removed from notification scheduler")
-            else:
-                self.logger.warning(
-                    f"Failed to remove user {user_id} from notification scheduler"
-                )
+            remove_user_from_scheduler(user_id=user_id)
+            logger.info(
+                f"{self.command_name}: [{user_id}]: User removed from notification scheduler"
+            )
 
             # Then attempt to delete user profile and all associated data
-            user_lang = get_user_language(user)
-            user_service.delete_user_profile(user_id)
+            logger.info(
+                f"{self.command_name}: [{user_id}]: Deleting user profile and all associated data"
+            )
+            user_service.delete_user_profile(telegram_id=user_id)
+            logger.info(
+                f"{self.command_name}: [{user_id}]: User data deleted successfully"
+            )
 
             # Send success confirmation message
-            await update.message.reply_text(
-                text=generate_message_cancel_success(
+            await self.send_message(
+                update=update,
+                message_text=generate_message_cancel_success(
                     user_info=user, language=user_lang
                 ),
-                parse_mode="HTML",
-            )
-            self.logger.info(f"User {user_id} data deleted via /cancel command")
-
-        except UserDeletionError as error:
-            # Handle specific deletion failures
-            await update.message.reply_text(
-                text=generate_message_cancel_error(user_info=user),
-                parse_mode="HTML",
-            )
-            self.logger.error(
-                f"Failed to delete user {user_id} data via /cancel command: {error}"
             )
 
-        except UserServiceError as error:
-            # Handle general service errors
-            await update.message.reply_text(
-                text=generate_message_cancel_error(user_info=user),
-                parse_mode="HTML",
-            )
-            self.logger.error(
-                f"Service error during user {user_id} deletion via /cancel command: {error}"
+        except Exception as error:
+            # Handle all errors with a single error message
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=generate_message_cancel_error(
+                    user_info=user,
+                    error_message=str(error),
+                ),
             )
 
-        # Always end conversation after cancel attempt
-        return ConversationHandler.END
+        finally:
+            # Always end conversation after cancel attempt, regardless of success or failure
+            return ConversationHandler.END

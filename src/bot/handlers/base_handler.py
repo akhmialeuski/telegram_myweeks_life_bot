@@ -13,10 +13,12 @@ The base handler provides:
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, ClassVar, Optional, TypeVar
 
-from telegram import Update
+from telegram import CallbackQuery, InlineKeyboardMarkup, Update, User
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ...core.messages import get_user_language
@@ -24,6 +26,26 @@ from ...database.service import user_service
 from ...utils.config import BOT_NAME
 from ...utils.localization import get_message
 from ...utils.logger import get_logger
+from ..constants import COMMAND_HELP, COMMAND_START
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
+
+# Type definitions for better type checking
+T = TypeVar("T")
+HandlerMethod = Callable[[Update, ContextTypes.DEFAULT_TYPE], Any]
+DecoratedHandler = Callable[[HandlerMethod], HandlerMethod]
+
+
+@dataclass
+class CommandContext:
+    """Data class for command context data."""
+
+    user: User
+    user_id: int
+    language: str
+    user_profile: Optional[Any] = None
+    command_name: Optional[str] = None
 
 
 class BaseHandler(ABC):
@@ -34,18 +56,24 @@ class BaseHandler(ABC):
     message generation utilities.
 
     Attributes:
-        logger: Logger instance for this handler
         bot_name: Name of the bot for logging purposes
+        command_name: Name of the command this handler processes (set by subclasses)
+        NO_REGISTRATION_COMMANDS: Class variable listing commands that don't require registration
     """
+
+    # Class constants
+    NO_REGISTRATION_COMMANDS: ClassVar[list[str]] = [
+        f"/{COMMAND_START}",
+        f"/{COMMAND_HELP}",
+    ]
 
     def __init__(self) -> None:
         """Initialize the base handler.
 
-        Sets up logging and common attributes that all handlers need.
+        Sets up common attributes that all handlers need.
         """
-        self.logger = get_logger(BOT_NAME)
         self.bot_name = BOT_NAME
-        self.command_name = None
+        self.command_name: Optional[str] = None
 
     def _should_require_registration(self) -> bool:
         """Check if this handler should require registration.
@@ -53,23 +81,46 @@ class BaseHandler(ABC):
         :returns: True if registration should be required, False otherwise
         :rtype: bool
         """
-        # Commands that don't require registration
-        no_registration_commands = ["/start", "/help"]
-        return self.command_name not in no_registration_commands
+        if not self.command_name:
+            return True
+        return self.command_name not in self.NO_REGISTRATION_COMMANDS
 
-    def _wrap_with_registration(self, handler_method):
+    def _wrap_with_registration(self, handler_method: HandlerMethod) -> HandlerMethod:
         """Wrap handler method with registration check if needed.
 
         :param handler_method: The original handler method
-        :type handler_method: Callable
+        :type handler_method: HandlerMethod
         :returns: Wrapped method or original method
-        :rtype: Callable
+        :rtype: HandlerMethod
         """
         if self._should_require_registration():
             return self.require_registration()(handler_method)
         return handler_method
 
-    def require_registration(self) -> Callable:
+    @staticmethod
+    def _extract_command_context(update: Update) -> CommandContext:
+        """Extract common context information from an update.
+
+        :param update: The update object containing the user's message
+        :type update: Update
+        :returns: CommandContext object with user, user_id, language, and user_profile
+        :rtype: CommandContext
+        """
+        user = update.effective_user
+        user_id = user.id
+
+        # Get user profile from database
+        user_profile = user_service.get_user_profile(user_id)
+
+        return CommandContext(
+            user=user,
+            user_id=user_id,
+            language=get_user_language(user),
+            user_profile=user_profile,
+            command_name=None,
+        )
+
+    def require_registration(self) -> DecoratedHandler:
         """Decorator to check user registration and handle errors.
 
         This decorator provides a centralized way to verify that users
@@ -85,7 +136,7 @@ class BaseHandler(ABC):
         - Provides graceful error handling with user-friendly messages
 
         :returns: Decorated function that includes registration validation
-        :rtype: Callable
+        :rtype: DecoratedHandler
 
         Example:
             >>> @self.require_registration()
@@ -94,22 +145,20 @@ class BaseHandler(ABC):
             >>>     pass
         """
 
-        def decorator(func: Callable) -> Callable:
+        def decorator(func: HandlerMethod) -> HandlerMethod:
             @wraps(func)
             async def wrapper(
                 update: Update,
                 context: ContextTypes.DEFAULT_TYPE,
             ) -> Any:
                 # Extract user information from the update
-                user = update.effective_user
-                user_id = user.id
+                cmd_context = self._extract_command_context(update)
+                user_id = cmd_context.user_id
+                user_lang = cmd_context.language
 
                 try:
                     # Validate that user has completed registration with birth date
                     if not user_service.is_valid_user_profile(user_id):
-                        # Get user's language preference
-                        user_lang = get_user_language(user)
-
                         await update.message.reply_text(
                             get_message(
                                 message_key="common",
@@ -117,37 +166,73 @@ class BaseHandler(ABC):
                                 language=user_lang,
                             )
                         )
-                        return
+                        return None
 
                     # Execute the original command handler
                     return await func(update, context)
 
                 except Exception as error:  # pylint: disable=broad-exception-caught
-                    # Log the error for debugging and monitoring
-                    self.logger.error(f"Error in {func.__name__} command: {error}")
-
-                    # Get user's language preference
-                    user_lang = get_user_language(user)
-
-                    # Send user-friendly error message
-                    await update.message.reply_text(
-                        get_message(
-                            message_key="common",
-                            sub_key="error",
-                            language=user_lang,
-                        )
+                    # Handle error through the centralized error handler
+                    await self.send_error_message(
+                        update=update,
+                        cmd_context=cmd_context,
+                        error_message=str(error),
                     )
+                    return None
 
             return wrapper
 
         return decorator
 
-    async def handle_error(
+    async def send_message(
         self,
         update: Update,
-        context: ContextTypes.DEFAULT_TYPE,
-        error: Exception,
-        error_message_key: str = "error",
+        message_text: str,
+        reply_markup: Optional[InlineKeyboardMarkup] = None,
+    ) -> None:
+        """Send message to user.
+
+        :param update: The update object containing the user's message
+        :type update: Update
+        :param message_text: The message text to send
+        :type message_text: str
+        :param reply_markup: The reply markup to send
+        :type reply_markup: Optional[InlineKeyboardMarkup]
+        :returns: None
+        """
+        await update.message.reply_text(
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
+
+    async def edit_message(
+        self,
+        query: CallbackQuery,
+        message_text: str,
+        reply_markup: Optional[InlineKeyboardMarkup] = None,
+    ) -> None:
+        """Edit message in chat.
+
+        :param query: The query object containing the message to edit
+        :type query: CallbackQuery
+        :param message_text: The message text to send
+        :type message_text: str
+        :param reply_markup: The reply markup to send
+        :type reply_markup: Optional[InlineKeyboardMarkup]
+        :returns: None
+        """
+        await query.edit_message_text(
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
+
+    async def send_error_message(
+        self,
+        update: Update,
+        cmd_context: CommandContext,
+        error_message: str,
     ) -> None:
         """Handle errors in a consistent way across all handlers.
 
@@ -156,40 +241,21 @@ class BaseHandler(ABC):
 
         :param update: The update object containing the user's message
         :type update: Update
-        :param context: The context object for the command execution
-        :type context: ContextTypes.DEFAULT_TYPE
-        :param error: The exception that occurred
-        :type error: Exception
-        :param error_message_key: Key for the error message to display
-        :type error_message_key: str
+        :param cmd_context: Command context with user information
+        :type cmd_context: CommandContext
+        :param error_message: The error message to display
+        :type error_message: str
         :returns: None
         """
-        user = update.effective_user
-        user_lang = get_user_language(user)
-
-        # Log the error
-        self.logger.error(f"Error in {self.__class__.__name__}: {error}")
+        logger.error(
+            f"/{self.command_name}: [{cmd_context.user_id}]: Error occurred: {error_message}"
+        )
 
         # Send user-friendly error message
         await update.message.reply_text(
-            get_message(
-                message_key="common",
-                sub_key=error_message_key,
-                language=user_lang,
-            )
+            text=error_message,
+            parse_mode=ParseMode.HTML,
         )
-
-    def get_user_language(self, user) -> str:
-        """Get user's language preference.
-
-        This is a convenience method that delegates to the core messages module.
-
-        :param user: Telegram user object
-        :type user: telegram.User
-        :returns: User's language preference
-        :rtype: str
-        """
-        return get_user_language(user)
 
     @abstractmethod
     async def handle(
@@ -209,25 +275,3 @@ class BaseHandler(ABC):
         :rtype: Optional[int]
         """
         pass
-
-    def log_command(self, user_id: int, command_name: str) -> None:
-        """Log command execution for monitoring and debugging.
-
-        :param user_id: ID of the user executing the command
-        :type user_id: int
-        :param command_name: Name of the command being executed
-        :type command_name: str
-        :returns: None
-        """
-        self.logger.info(f"User {user_id} executed {command_name} command")
-
-    def log_callback(self, user_id: int, callback_data: str) -> None:
-        """Log callback execution for monitoring and debugging.
-
-        :param user_id: ID of the user executing the callback
-        :type user_id: int
-        :param callback_data: Data from the callback
-        :type callback_data: str
-        :returns: None
-        """
-        self.logger.info(f"User {user_id} executed callback: {callback_data}")

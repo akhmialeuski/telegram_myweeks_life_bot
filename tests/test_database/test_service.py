@@ -7,11 +7,14 @@ with proper fixtures, mocking, and edge case coverage.
 import os
 import tempfile
 from datetime import UTC, date, datetime
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from src.database.models import SubscriptionType, User, UserSettings
+from src.core.enums import SubscriptionType
+from src.database.models.user import User
+from src.database.models.user_settings import UserSettings
+from src.database.models.user_subscription import UserSubscription
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
 from src.database.repositories.sqlite.user_settings_repository import (
     SQLiteUserSettingsRepository,
@@ -27,6 +30,8 @@ from src.database.service import (
     UserRegistrationError,
     UserService,
     UserServiceError,
+    UserSettingsUpdateError,
+    UserSubscriptionUpdateError,
 )
 
 
@@ -495,8 +500,6 @@ class TestUserService:
         :param sample_settings: Sample settings object
         :returns: None
         """
-        from src.database.models import UserSubscription
-
         sample_subscription = UserSubscription(
             telegram_id=123456789,
             subscription_type=SubscriptionType.BASIC,
@@ -833,3 +836,525 @@ class TestUserService:
             match="Failed to delete user profile: Test error",
         ):
             user_service.delete_user_profile(123456789)
+
+
+class TestUserServiceUpdateSubscription:
+    """Test class for UserService update_user_subscription method.
+
+    This class contains all tests for the update_user_subscription method,
+    including success and error scenarios.
+    """
+
+    def test_update_user_subscription_success(self):
+        """Test successful subscription type update.
+
+        This test verifies that update_user_subscription correctly
+        updates a user's subscription type.
+        """
+        user_service = UserService()
+        subscription = MagicMock()
+        subscription.subscription_type = SubscriptionType.BASIC
+
+        user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription.return_value = (
+            subscription
+        )
+        user_service.subscription_repository.update_subscription.return_value = True
+
+        # Should not raise any exception
+        user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+
+        # Verify subscription type was updated
+        assert subscription.subscription_type == SubscriptionType.PREMIUM
+        user_service.subscription_repository.update_subscription.assert_called_once_with(
+            subscription
+        )
+
+    def test_update_user_subscription_not_found(self):
+        """Test update_user_subscription when subscription not found.
+
+        This test verifies that UserNotFoundError is raised when
+        trying to update a subscription that doesn't exist.
+        """
+        user_service = UserService()
+        user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription.return_value = None
+
+        with pytest.raises(
+            UserNotFoundError, match="Subscription not found for user 123456789"
+        ):
+            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+
+    def test_update_user_subscription_update_fails(self):
+        """Test update_user_subscription when repository update fails.
+
+        This test verifies that UserSubscriptionUpdateError is raised when
+        the repository update operation fails.
+        """
+        user_service = UserService()
+        subscription = MagicMock()
+        subscription.subscription_type = SubscriptionType.BASIC
+
+        user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription.return_value = (
+            subscription
+        )
+        user_service.subscription_repository.update_subscription.return_value = False
+
+        with pytest.raises(
+            UserSubscriptionUpdateError,
+            match="Failed to update subscription for user 123456789",
+        ):
+            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+
+    def test_update_user_subscription_repository_exception(self):
+        """Test update_user_subscription when repository raises exception.
+
+        This test verifies that UserSubscriptionUpdateError is raised when
+        the repository operation raises an unexpected exception.
+        """
+        user_service = UserService()
+        subscription = MagicMock()
+
+        user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription.return_value = (
+            subscription
+        )
+        user_service.subscription_repository.update_subscription.side_effect = (
+            Exception("Database error")
+        )
+
+        with pytest.raises(
+            UserSubscriptionUpdateError,
+            match="Error updating subscription for 123456789",
+        ):
+            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+
+    def test_update_user_subscription_get_subscription_exception(self):
+        """Test update_user_subscription when get_subscription raises exception.
+
+        This test verifies that UserSubscriptionUpdateError is raised when
+        getting the subscription fails with an exception.
+        """
+        user_service = UserService()
+        user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription.side_effect = Exception(
+            "Database error"
+        )
+
+        with pytest.raises(
+            UserSubscriptionUpdateError,
+            match="Error updating subscription for 123456789: Database error",
+        ):
+            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+
+
+class TestUserServiceUpdateSettings:
+    """Test class for UserService update_user_settings method.
+
+    This class contains all tests for the update_user_settings method,
+    including success and error scenarios.
+    """
+
+    def test_update_user_settings_success_all_fields(self):
+        """Test successful settings update with all fields.
+
+        This test verifies that update_user_settings correctly
+        updates user settings with all provided fields.
+        """
+        user_service = UserService()
+        settings = MagicMock()
+        settings.birth_date = date(1990, 1, 1)
+        settings.life_expectancy = 75
+        settings.language = "en"
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.return_value = True
+
+        new_birth_date = date(1985, 5, 15)
+        new_life_expectancy = 85
+        new_language = "ru"
+
+        # Should not raise any exception
+        user_service.update_user_settings(
+            123456789,
+            birth_date=new_birth_date,
+            life_expectancy=new_life_expectancy,
+            language=new_language,
+        )
+
+        # Verify all fields were updated
+        assert settings.birth_date == new_birth_date
+        assert settings.life_expectancy == new_life_expectancy
+        assert settings.language == new_language
+        user_service.settings_repository.update_user_settings.assert_called_once_with(
+            settings
+        )
+
+    def test_update_user_settings_success_partial_fields(self):
+        """Test successful settings update with partial fields.
+
+        This test verifies that update_user_settings correctly
+        updates only the provided fields, leaving others unchanged.
+        """
+        user_service = UserService()
+        settings = MagicMock()
+        settings.birth_date = date(1990, 1, 1)
+        settings.life_expectancy = 75
+        settings.language = "en"
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.return_value = True
+
+        new_language = "ru"
+
+        # Should not raise any exception
+        user_service.update_user_settings(123456789, language=new_language)
+
+        # Verify only language was updated
+        assert settings.birth_date == date(1990, 1, 1)  # Unchanged
+        assert settings.life_expectancy == 75  # Unchanged
+        assert settings.language == new_language  # Updated
+        user_service.settings_repository.update_user_settings.assert_called_once_with(
+            settings
+        )
+
+    def test_update_user_settings_not_found(self):
+        """Test update_user_settings when settings not found.
+
+        This test verifies that UserNotFoundError is raised when
+        trying to update settings that don't exist.
+        """
+        user_service = UserService()
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = None
+
+        with pytest.raises(
+            UserNotFoundError, match="Settings not found for user 123456789"
+        ):
+            user_service.update_user_settings(123456789, language="ru")
+
+    def test_update_user_settings_update_fails(self):
+        """Test update_user_settings when repository update fails.
+
+        This test verifies that UserSettingsUpdateError is raised when
+        the repository update operation fails.
+        """
+        user_service = UserService()
+        settings = MagicMock()
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.return_value = False
+
+        with pytest.raises(
+            UserSettingsUpdateError,
+            match="Failed to update settings for user 123456789",
+        ):
+            user_service.update_user_settings(123456789, language="ru")
+
+    def test_update_user_settings_repository_exception(self):
+        """Test update_user_settings when repository raises exception.
+
+        This test verifies that UserSettingsUpdateError is raised when
+        the repository operation raises an unexpected exception.
+        """
+        user_service = UserService()
+        settings = MagicMock()
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.side_effect = Exception(
+            "Database error"
+        )
+
+        with pytest.raises(
+            UserSettingsUpdateError,
+            match="Error updating settings for 123456789: Database error",
+        ):
+            user_service.update_user_settings(123456789, language="ru")
+
+    def test_update_user_settings_get_settings_exception(self):
+        """Test update_user_settings when get_user_settings raises exception.
+
+        This test verifies that UserSettingsUpdateError is raised when
+        getting the settings fails with an exception.
+        """
+        user_service = UserService()
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.side_effect = Exception(
+            "Database error"
+        )
+
+        with pytest.raises(
+            UserSettingsUpdateError,
+            match="Error updating settings for 123456789: Database error",
+        ):
+            user_service.update_user_settings(123456789, language="ru")
+
+    def test_update_user_settings_no_fields_provided(self):
+        """Test update_user_settings when no fields are provided.
+
+        This test verifies that the method works correctly when
+        no fields are provided for update (all None).
+        """
+        user_service = UserService()
+        settings = MagicMock()
+        settings.birth_date = date(1990, 1, 1)
+        settings.life_expectancy = 75
+        settings.language = "en"
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.return_value = True
+
+        # Should not raise any exception
+        user_service.update_user_settings(123456789)
+
+        # Verify no fields were changed
+        assert settings.birth_date == date(1990, 1, 1)
+        assert settings.life_expectancy == 75
+        assert settings.language == "en"
+        user_service.settings_repository.update_user_settings.assert_called_once_with(
+            settings
+        )
+
+
+class TestUserServiceDeleteUserProfile:
+    """Test class for UserService delete_user_profile method.
+
+    This class contains all tests for the delete_user_profile method,
+    including success and error scenarios.
+    """
+
+    def test_delete_user_profile_success_all_components(self):
+        """Test successful deletion of complete user profile.
+
+        This test verifies that delete_user_profile correctly
+        deletes settings, subscription, and user in order.
+        """
+        user_service = UserService()
+
+        user_service.settings_repository = MagicMock()
+        user_service.subscription_repository = MagicMock()
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository.delete_user_settings.return_value = True
+        user_service.subscription_repository.delete_subscription.return_value = True
+        user_service.user_repository.delete_user.return_value = True
+
+        # Should not raise any exception
+        user_service.delete_user_profile(123456789)
+
+        # Verify all deletions were called in correct order
+        user_service.settings_repository.delete_user_settings.assert_called_once_with(
+            123456789
+        )
+        user_service.subscription_repository.delete_subscription.assert_called_once_with(
+            123456789
+        )
+        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+
+    def test_delete_user_profile_success_missing_settings(self):
+        """Test successful deletion when settings don't exist.
+
+        This test verifies that delete_user_profile works correctly
+        when user settings are not found.
+        """
+        user_service = UserService()
+
+        user_service.settings_repository = MagicMock()
+        user_service.subscription_repository = MagicMock()
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository.delete_user_settings.return_value = False
+        user_service.subscription_repository.delete_subscription.return_value = True
+        user_service.user_repository.delete_user.return_value = True
+
+        # Should not raise any exception
+        user_service.delete_user_profile(123456789)
+
+        # Verify all deletions were attempted
+        user_service.settings_repository.delete_user_settings.assert_called_once_with(
+            123456789
+        )
+        user_service.subscription_repository.delete_subscription.assert_called_once_with(
+            123456789
+        )
+        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+
+    def test_delete_user_profile_success_missing_subscription(self):
+        """Test successful deletion when subscription doesn't exist.
+
+        This test verifies that delete_user_profile works correctly
+        when user subscription is not found.
+        """
+        user_service = UserService()
+
+        user_service.settings_repository = MagicMock()
+        user_service.subscription_repository = MagicMock()
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository.delete_user_settings.return_value = True
+        user_service.subscription_repository.delete_subscription.return_value = False
+        user_service.user_repository.delete_user.return_value = True
+
+        # Should not raise any exception
+        user_service.delete_user_profile(123456789)
+
+        # Verify all deletions were attempted
+        user_service.settings_repository.delete_user_settings.assert_called_once_with(
+            123456789
+        )
+        user_service.subscription_repository.delete_subscription.assert_called_once_with(
+            123456789
+        )
+        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+
+    def test_delete_user_profile_user_not_found(self):
+        """Test delete_user_profile when user doesn't exist.
+
+        This test verifies that UserDeletionError is raised when
+        the user to delete is not found.
+        """
+        user_service = UserService()
+
+        user_service.settings_repository = MagicMock()
+        user_service.subscription_repository = MagicMock()
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository.delete_user_settings.return_value = True
+        user_service.subscription_repository.delete_subscription.return_value = True
+        user_service.user_repository.delete_user.return_value = False
+
+        with pytest.raises(UserDeletionError, match="User 123456789 not found"):
+            user_service.delete_user_profile(123456789)
+
+    def test_delete_user_profile_general_exception(self):
+        """Test delete_user_profile when an unexpected exception occurs.
+
+        This test verifies that UserDeletionError is raised when
+        any repository operation raises an unexpected exception.
+        """
+        user_service = UserService()
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.delete_user_settings.side_effect = Exception(
+            "Database error"
+        )
+
+        with pytest.raises(
+            UserDeletionError, match="Failed to delete user profile: Database error"
+        ):
+            user_service.delete_user_profile(123456789)
+
+
+class TestUserServiceGetAllUsers:
+    """Test class for UserService get_all_users method edge cases.
+
+    This class contains additional tests for the get_all_users method,
+    focusing on edge cases and error scenarios.
+    """
+
+    def test_get_all_users_with_incomplete_profiles(self):
+        """Test get_all_users when some users have incomplete profiles.
+
+        This test verifies that get_all_users skips users with
+        incomplete profiles and returns only valid ones.
+        """
+        user_service = UserService()
+
+        # Create mock users
+        user1 = MagicMock()
+        user1.telegram_id = 111
+        user1.username = "user1"
+        user1.first_name = "User"
+        user1.last_name = "One"
+        user1.created_at = datetime.now(UTC)
+
+        user2 = MagicMock()
+        user2.telegram_id = 222
+        user2.username = "user2"
+        user2.first_name = "User"
+        user2.last_name = "Two"
+        user2.created_at = datetime.now(UTC)
+
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository = MagicMock()
+        user_service.subscription_repository = MagicMock()
+        user_service.user_repository._get_all_entities.return_value = [user1, user2]
+
+        # Mock settings and subscriptions - user2 will have missing settings
+        settings1 = MagicMock()
+        subscription1 = MagicMock()
+        subscription2 = MagicMock()
+
+        def mock_get_settings(telegram_id):
+            if telegram_id == 111:
+                return settings1
+            return None  # User2 has no settings
+
+        def mock_get_subscription(telegram_id):
+            if telegram_id == 111:
+                return subscription1
+            return subscription2
+
+        user_service.settings_repository.get_user_settings.side_effect = (
+            mock_get_settings
+        )
+        user_service.subscription_repository.get_subscription.side_effect = (
+            mock_get_subscription
+        )
+
+        result = user_service.get_all_users()
+
+        # Should return both users (user2 with None settings is included)
+        assert len(result) == 2
+        assert result[0].telegram_id == 111
+        assert result[1].telegram_id == 222
+        assert result[0].settings is not None
+        assert result[1].settings is None
+
+    def test_get_all_users_repository_exception(self):
+        """Test get_all_users when repository raises exception.
+
+        This test verifies that get_all_users returns empty list when
+        the repository operation raises an exception.
+        """
+        user_service = UserService()
+        user_service.user_repository = MagicMock()
+        user_service.user_repository._get_all_entities.side_effect = Exception(
+            "Database error"
+        )
+
+        result = user_service.get_all_users()
+
+        assert result == []
+
+    def test_get_all_users_profile_building_exception(self):
+        """Test get_all_users when profile building raises exception.
+
+        This test verifies that get_all_users skips users where
+        profile building fails due to exceptions.
+        """
+        user_service = UserService()
+
+        # Create mock user
+        user1 = MagicMock()
+        user1.telegram_id = 111
+        user1.username = "user1"
+        user1.first_name = "User"
+        user1.last_name = "One"
+        user1.created_at = datetime.now(UTC)
+
+        user_service.user_repository = MagicMock()
+        user_service.settings_repository = MagicMock()
+        user_service.user_repository._get_all_entities.return_value = [user1]
+
+        # Mock settings retrieval to raise exception
+        user_service.settings_repository.get_user_settings.side_effect = Exception(
+            "Settings error"
+        )
+
+        result = user_service.get_all_users()
+
+        # Should return empty list as user1 profile building failed
+        assert result == []

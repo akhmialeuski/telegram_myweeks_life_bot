@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ....utils.config import BOT_NAME
 from ...constants import DEFAULT_DATABASE_PATH, SQLITE_ECHO, SQLITE_POOL_PRE_PING
-from ...models import Base
+from ...models.base import Base
 
 logger = logging.getLogger(BOT_NAME)
 

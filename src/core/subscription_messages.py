@@ -14,6 +14,7 @@ from ..utils.config import (
     SUBSCRIPTION_MESSAGE_PROBABILITY,
 )
 from ..utils.localization import get_message
+from .enums import SubscriptionType
 
 
 def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
@@ -83,8 +84,6 @@ def get_subscription_addition_message(
     :returns: Localized subscription addition message
     :rtype: str
     """
-    from ..database.models import SubscriptionType
-
     if subscription_type in [
         SubscriptionType.PREMIUM.value,
         SubscriptionType.TRIAL.value,

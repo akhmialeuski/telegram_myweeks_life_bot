@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.database.models import User
+from src.database.models.user import User
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
 
 
@@ -402,7 +402,7 @@ class TestBaseSQLiteRepository:
         :param repository: Repository instance
         :returns: None
         """
-        from src.database.models import Base
+        from src.database.models.base import Base
         from src.database.repositories.sqlite.base_repository import ModelType
 
         # Test that ModelType is bound to Base

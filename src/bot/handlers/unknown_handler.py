@@ -11,8 +11,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_unknown_command
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ..constants import COMMAND_UNKNOWN
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class UnknownHandler(BaseHandler):
@@ -23,7 +28,7 @@ class UnknownHandler(BaseHandler):
     the /help command.
 
     Attributes:
-        handler_name: Name of this handler for logging purposes
+        command_name: Name of this handler for logging purposes
     """
 
     def __init__(self) -> None:
@@ -33,7 +38,6 @@ class UnknownHandler(BaseHandler):
         """
         super().__init__()
         self.command_name = f"/{COMMAND_UNKNOWN}"
-        self.handler_name = "unknown_message"
 
     async def handle(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -55,25 +59,34 @@ class UnknownHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        user = update.effective_user
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
         message = update.message
 
-        # Determine what type of message was sent
-        if message.text and message.text.startswith("/"):
-            # Unknown command
-            self.logger.info(
-                f"Handling unknown command '{message.text}' from user {user.id}"
-            )
-        elif message.text:
-            # Unknown text message
-            self.logger.info(
-                f"Handling unknown text message '{message.text[:50]}...' from user {user.id}"
-            )
-        else:
-            # Other message type (photo, document, etc.)
-            message_type = type(message).__name__
-            self.logger.info(
-                f"Handling unknown message type '{message_type}' from user {user.id}"
-            )
+        logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
-        await update.message.reply_text(generate_message_unknown_command(user))
+        # Determine what type of message was sent using match statement
+        match (message.text, message.text.startswith("/") if message.text else False):
+            case (text, True) if text:
+                # Unknown command
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: Handling unknown command '{text}'"
+                )
+            case (text, False) if text:
+                # Unknown text message
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: Handling unknown text message '{text[:50]}...'"
+                )
+            case _:
+                # Other message type (photo, document, etc.)
+                message_type = type(message).__name__
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: Handling unknown message type '{message_type}'"
+                )
+
+        await self.send_message(
+            update=update,
+            message_text=generate_message_unknown_command(user_info=user),
+        )

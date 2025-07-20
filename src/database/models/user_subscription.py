@@ -1,51 +1,18 @@
-"""User subscription model for the application.
+"""User subscription model for subscription management.
 
-This module defines the UserSubscription model which tracks user subscription
-status, including activation and expiration dates.
+This module defines the UserSubscription model which handles user subscription
+information including subscription type, status, and expiration dates.
 """
 
 from datetime import UTC, datetime
-from enum import StrEnum
-from typing import Any, Optional
+from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ...core.enums import SubscriptionType
 from ..constants import USER_SUBSCRIPTIONS_TABLE, USERS_TABLE
 from .base import Base
-
-
-class SubscriptionType(StrEnum):
-    """Subscription type enumeration.
-
-    Defines available subscription types for users.
-
-    :param BASIC: Basic subscription with limited features
-    :param PREMIUM: Premium subscription with full features
-    :param TRIAL: Trial subscription for new users
-    """
-
-    BASIC = "basic"
-    PREMIUM = "premium"
-    TRIAL = "trial"
-
-    @classmethod
-    def get_choices(cls) -> list[tuple[str, str]]:
-        """Get list of choices for forms or validation.
-
-        :returns: List of tuples containing (value, display_name) pairs
-        """
-        return [(choice.value, choice.value.title()) for choice in cls]
-
-    @classmethod
-    def is_valid(cls, value: Any) -> bool:
-        """Check if a value is a valid subscription type.
-
-        :param value: Value to check
-        :returns: True if value is valid, False otherwise
-        """
-        return value in cls._value2member_map_
-
 
 DEFAULT_SUBSCRIPTION_TYPE = SubscriptionType.BASIC
 # Default subscription expiration days for free users is 100 years
@@ -72,7 +39,7 @@ class UserSubscription(Base):
         unique=True,
     )
     subscription_type: Mapped[SubscriptionType] = mapped_column(
-        Enum(SubscriptionType), nullable=False, default=DEFAULT_SUBSCRIPTION_TYPE
+        Enum(SubscriptionType), nullable=False, default=SubscriptionType.TRIAL
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

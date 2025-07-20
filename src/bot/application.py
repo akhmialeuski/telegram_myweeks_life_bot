@@ -59,22 +59,37 @@ HANDLERS = {
         "class": StartHandler,
         "callbacks": [],
         "text_input": "handle_birth_date_input",
+        "waiting_states": ["start_birth_date"],
     },
     COMMAND_WEEKS: {"class": WeeksHandler, "callbacks": []},
     COMMAND_SETTINGS: {
         "class": SettingsHandler,
         "callbacks": [
-            {"method": "handle_settings_callback", "pattern": "^settings_"},
-            {"method": "handle_language_callback", "pattern": "^language_"},
+            {"method": "handle_settings_callback", "pattern": "settings_birth_date"},
+            {"method": "handle_settings_callback", "pattern": "settings_language"},
+            {
+                "method": "handle_settings_callback",
+                "pattern": "settings_life_expectancy",
+            },
+            {"method": "handle_language_callback", "pattern": "language_ru"},
+            {"method": "handle_language_callback", "pattern": "language_en"},
+            {"method": "handle_language_callback", "pattern": "language_ua"},
+            {"method": "handle_language_callback", "pattern": "language_by"},
         ],
         "text_input": "handle_settings_input",
+        "waiting_states": ["settings_birth_date", "settings_life_expectancy"],
     },
     COMMAND_VISUALIZE: {"class": VisualizeHandler, "callbacks": []},
     COMMAND_HELP: {"class": HelpHandler, "callbacks": []},
     COMMAND_SUBSCRIPTION: {
         "class": SubscriptionHandler,
         "callbacks": [
-            {"method": "handle_subscription_callback", "pattern": "^subscription_"}
+            {"method": "handle_subscription_callback", "pattern": "subscription_basic"},
+            {
+                "method": "handle_subscription_callback",
+                "pattern": "subscription_premium",
+            },
+            {"method": "handle_subscription_callback", "pattern": "subscription_trial"},
         ],
     },
     COMMAND_CANCEL: {"class": CancelHandler, "callbacks": []},
@@ -116,6 +131,9 @@ class LifeWeeksBot:
         """
         self._app: Optional[Application] = None
         self._scheduler = None
+        self._handler_instances = {}
+        self._text_input_handlers = {}
+        self._waiting_states = {}
         logger.info("Initializing LifeWeeksBot")
 
     def setup(self) -> None:
@@ -200,10 +218,12 @@ class LifeWeeksBot:
         registered_callbacks = []
         registered_text_handlers = []
 
+        # Collect all handler instances and text input methods automatically from HANDLERS
         for command, config in HANDLERS.items():
             # Get handler class and create instance
             handler_class = config["class"]
             handler_instance = handler_class()
+            self._handler_instances[command] = handler_instance
 
             # Register command handler
             self._app.add_handler(CommandHandler(command, handler_instance.handle))
@@ -225,22 +245,32 @@ class LifeWeeksBot:
                     f"Callback handlers registered: {', '.join(f'/{cmd}' for cmd in registered_callbacks)}"
                 )
 
-            # Register text input handler if specified
+            # Collect text input handlers and waiting states if specified
             if "text_input" in config:
                 text_input_method = getattr(handler_instance, config["text_input"])
-                self._app.add_handler(
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, text_input_method)
-                )
+                self._text_input_handlers[command] = text_input_method
+
+                # Collect waiting states from config
+                if "waiting_states" in config:
+                    for state in config["waiting_states"]:
+                        self._waiting_states[state] = command
+
                 logger.debug(
-                    f"Registered text input: {config['text_input']} for /{command}"
-                )
-                registered_text_handlers.append(f"{command}_{config['text_input']}")
-                logger.info(
-                    f"Text input handlers registered: {', '.join(f'/{cmd}' for cmd in registered_text_handlers)}"
+                    f"Collected text input: {config['text_input']} for /{command}"
                 )
 
-            # Register message handler if specified (for unknown messages)
+        # Register the universal text handler
+        self._app.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, self._universal_text_handler
+            )
+        )
+        logger.info("Registered universal text handler for routing text input")
+
+        # Register message handler if specified (for unknown messages)
+        for command, config in HANDLERS.items():
             if config.get("message_handler", False):
+                handler_instance = self._handler_instances[command]
                 self._app.add_handler(
                     MessageHandler(filters.ALL, handler_instance.handle)
                 )
@@ -249,6 +279,22 @@ class LifeWeeksBot:
                 logger.info(
                     f"Message handlers registered: {', '.join(f'/{cmd}' for cmd in registered_text_handlers)}"
                 )
+
+    async def _universal_text_handler(self, update, context):
+        """Universal text handler that routes messages to appropriate handlers."""
+        waiting_for = context.user_data.get("waiting_for")
+
+        # Route based on waiting state using collected waiting_states
+        if waiting_for in self._waiting_states:
+            target_command = self._waiting_states[waiting_for]
+            if target_command in self._text_input_handlers:
+                await self._text_input_handlers[target_command](update, context)
+            else:
+                # Fallback to unknown handler
+                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+        else:
+            # No specific handler waiting, route to unknown handler
+            await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
 
     def _register_unknown_handler(self) -> None:
         """Register the unknown handler for handling unknown messages and commands.
@@ -262,7 +308,6 @@ class LifeWeeksBot:
         - Catch all unknown commands (e.g., /invalid_command)
         - Catch all unknown text messages
         - Catch all other message types (photos, documents, etc.)
-        - Route text input to appropriate handlers based on context.user_data["waiting_for"]
         - Provide error message and help suggestion for truly unknown input
 
         :returns: None
@@ -276,9 +321,7 @@ class LifeWeeksBot:
         logger.debug(
             "Registered universal unknown handler for all messages and commands"
         )
-        logger.info(
-            "Unknown handler registered as universal fallback with routing capability"
-        )
+        logger.info("Unknown handler registered as universal fallback")
 
     def _setup_scheduler(self) -> None:
         """Set up the weekly notification scheduler.

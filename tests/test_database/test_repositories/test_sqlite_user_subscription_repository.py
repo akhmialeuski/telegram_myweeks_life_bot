@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.database.constants import DEFAULT_DATABASE_PATH
-from src.database.models import UserSubscription
+from src.database.models.user_subscription import UserSubscription
 from src.database.repositories.sqlite.user_subscription_repository import (
     SQLiteUserSubscriptionRepository,
 )

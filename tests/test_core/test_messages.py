@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.core.enums import SubscriptionType
 from src.core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -23,7 +24,9 @@ from src.core.messages import (
     generate_message_visualize,
     generate_message_week,
 )
-from src.database.models import User, UserSettings
+from src.database.models.user import User
+from src.database.models.user_settings import UserSettings
+from src.database.models.user_subscription import UserSubscription
 
 
 class TestMessageGeneration:
@@ -120,8 +123,6 @@ class TestMessageGeneration:
         :returns: Sample UserSubscription object
         :rtype: UserSubscription
         """
-        from src.database.models import SubscriptionType, UserSubscription
-
         return UserSubscription(
             telegram_id=123456789,
             subscription_type=SubscriptionType.BASIC,
@@ -148,7 +149,7 @@ class TestMessageGeneration:
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_week_success(
         self,
         mock_user_service,
@@ -199,7 +200,7 @@ class TestMessageGeneration:
             days_until_birthday=45,
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_week_user_not_found(
         self, mock_user_service, mock_telegram_user
     ):
@@ -221,7 +222,7 @@ class TestMessageGeneration:
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_week_russian_language(
         self,
         mock_user_service,
@@ -270,7 +271,7 @@ class TestMessageGeneration:
 
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_visualize_success(
         self,
         mock_user_service,
@@ -473,7 +474,7 @@ class TestMessageGeneration:
 
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_registration_success(
         self,
         mock_user_service,
@@ -626,7 +627,7 @@ class TestMessageGeneration:
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_week_missing_stats_key(
         self,
         mock_user_service,
@@ -659,7 +660,7 @@ class TestMessageGeneration:
 
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_visualize_user_not_found(
         self, mock_user_service, mock_calculator, mock_get_message, mock_telegram_user
     ):
@@ -680,7 +681,7 @@ class TestMessageGeneration:
         ):
             generate_message_visualize(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_registration_success_user_not_found(
         self, mock_user_service, mock_telegram_user
     ):
@@ -701,7 +702,7 @@ class TestMessageGeneration:
 
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_registration_success_missing_stats(
         self,
         mock_user_service,
@@ -758,7 +759,7 @@ class TestMessageGeneration:
             language="ru",
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_subscription_description")
     @patch("src.core.messages.get_message")
     def test_generate_message_subscription_current_success(
@@ -771,8 +772,6 @@ class TestMessageGeneration:
     ):
         """Test generate_message_subscription_current returns correct message."""
         # Setup
-        from src.database.models import SubscriptionType
-
         sample_user_profile.subscription.subscription_type = SubscriptionType.BASIC
         mock_user_service.get_user_profile.return_value = sample_user_profile
         mock_get_subscription_description.return_value = (
@@ -795,7 +794,7 @@ class TestMessageGeneration:
             subscription_description="Basic subscription description",
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_subscription_current_no_profile(
         self, mock_user_service, mock_telegram_user
     ):
@@ -806,7 +805,7 @@ class TestMessageGeneration:
         with pytest.raises(ValueError):
             generate_message_subscription_current(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_subscription_current_no_subscription(
         self, mock_user_service, mock_telegram_user, sample_user_profile
     ):
@@ -1127,7 +1126,7 @@ class TestMessageSettings:
         user.subscription = None
         return user
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.get_localized_language_name")
     def test_generate_message_settings_basic(
@@ -1148,7 +1147,7 @@ class TestMessageSettings:
         assert mock_get_message.called
         assert mock_get_localized_language_name.called
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.get_localized_language_name")
     def test_generate_message_settings_premium(
@@ -1169,7 +1168,7 @@ class TestMessageSettings:
         assert mock_get_message.called
         assert mock_get_localized_language_name.called
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     def test_generate_message_change_birth_date(
         self,
@@ -1200,7 +1199,7 @@ class TestMessageSettings:
         assert mock_get_message.called
         assert mock_get_localized_language_name.called
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     def test_generate_message_change_life_expectancy(
         self,
@@ -1274,7 +1273,7 @@ class TestMessageSettings:
         assert result == "Settings error message"
         assert mock_get_message.called
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_settings_basic_no_profile(
         self, mock_user_service, mock_telegram_user
     ):
@@ -1284,7 +1283,7 @@ class TestMessageSettings:
         with pytest.raises(ValueError):
             generate_message_settings_basic(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_settings_premium_no_profile(
         self, mock_user_service, mock_telegram_user
     ):
@@ -1294,7 +1293,7 @@ class TestMessageSettings:
         with pytest.raises(ValueError):
             generate_message_settings_premium(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_change_birth_date_no_profile(
         self, mock_user_service, mock_telegram_user
     ):
@@ -1304,7 +1303,7 @@ class TestMessageSettings:
         with pytest.raises(ValueError):
             generate_message_change_birth_date(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_change_life_expectancy_no_profile(
         self, mock_user_service, mock_telegram_user
     ):
@@ -1314,7 +1313,7 @@ class TestMessageSettings:
         with pytest.raises(ValueError):
             generate_message_change_life_expectancy(mock_telegram_user)
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.get_localized_language_name")
     def test_generate_message_settings_basic_no_birth_date(
@@ -1347,7 +1346,7 @@ class TestMessageSettings:
             language="en",
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.get_localized_language_name")
     def test_generate_message_settings_premium_no_birth_date(
@@ -1380,7 +1379,7 @@ class TestMessageSettings:
             language="en",
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_message")
     def test_generate_message_change_birth_date_no_birth_date(
         self, mock_get_message, mock_user_service, mock_telegram_user
@@ -1406,7 +1405,7 @@ class TestMessageSettings:
             language="en",
         )
 
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_get_user_language_no_profile_passed(
         self, mock_user_service, mock_telegram_user
     ):
@@ -1414,17 +1413,57 @@ class TestMessageSettings:
         from src.core.messages import get_user_language
 
         mock_user_service.get_user_profile.return_value = None
-        mock_telegram_user.language_code = "en"
         result = get_user_language(mock_telegram_user)
-        assert result == "en"
+
+        assert result == "en"  # Should use Telegram language
         mock_user_service.get_user_profile.assert_called_once_with(
-            telegram_id=123456789
+            telegram_id=mock_telegram_user.id
+        )
+
+    def test_get_user_language_with_profile_settings(self, mock_telegram_user):
+        """Test get_user_language when profile with language settings is provided."""
+        from unittest.mock import Mock
+
+        from src.core.messages import get_user_language
+
+        # Create mock profile with language settings
+        mock_profile = Mock()
+        mock_profile.settings = Mock()
+        mock_profile.settings.language = "ru"
+
+        result = get_user_language(mock_telegram_user, user_profile=mock_profile)
+
+        assert result == "ru"  # Should use profile language
+
+    @patch("src.database.service.user_service")
+    def test_get_user_language_with_profile_from_database(
+        self, mock_user_service, mock_telegram_user
+    ):
+        """Test get_user_language when profile is fetched from database with language settings."""
+        from unittest.mock import Mock
+
+        from src.core.messages import get_user_language
+
+        # Create mock profile with language settings that will be fetched from DB
+        mock_profile = Mock()
+        mock_profile.settings = Mock()
+        mock_profile.settings.language = "ua"
+
+        mock_user_service.get_user_profile.return_value = mock_profile
+
+        result = get_user_language(
+            mock_telegram_user
+        )  # No profile passed, will fetch from DB
+
+        assert result == "ua"  # Should use profile language from database
+        mock_user_service.get_user_profile.assert_called_once_with(
+            telegram_id=mock_telegram_user.id
         )
 
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.core.messages.get_message")
     @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.core.messages.user_service")
+    @patch("src.database.service.user_service")
     def test_generate_message_week_no_subscription(
         self,
         mock_user_service,

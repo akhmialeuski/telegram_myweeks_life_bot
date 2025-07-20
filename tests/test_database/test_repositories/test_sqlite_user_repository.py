@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.database.constants import DEFAULT_DATABASE_PATH
-from src.database.models import User
+from src.database.models.user import User
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
 
 

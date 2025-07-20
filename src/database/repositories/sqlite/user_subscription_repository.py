@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import update
 
 from ....utils.config import BOT_NAME
-from ...models import UserSubscription
+from ...models.user_subscription import UserSubscription
 from ..abstract.user_subscription_repository import AbstractUserSubscriptionRepository
 from .base_repository import BaseSQLiteRepository
 
@@ -65,7 +65,7 @@ class SQLiteUserSubscriptionRepository(
                 result = session.execute(stmt)
 
                 if result.rowcount > 0:
-                    logger.info(
+                    logger.debug(
                         f"Updated subscription for user {subscription.telegram_id}"
                     )
                     return True

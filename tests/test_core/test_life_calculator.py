@@ -339,6 +339,22 @@ class TestLifeCalculatorEngine:
         assert isinstance(calculator, LifeCalculatorEngine)
         assert calculator.birth_date == date(1990, 3, 15)
 
+    def test_from_string_invalid_format(self):
+        """Test creating calculator from invalid date string.
+
+        :returns: None
+        """
+        with pytest.raises(ValueError, match="Invalid date format. Use YYYY-MM-DD"):
+            LifeCalculatorEngine.from_string("invalid-date-format")
+
+    def test_from_birth_date_none(self):
+        """Test creating calculator from None birth date.
+
+        :returns: None
+        """
+        with pytest.raises(ValueError, match="Birth date cannot be None"):
+            LifeCalculatorEngine.from_birth_date(None)
+
     def test_from_datetime_classmethod(self):
         """Test creating calculator from datetime.
 

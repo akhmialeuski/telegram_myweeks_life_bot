@@ -3,12 +3,12 @@
 Tests the UnknownHandler class which handles unknown messages.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 
+from src.bot.constants import COMMAND_UNKNOWN
 from src.bot.handlers.unknown_handler import UnknownHandler
 
 
@@ -24,180 +24,318 @@ class TestUnknownHandler:
         """
         return UnknownHandler()
 
-    @pytest.fixture
-    def mock_update(self) -> Mock:
-        """Create mock Update object.
-
-        :returns: Mock Update object
-        :rtype: Mock
-        """
-        update = Mock(spec=Update)
-        update.effective_user = Mock()
-        update.effective_user.id = 123456789
-        update.effective_user.username = "testuser"
-        update.effective_user.language_code = "en"
-        update.message = Mock()
-        update.message.reply_text = AsyncMock()
-        return update
-
-    @pytest.fixture
-    def mock_context(self) -> Mock:
-        """Create mock ContextTypes object.
-
-        :returns: Mock ContextTypes object
-        :rtype: Mock
-        """
-        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-        context.user_data = {}
-        return context
-
     def test_handler_creation(self, handler: UnknownHandler) -> None:
         """Test UnknownHandler creation.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :returns: None
+        :rtype: None
         """
-        assert handler.command_name == "/unknown"
+        assert handler.command_name == f"/{COMMAND_UNKNOWN}"
 
     @pytest.mark.asyncio
     async def test_handle_success(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with successful unknown message handling.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Unknown command!"
+        mock_generate_message_unknown_command.return_value = "Unknown command!"
 
-            # Execute
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with("Unknown command!")
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown command!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
     async def test_handle_with_russian_user(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with Russian user.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_update.effective_user.language_code = "ru"
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Неизвестная команда!"
+        mock_generate_message_unknown_command.return_value = "Неизвестная команда!"
 
-            # Execute
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with(
-                "Неизвестная команда!"
-            )
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Неизвестная команда!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
     async def test_handle_with_no_language_code(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with no language code.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_update.effective_user.language_code = None
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Unknown command!"
+        mock_generate_message_unknown_command.return_value = "Unknown command!"
 
-            # Execute
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with("Unknown command!")
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown command!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
     async def test_handle_with_ukrainian_user(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with Ukrainian user.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_update.effective_user.language_code = "uk"
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Невідома команда!"
+        mock_generate_message_unknown_command.return_value = "Невідома команда!"
 
-            # Execute
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with("Невідома команда!")
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Невідома команда!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
     async def test_handle_with_belarusian_user(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with Belarusian user.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_update.effective_user.language_code = "be"
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Невядомая каманда!"
+        mock_generate_message_unknown_command.return_value = "Невядомая каманда!"
 
-            # Execute
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_update.message.reply_text.assert_called_once_with("Невядомая каманда!")
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Невядомая каманда!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
     async def test_handle_error_handling(
-        self, handler: UnknownHandler, mock_update: Mock, mock_context: Mock
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
     ) -> None:
         """Test handle method with error handling.
 
         :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
         :param mock_update: Mock Update object
+        :type mock_update: MagicMock
         :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_update.message.reply_text.side_effect = Exception("Reply failed")
-        with patch(
-            "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-        ) as mock_generate_message:
-            mock_generate_message.return_value = "Unknown command!"
+        mock_generate_message_unknown_command.return_value = "Unknown command!"
 
-            # Execute and assert exception is raised
-            with pytest.raises(Exception, match="Reply failed"):
-                await handler.handle(mock_update, mock_context)
+        with pytest.raises(Exception, match="Reply failed"):
+            await handler.handle(mock_update, mock_context)
+
+    @pytest.mark.asyncio
+    async def test_handle_with_text_message_non_command(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
+    ) -> None:
+        """Test handle method with text message that is not a command.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mock Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        text_message = "Hello, this is just a regular text message that is quite long"
+        mock_update.message.text = text_message
+        mock_generate_message_unknown_command.return_value = "Unknown message!"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown message!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+
+    @pytest.mark.asyncio
+    async def test_handle_with_other_message_type(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
+    ) -> None:
+        """Test handle method with non-text message type.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mock Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update.message.text = None
+        mock_generate_message_unknown_command.return_value = "Unknown message type!"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown message type!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+
+    @pytest.mark.asyncio
+    async def test_handle_with_simple_text_message(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
+    ) -> None:
+        """Test handle method with simple text message.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mock Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update.message.text = "hello"
+        mock_generate_message_unknown_command.return_value = "Unknown text message!"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown text message!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+
+    @pytest.mark.asyncio
+    async def test_handle_with_unknown_command(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_generate_message_unknown_command: MagicMock,
+    ) -> None:
+        """Test handle method with unknown command.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mock Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :param mock_generate_message_unknown_command: Mocked generate_message_unknown_command function
+        :type mock_generate_message_unknown_command: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update.message.text = "/unknown_command"
+        mock_generate_message_unknown_command.return_value = "Unknown command!"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert call_args.kwargs["text"] == "Unknown command!"
+        assert call_args.kwargs["parse_mode"] == ParseMode.HTML

@@ -14,12 +14,18 @@ The visualization includes:
 from typing import Optional
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_visualize
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ...visualization.grid import generate_visualization
 from ..constants import COMMAND_VISUALIZE
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class VisualizeHandler(BaseHandler):
@@ -75,7 +81,8 @@ class VisualizeHandler(BaseHandler):
             User sends /visualize → Bot generates grid image → Shows visual life representation
         """
         return await self._wrap_with_registration(self._handle_visualize)(
-            update, context
+            update=update,
+            context=context,
         )
 
     async def _handle_visualize(
@@ -89,14 +96,17 @@ class VisualizeHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        # Extract user information
-        user = update.effective_user
-        self.log_command(user.id, self.command_name)
-        self.logger.info(f"Handling /visualize command from user {user.id}")
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+
+        logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         # Generate and send visual representation with caption
         await update.message.reply_photo(
             photo=generate_visualization(user_info=user),
             caption=generate_message_visualize(user_info=user),
-            parse_mode="HTML",
+            parse_mode=ParseMode.HTML,
         )
+        return None

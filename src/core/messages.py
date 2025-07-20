@@ -10,9 +10,8 @@ from datetime import date
 
 from telegram import User as TelegramUser
 
-from ..database.constants import DEFAULT_LIFE_EXPECTANCY
-from ..database.models import SubscriptionType
-from ..database.service import user_service
+from ..constants import DEFAULT_LIFE_EXPECTANCY
+from ..core.enums import SubscriptionType
 from ..utils.config import DEFAULT_LANGUAGE
 from ..utils.localization import (
     get_localized_language_name,
@@ -42,6 +41,8 @@ def get_user_language(user_info: TelegramUser, user_profile=None) -> str:
 
     # Otherwise, get user profile from database
     if not user_profile:
+        from ..database.service import user_service
+
         user_profile = user_service.get_user_profile(telegram_id=user_info.id)
 
     # Get language from database or use Telegram language as fallback
@@ -71,6 +72,8 @@ def generate_message_week(user_info: TelegramUser) -> str:
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference
@@ -133,6 +136,8 @@ def generate_message_visualize(user_info: TelegramUser) -> str:
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference
@@ -291,6 +296,8 @@ def generate_message_registration_success(
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference
@@ -428,6 +435,8 @@ def generate_message_subscription_current(user_info: TelegramUser) -> str:
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference
@@ -643,6 +652,8 @@ def generate_message_settings_basic(user_info: TelegramUser) -> str:
     user_lang = user_info.language_code or DEFAULT_LANGUAGE
 
     # Get user profile from database
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
     if not user_profile or not user_profile.settings:
         raise ValueError(
@@ -697,6 +708,8 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
     user_lang = user_info.language_code or DEFAULT_LANGUAGE
 
     # Get user profile from database
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
     if not user_profile or not user_profile.settings:
         raise ValueError(
@@ -747,6 +760,8 @@ def generate_message_change_birth_date(user_info: TelegramUser) -> str:
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference
@@ -815,6 +830,8 @@ def generate_message_change_life_expectancy(user_info: TelegramUser) -> str:
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
+    from ..database.service import user_service
+
     user_profile = user_service.get_user_profile(telegram_id=user_id)
 
     # Get user's language preference

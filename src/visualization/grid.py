@@ -6,7 +6,7 @@ from typing import Tuple
 from PIL import Image, ImageDraw, ImageFont
 
 from ..core.life_calculator import LifeCalculatorEngine
-from ..database.models import User
+from ..database.models.user import User
 from ..database.service import user_service
 from ..utils.config import (
     CELL_SIZE,

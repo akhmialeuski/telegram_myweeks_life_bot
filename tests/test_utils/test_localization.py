@@ -1,8 +1,11 @@
 """Tests for localization functionality."""
 
+from unittest.mock import patch
+
 import pytest
 
 from src.utils.localization import (
+    get_localized_language_name,
     get_message,
     get_subscription_description,
     get_supported_languages,
@@ -58,6 +61,85 @@ class TestLocalization:
         assert "25" in result
         # Check for formatted numbers (with commas for thousands)
         assert "1,300" in result or "1300" in result
+
+    def test_get_message_fallback_to_default_language(self):
+        """Test fallback to default language when translation is missing in target language."""
+        # Try to get a message that exists in default language but not in the target language
+        # Use a specific key that might exist in ru but not in en for testing fallback
+        result = get_message("common", "error", "en")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_get_message_fallback_scenario_with_missing_translation(self):
+        """Test fallback scenario when translation is missing in non-default language."""
+        # This tests the specific fallback logic where language != DEFAULT_LANGUAGE
+        # and we need to fall back to default language
+        try:
+            # Try to get a message with a language that might not have all translations
+            result = get_message("common", "error", "by")  # Belarusian
+            assert isinstance(result, str)
+            assert len(result) > 0
+        except KeyError:
+            # If the key doesn't exist even in default, that's expected
+            pass
+
+    def test_get_message_fallback_logic_with_mock(self):
+        """Test the specific fallback logic by mocking ALL_MESSAGES to simulate missing translation."""
+        # Mock ALL_MESSAGES to have a message in 'ru' but not in 'en'
+        mock_messages = {
+            "test_key": {
+                "test_subkey": {
+                    "ru": "Тестовое сообщение",
+                    # Intentionally missing "en" to trigger fallback
+                    "ua": "Тестове повідомлення",
+                    "by": "Тэставое паведамленне",
+                }
+            }
+        }
+
+        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
+            # This should trigger the fallback to default language ('ru')
+            result = get_message("test_key", "test_subkey", "en")
+            assert result == "Тестовое сообщение"  # Should get Russian version
+
+    def test_get_message_fallback_logic_with_kwargs(self):
+        """Test the fallback logic with formatting parameters."""
+        # Mock ALL_MESSAGES to test fallback with kwargs
+        mock_messages = {
+            "test_key": {
+                "test_subkey": {
+                    "ru": "Привет, {name}! У тебя {count} сообщений.",
+                    # Intentionally missing "en" to trigger fallback
+                    "ua": "Привіт, {name}! У тебе {count} повідомлень.",
+                    "by": "Прывітанне, {name}! У цябе {count} паведамленняў.",
+                }
+            }
+        }
+
+        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
+            # This should trigger the fallback to default language ('ru') and format the message
+            result = get_message("test_key", "test_subkey", "en", name="John", count=5)
+            assert result == "Привет, John! У тебя 5 сообщений."
+
+    def test_get_message_complete_fallback_failure(self):
+        """Test fallback failure when message doesn't exist in any language including default."""
+        # Mock ALL_MESSAGES to have incomplete message structure that will fail even on fallback
+        mock_messages = {
+            "test_key": {
+                "existing_subkey": {
+                    "ru": "Существующее сообщение",
+                    "en": "Existing message",
+                }
+                # Intentionally missing "missing_subkey" to trigger complete failure
+            }
+        }
+
+        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
+            # This should trigger the fallback logic but fail because even default language doesn't have the subkey
+            with pytest.raises(
+                KeyError, match="Message not found: test_key.missing_subkey"
+            ):
+                get_message("test_key", "missing_subkey", "en")
 
     def test_get_supported_languages(self):
         """Test getting list of supported languages."""
@@ -171,6 +253,63 @@ class TestLocalization:
         result = get_subscription_description("basic", "fr")
         assert isinstance(result, str)
         assert len(result) > 0
+
+    def test_get_subscription_description_fallback_to_default_language(self):
+        """Test fallback to default language in subscription description."""
+        # Test the specific fallback logic for subscription descriptions
+        result = get_subscription_description(
+            "basic", "by"
+        )  # Belarusian might not have all subscriptions
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_get_subscription_description_unknown_type_with_fallback(self):
+        """Test unknown subscription type with language fallback."""
+        # This should test the fallback logic when subscription type doesn't exist
+        result = get_subscription_description("nonexistent", "en")
+        assert isinstance(result, str)
+        assert "Unknown subscription: nonexistent" in result
+
+    def test_get_subscription_description_fallback_logic_with_mock(self):
+        """Test subscription description fallback logic by mocking missing translation."""
+        # Mock ALL_MESSAGES to have subscription description in 'ru' but not in 'en'
+        mock_messages = {
+            "command_subscription": {
+                "subscription_descriptions": {
+                    "basic": {
+                        "ru": "Базовая подписка - тест",
+                        # Intentionally missing "en" to trigger fallback
+                        "ua": "Базова підписка - тест",
+                        "by": "Базавая падпіска - тэст",
+                    }
+                }
+            }
+        }
+
+        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
+            # This should trigger the fallback to default language ('ru')
+            result = get_subscription_description("basic", "en")
+            assert result == "Базовая подписка - тест"  # Should get Russian version
+
+    def test_get_subscription_description_complete_fallback_failure(self):
+        """Test subscription description complete fallback failure."""
+        # Mock ALL_MESSAGES to have incomplete subscription structure
+        mock_messages = {
+            "command_subscription": {
+                "subscription_descriptions": {
+                    "existing_type": {
+                        "ru": "Существующий тип",
+                        "en": "Existing type",
+                    }
+                    # Intentionally missing "nonexistent_type" to trigger complete failure
+                }
+            }
+        }
+
+        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
+            # This should trigger the fallback logic but fail completely and return unknown message
+            result = get_subscription_description("nonexistent_type", "en")
+            assert result == "Unknown subscription: nonexistent_type"
 
     def test_basic_addition_message_with_buymeacoffee_url_ru(self):
         """Test basic addition message with BuyMeACoffee URL in Russian."""
@@ -290,9 +429,50 @@ class TestLocalization:
         # Check that it's not at the very beginning
         assert not result.startswith(test_url)
 
+    def test_get_localized_language_name_valid_combinations(self):
+        """Test getting localized language names for valid combinations."""
+        # Test getting English name in Russian
+        result = get_localized_language_name("en", "ru")
+        assert result == "Английский"
+
+        # Test getting Russian name in English
+        result = get_localized_language_name("ru", "en")
+        assert result == "Russian"
+
+        # Test getting same language name
+        result = get_localized_language_name("ru", "ru")
+        assert result == "Русский"
+
+        # Test getting Ukrainian name in English
+        result = get_localized_language_name("ua", "en")
+        assert result == "Ukrainian"
+
+    def test_get_localized_language_name_unsupported_target_language(self):
+        """Test getting localized language name with unsupported target language."""
+        # Should return the original language code when target language is not supported
+        result = get_localized_language_name("en", "fr")
+        assert result == "en"
+
+    def test_get_localized_language_name_unsupported_language(self):
+        """Test getting localized language name for unsupported language."""
+        # Should return the original language code when language is not supported
+        result = get_localized_language_name("fr", "ru")
+        assert result == "fr"
+
+    def test_get_localized_language_name_edge_cases(self):
+        """Test getting localized language name with edge cases."""
+        # Test with empty strings
+        result = get_localized_language_name("", "ru")
+        assert result == ""
+
+        # Test with None-like inputs
+        result = get_localized_language_name("nonexistent", "nonexistent")
+        assert result == "nonexistent"
+
     def test_localization_module_imports(self):
         """Test that all required functions are imported correctly."""
         from src.utils.localization import (
+            get_localized_language_name,
             get_message,
             get_subscription_description,
             get_supported_languages,
@@ -303,3 +483,4 @@ class TestLocalization:
         assert callable(get_supported_languages)
         assert callable(is_language_supported)
         assert callable(get_subscription_description)
+        assert callable(get_localized_language_name)

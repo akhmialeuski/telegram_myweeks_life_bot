@@ -7,7 +7,7 @@ including age, weeks lived, months lived, and remaining time calculations.
 from datetime import UTC, date, datetime
 from typing import Tuple
 
-from ..database.models import User
+from ..database.models.user import User
 
 
 class LifeCalculatorEngine:
@@ -232,7 +232,9 @@ class LifeCalculatorEngine:
             raise ValueError("Birth date cannot be None")
 
         # Create a mock user object for backward compatibility
-        from ..database.models import User, UserSettings, WeekDay
+        from ..core.enums import WeekDay
+        from ..database.models.user import User
+        from ..database.models.user_settings import UserSettings
 
         mock_user = User(telegram_id=0, first_name="Mock", created_at=datetime.now(UTC))
         mock_user.settings = UserSettings(

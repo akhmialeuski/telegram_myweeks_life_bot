@@ -6,7 +6,8 @@ with proper edge case coverage.
 
 from datetime import UTC, date, datetime
 
-from src.database.models import UserSettings, WeekDay
+from src.core.enums import WeekDay
+from src.database.models.user_settings import UserSettings
 
 
 class TestUserSettings:
@@ -217,10 +218,8 @@ class TestUserSettings:
         ]
 
         for i, day in enumerate(days_in_order):
-            # WeekDay enum uses string values, not numeric
-            # Monday = "monday", Tuesday = "tuesday", etc.
-            expected_value = day.name.lower()
-            assert day.value == expected_value
+            # WeekDay enum uses auto() values
+            assert day.value == day.name.lower()
 
     def test_user_settings_updated_at_auto_population(self):
         """Test that updated_at can be manually set.
@@ -263,33 +262,3 @@ class TestUserSettings:
             telegram_id=123456789, birth_date=date(1990, 1, 1), life_expectancy=200
         )
         assert settings_high.life_expectancy == 200
-
-    def test_weekday_get_choices(self):
-        choices = WeekDay.get_choices()
-        assert isinstance(choices, list)
-        assert ("monday", "Monday") in choices
-        assert ("sunday", "Sunday") in choices
-        assert len(choices) == 7
-
-    def test_weekday_is_valid(self):
-        assert WeekDay.is_valid("monday") is True
-        assert WeekDay.is_valid("sunday") is True
-        assert WeekDay.is_valid("notaday") is False
-        assert WeekDay.is_valid(123) is False
-
-    def test_weekday_get_weekday_number(self):
-        assert WeekDay.get_weekday_number(WeekDay.MONDAY) == 0
-        assert WeekDay.get_weekday_number(WeekDay.SUNDAY) == 6
-        assert WeekDay.get_weekday_number(WeekDay.THURSDAY) == 3
-
-    def test_weekday_from_weekday_number(self):
-        assert WeekDay.from_weekday_number(0) == WeekDay.MONDAY
-        assert WeekDay.from_weekday_number(6) == WeekDay.SUNDAY
-        assert WeekDay.from_weekday_number(3) == WeekDay.THURSDAY
-        # Test ValueError for invalid number
-        import pytest
-
-        with pytest.raises(ValueError):
-            WeekDay.from_weekday_number(7)
-        with pytest.raises(ValueError):
-            WeekDay.from_weekday_number(-1)

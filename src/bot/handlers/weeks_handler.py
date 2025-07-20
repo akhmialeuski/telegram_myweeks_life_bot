@@ -18,8 +18,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_week
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ..constants import COMMAND_WEEKS
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class WeeksHandler(BaseHandler):
@@ -68,11 +73,11 @@ class WeeksHandler(BaseHandler):
         :param context: The context object for the command execution
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
-
-        Example:
-            User sends /weeks → Bot calculates statistics → Shows detailed life info
         """
-        return await self._wrap_with_registration(self._handle_weeks)(update, context)
+        return await self._wrap_with_registration(handler_method=self._handle_weeks)(
+            update=update,
+            context=context,
+        )
 
     async def _handle_weeks(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -85,13 +90,16 @@ class WeeksHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        # Extract user information
-        user = update.effective_user
-        self.log_command(user.id, self.command_name)
-        self.logger.info(f"Handling /weeks command from user {user.id}")
+        # Extract user information using the new helper method
+        cmd_context = self._extract_command_context(update=update)
+        user = cmd_context.user
+        user_id = cmd_context.user_id
+
+        logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         # Generate and send life statistics message
-        await update.message.reply_text(
-            text=generate_message_week(user_info=user),
-            parse_mode="HTML",
+        await self.send_message(
+            update=update,
+            message_text=generate_message_week(user_info=user),
         )
+        return None

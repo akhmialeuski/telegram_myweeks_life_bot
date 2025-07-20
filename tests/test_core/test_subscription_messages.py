@@ -2,12 +2,12 @@
 
 import pytest
 
+from src.core.enums import SubscriptionType
 from src.core.subscription_messages import (
     generate_message_week_addition_basic,
     generate_message_week_addition_premium,
     get_subscription_addition_message,
 )
-from src.database.models import SubscriptionType
 
 
 class TestSubscriptionMessages:

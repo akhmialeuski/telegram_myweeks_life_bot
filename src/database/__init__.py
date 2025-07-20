@@ -1,9 +1,8 @@
 """Database package initialization.
 
-Exports database models, repositories and services.
+Exports database repositories and services.
 """
 
-from .models import User, UserSettings, UserSubscription
 from .repositories import (
     AbstractUserRepository,
     AbstractUserSettingsRepository,
@@ -14,10 +13,6 @@ from .repositories import (
 )
 
 __all__ = [
-    # Models
-    "User",
-    "UserSettings",
-    "UserSubscription",
     # Abstract repositories
     "AbstractUserRepository",
     "AbstractUserSettingsRepository",

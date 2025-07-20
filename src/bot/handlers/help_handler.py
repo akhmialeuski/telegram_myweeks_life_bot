@@ -8,6 +8,7 @@ The help system includes:
 - Command descriptions and usage
 - Feature explanations
 - Subscription information
+
 """
 
 from typing import Optional
@@ -16,8 +17,13 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_help
+from ...utils.config import BOT_NAME
+from ...utils.logger import get_logger
 from ..constants import COMMAND_HELP
 from .base_handler import BaseHandler
+
+# Initialize logger for this module
+logger = get_logger(BOT_NAME)
 
 
 class HelpHandler(BaseHandler):
@@ -63,13 +69,12 @@ class HelpHandler(BaseHandler):
         Example:
             User sends /help → Bot shows available commands and usage instructions
         """
-        # Extract user information
-        user = update.effective_user
-        self.log_command(user.id, self.command_name)
-        self.logger.info(f"Handling /help command from user {user.id}")
+        cmd_context = self._extract_command_context(update=update)
+
+        logger.info(f"{self.command_name}: [{cmd_context.user_id}]: Handling command")
 
         # Generate and send help message
-        await update.message.reply_text(
-            text=generate_message_help(user_info=user),
-            parse_mode="HTML",
+        await self.send_message(
+            update=update,
+            message_text=generate_message_help(user_info=cmd_context.user),
         )

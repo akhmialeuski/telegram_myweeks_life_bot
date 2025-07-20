@@ -7,7 +7,7 @@ that can be implemented by different database backends.
 from abc import abstractmethod
 from typing import Optional
 
-from ...models import UserSettings
+from ...models.user_settings import UserSettings
 from .base_repository import AbstractBaseRepository
 
 
