@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.core.enums import SubscriptionType
+from src.utils.localization import SupportedLanguage
 from src.core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -44,7 +45,7 @@ class TestMessageGeneration:
         user.username = "test_user"
         user.first_name = "Test"
         user.last_name = "User"
-        user.language_code = "en"
+        user.language_code = SupportedLanguage.EN.value
         return user
 
     @pytest.fixture
@@ -59,7 +60,7 @@ class TestMessageGeneration:
         user.username = "test_user"
         user.first_name = "Тест"
         user.last_name = "Пользователь"
-        user.language_code = "ru"
+        user.language_code = SupportedLanguage.RU.value
         return user
 
     @pytest.fixture
@@ -192,7 +193,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_weeks",
             sub_key="statistics",
-            language="en",
+            language=SupportedLanguage.EN.value,
             age=33,
             weeks_lived=1720,
             remaining_weeks=2448,
@@ -261,7 +262,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_weeks",
             sub_key="statistics",
-            language="ru",
+            language=SupportedLanguage.RU.value,
             age=33,
             weeks_lived=1720,
             remaining_weeks=2448,
@@ -310,7 +311,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_visualize",
             sub_key="visualization_info",
-            language="en",
+            language=SupportedLanguage.EN.value,
             age=33,
             weeks_lived=1720,
             life_percentage="41.2%",
@@ -337,7 +338,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_help",
             sub_key="help_text",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -367,7 +368,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_help",
             sub_key="help_text",
-            language="ru",
+            language=SupportedLanguage.RU.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -391,7 +392,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_cancel",
             sub_key="success",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -414,7 +415,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_cancel",
             sub_key="error",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -441,7 +442,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="welcome_existing",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -468,7 +469,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="welcome_new",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -513,7 +514,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="registration_success",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
             birth_date="1990-01-01",
             age=33,
@@ -543,7 +544,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="registration_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -568,7 +569,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="birth_date_future_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -593,7 +594,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="birth_date_old_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -620,7 +621,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_start",
             sub_key="birth_date_format_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
             first_name="Test",
         )
 
@@ -756,7 +757,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_help",
             sub_key="help_text",
-            language="ru",
+            language=SupportedLanguage.RU.value,
         )
 
     @patch("src.database.service.user_service")
@@ -789,7 +790,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="current_subscription",
-            language="en",
+            language=SupportedLanguage.EN.value,
             subscription_type="Basic",
             subscription_description="Basic subscription description",
         )
@@ -830,7 +831,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="invalid_type",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -846,7 +847,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="profile_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -864,7 +865,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="already_active",
-            language="en",
+            language=SupportedLanguage.EN.value,
             subscription_type="premium",
         )
 
@@ -887,7 +888,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="change_success",
-            language="en",
+            language=SupportedLanguage.EN.value,
             subscription_type="premium",
             subscription_description="Premium subscription description",
         )
@@ -905,7 +906,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="change_failed",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -921,7 +922,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="command_subscription",
             sub_key="change_error",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch(
@@ -946,7 +947,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://test.buymeacoffee.com/testuser",
         )
 
@@ -965,7 +966,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="premium_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -981,7 +982,7 @@ class TestMessageGeneration:
         mock_get_message.assert_called_once_with(
             message_key="common",
             sub_key="unknown_command",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -1024,17 +1025,17 @@ class TestMessageGeneration:
         mock_get_message.assert_any_call(
             message_key="command_settings",
             sub_key="button_change_birth_date",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
         mock_get_message.assert_any_call(
             message_key="command_settings",
             sub_key="button_change_language",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
         mock_get_message.assert_any_call(
             message_key="command_settings",
             sub_key="button_change_life_expectancy",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.core.messages.get_message")
@@ -1082,7 +1083,7 @@ class TestMessageGeneration:
         mock_get_message.assert_any_call(
             message_key="command_settings",
             sub_key="button_change_birth_date",
-            language="ru",
+            language=SupportedLanguage.RU.value,
         )
 
 
@@ -1096,7 +1097,7 @@ class TestMessageSettings:
         user.username = "test_user"
         user.first_name = "Test"
         user.last_name = "User"
-        user.language_code = "en"
+        user.language_code = SupportedLanguage.EN.value
         return user
 
     @pytest.fixture
@@ -1110,7 +1111,7 @@ class TestMessageSettings:
             timezone="UTC",
             life_expectancy=80,
             updated_at=datetime.now(UTC),
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @pytest.fixture
@@ -1330,7 +1331,7 @@ class TestMessageSettings:
         user_profile = Mock()
         user_profile.settings = Mock()
         user_profile.settings.birth_date = None
-        user_profile.settings.language = "en"
+        user_profile.settings.language = SupportedLanguage.EN.value
         user_profile.settings.life_expectancy = 80
 
         mock_user_service.get_user_profile.return_value = user_profile
@@ -1343,7 +1344,7 @@ class TestMessageSettings:
         mock_get_message.assert_any_call(
             message_key="common",
             sub_key="not_set",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.database.service.user_service")
@@ -1363,7 +1364,7 @@ class TestMessageSettings:
         user_profile = Mock()
         user_profile.settings = Mock()
         user_profile.settings.birth_date = None
-        user_profile.settings.language = "en"
+        user_profile.settings.language = SupportedLanguage.EN.value
         user_profile.settings.life_expectancy = 80
 
         mock_user_service.get_user_profile.return_value = user_profile
@@ -1376,7 +1377,7 @@ class TestMessageSettings:
         mock_get_message.assert_any_call(
             message_key="common",
             sub_key="not_set",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.database.service.user_service")
@@ -1391,7 +1392,7 @@ class TestMessageSettings:
         user_profile = Mock()
         user_profile.settings = Mock()
         user_profile.settings.birth_date = None
-        user_profile.settings.language = "en"
+        user_profile.settings.language = SupportedLanguage.EN.value
 
         mock_user_service.get_user_profile.return_value = user_profile
         mock_get_message.side_effect = ["Not set", "Change birth date message"]
@@ -1402,7 +1403,7 @@ class TestMessageSettings:
         mock_get_message.assert_any_call(
             message_key="common",
             sub_key="not_set",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
 
     @patch("src.database.service.user_service")
@@ -1429,7 +1430,7 @@ class TestMessageSettings:
         # Create mock profile with language settings
         mock_profile = Mock()
         mock_profile.settings = Mock()
-        mock_profile.settings.language = "ru"
+        mock_profile.settings.language = SupportedLanguage.RU.value
 
         result = get_user_language(mock_telegram_user, user_profile=mock_profile)
 
@@ -1447,7 +1448,7 @@ class TestMessageSettings:
         # Create mock profile with language settings that will be fetched from DB
         mock_profile = Mock()
         mock_profile.settings = Mock()
-        mock_profile.settings.language = "ua"
+        mock_profile.settings.language = SupportedLanguage.UA.value
 
         mock_user_service.get_user_profile.return_value = mock_profile
 

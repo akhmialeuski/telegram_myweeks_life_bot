@@ -3,6 +3,7 @@
 import pytest
 
 from src.core.enums import SubscriptionType
+from src.utils.localization import SupportedLanguage
 from src.core.subscription_messages import (
     generate_message_week_addition_basic,
     generate_message_week_addition_premium,
@@ -22,7 +23,7 @@ class TestSubscriptionMessages:
         user.id = 123456
         user.username = "test_user"
         user.first_name = "Test"
-        user.language_code = "en"
+        user.language_code = SupportedLanguage.EN.value
         return user
 
     @pytest.fixture
@@ -34,7 +35,7 @@ class TestSubscriptionMessages:
         user.id = 123456
         user.username = "test_user"
         user.first_name = "Тест"
-        user.language_code = "ru"
+        user.language_code = SupportedLanguage.RU.value
         return user
 
     @pytest.fixture
@@ -66,7 +67,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Basic subscription message with donation link"
@@ -88,7 +89,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="ru",
+            language=SupportedLanguage.RU.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Сообщение базовой подписки с ссылкой на донат"
@@ -110,7 +111,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="ru",
+            language=SupportedLanguage.RU.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Default language message with donation link"
@@ -132,7 +133,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Custom URL message"
@@ -154,7 +155,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Default URL message"
@@ -251,7 +252,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="premium_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
         )
         assert result == "Premium subscription message"
 
@@ -267,7 +268,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="premium_addition",
-            language="ru",
+            language=SupportedLanguage.RU.value,
         )
         assert result == "Сообщение премиум подписки"
 
@@ -375,7 +376,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
 
@@ -449,7 +450,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "Empty URL message"
@@ -468,7 +469,7 @@ class TestSubscriptionMessages:
         mock_get_message.assert_called_once_with(
             message_key="subscription_additions",
             sub_key="basic_addition",
-            language="en",
+            language=SupportedLanguage.EN.value,
             buymeacoffee_url="https://coff.ee/akhmelevskiy",
         )
         assert result == "None URL message"

@@ -15,11 +15,12 @@ from src.constants import DEFAULT_LIFE_EXPECTANCY
 from src.core.enums import SubscriptionType
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.utils.config import MAX_LIFE_EXPECTANCY, MIN_BIRTH_YEAR, MIN_LIFE_EXPECTANCY
+from src.utils.localization import SupportedLanguage
 from tests.conftest import TEST_USER_ID
 
 # Test constants
 TEST_BIRTH_DATE = "15.03.1990"
-TEST_LANGUAGE = "en"
+TEST_LANGUAGE = SupportedLanguage.EN.value
 
 
 class TestSettingsHandler:
@@ -34,24 +35,7 @@ class TestSettingsHandler:
         """
         return SettingsHandler()
 
-    @pytest.fixture
-    def mock_update_with_callback(self) -> MagicMock:
-        """Create mock Update object with callback query for testing.
 
-        :returns: Mock Update object with callback query
-        :rtype: MagicMock
-        """
-        update = MagicMock()
-        update.effective_user = MagicMock()
-        update.effective_user.id = TEST_USER_ID
-        update.effective_user.username = "testuser"
-        update.effective_user.first_name = "Test"
-        update.effective_user.language_code = TEST_LANGUAGE
-        update.callback_query = MagicMock()
-        update.callback_query.data = "settings_birth_date"
-        update.callback_query.answer = AsyncMock()
-        update.callback_query.edit_message_text = AsyncMock()
-        return update
 
     def test_handler_creation(self, handler: SettingsHandler) -> None:
         """Test SettingsHandler creation.
@@ -502,7 +486,7 @@ class TestSettingsHandler:
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
             mock_user_service.update_user_settings.assert_called_once_with(
-                telegram_id=TEST_USER_ID, language="ru"
+                telegram_id=TEST_USER_ID, language=SupportedLanguage.RU.value
             )
             mock_update_schedule.assert_called_once_with(user_id=TEST_USER_ID)
             mock_generate_msg.assert_called_once_with(

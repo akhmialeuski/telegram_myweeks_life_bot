@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_HELP, COMMAND_START, COMMAND_WEEKS
 from src.bot.handlers.base_handler import BaseHandler, CommandContext
+from src.utils.localization import SupportedLanguage
 
 
 class TestBaseHandler:
@@ -153,7 +154,7 @@ class TestBaseHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
         mock_user_profile = MagicMock()
 
         with patch("src.bot.handlers.base_handler.user_service") as mock_user_service:
@@ -164,6 +165,6 @@ class TestBaseHandler:
             assert isinstance(result, CommandContext)
             assert result.user == mock_update.effective_user
             assert result.user_id == mock_update.effective_user.id
-            assert result.language == "en"
+            assert result.language == SupportedLanguage.EN.value
             assert result.user_profile == mock_user_profile
             assert result.command_name is None

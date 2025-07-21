@@ -10,6 +10,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_HELP
 from src.bot.handlers.help_handler import HelpHandler
+from src.utils.localization import SupportedLanguage
 
 
 class TestHelpHandler:
@@ -55,7 +56,7 @@ class TestHelpHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         with patch(
             "src.bot.handlers.help_handler.generate_message_help"

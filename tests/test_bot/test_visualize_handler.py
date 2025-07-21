@@ -10,6 +10,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.bot.handlers.visualize_handler import VisualizeHandler
+from src.utils.localization import SupportedLanguage
 
 
 class TestVisualizeHandler:
@@ -24,31 +25,7 @@ class TestVisualizeHandler:
         """
         return VisualizeHandler()
 
-    @pytest.fixture
-    def mock_update(self) -> Mock:
-        """Create mock Update object.
 
-        :returns: Mock Update object
-        :rtype: Mock
-        """
-        update = Mock(spec=Update)
-        update.effective_user = Mock()
-        update.effective_user.id = 123456789
-        update.effective_user.username = "testuser"
-        update.message = Mock()
-        update.message.reply_text = AsyncMock()
-        return update
-
-    @pytest.fixture
-    def mock_context(self) -> Mock:
-        """Create mock ContextTypes object.
-
-        :returns: Mock ContextTypes object
-        :rtype: Mock
-        """
-        context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-        context.user_data = {}
-        return context
 
     def test_handler_creation(self, handler: VisualizeHandler) -> None:
         """Test VisualizeHandler creation.
@@ -117,7 +94,7 @@ class TestVisualizeHandler:
         """
         # Setup - user not registered
         mock_base_handler_user_service.is_valid_user_profile.return_value = False
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
         mock_get_message.return_value = "You need to register first!"
 
         # Execute
@@ -146,7 +123,7 @@ class TestVisualizeHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Mock all required functions in the module where they're imported
         with patch(

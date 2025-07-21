@@ -14,6 +14,7 @@ from src.database.service import (
     UserDeletionError,
     UserServiceError,
 )
+from src.utils.localization import SupportedLanguage
 from tests.conftest import TEST_USER_ID
 
 
@@ -60,7 +61,7 @@ class TestCancelHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
@@ -110,7 +111,7 @@ class TestCancelHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
@@ -156,7 +157,7 @@ class TestCancelHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
@@ -202,7 +203,7 @@ class TestCancelHandler:
         :returns: None
         :rtype: None
         """
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         with patch(
             "src.bot.handlers.cancel_handler.user_service"

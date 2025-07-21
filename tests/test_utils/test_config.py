@@ -3,6 +3,8 @@
 import os
 from unittest.mock import patch
 
+from src.utils.localization import SupportedLanguage
+
 
 class TestConfig:
     """Test configuration settings and constants."""
@@ -18,7 +20,7 @@ class TestConfig:
         """Test that DEFAULT_LANGUAGE is defined correctly."""
         from src.utils.config import DEFAULT_LANGUAGE
 
-        assert DEFAULT_LANGUAGE == "ru"
+        assert DEFAULT_LANGUAGE == SupportedLanguage.RU.value
         assert isinstance(DEFAULT_LANGUAGE, str)
 
     def test_visualization_constants(self):

@@ -10,6 +10,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_WEEKS
 from src.bot.handlers.weeks_handler import WeeksHandler
+from src.utils.localization import SupportedLanguage
 
 
 class TestWeeksHandler:
@@ -58,7 +59,7 @@ class TestWeeksHandler:
         mock_base_handler_user_service.is_valid_user_profile.return_value = True
         mock_base_handler_user_service.get_user_profile.return_value = mock_user_profile
         mock_generate_message_week.return_value = "You have lived 1234 weeks!"
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Execute
         await handler.handle(mock_update, mock_context)
@@ -91,7 +92,7 @@ class TestWeeksHandler:
         """
         # Setup
         mock_base_handler_user_service.is_valid_user_profile.return_value = False
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
         mock_get_message.return_value = "Please register first!"
 
         # Execute

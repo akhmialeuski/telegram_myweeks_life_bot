@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from src.utils.localization import SupportedLanguage
 from src.core.enums import SubscriptionType
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
@@ -966,7 +967,7 @@ class TestUserServiceUpdateSettings:
         settings = MagicMock()
         settings.birth_date = date(1990, 1, 1)
         settings.life_expectancy = 75
-        settings.language = "en"
+        settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
         user_service.settings_repository.get_user_settings.return_value = settings
@@ -974,7 +975,7 @@ class TestUserServiceUpdateSettings:
 
         new_birth_date = date(1985, 5, 15)
         new_life_expectancy = 85
-        new_language = "ru"
+        new_language = SupportedLanguage.RU.value
 
         # Should not raise any exception
         user_service.update_user_settings(
@@ -1002,13 +1003,13 @@ class TestUserServiceUpdateSettings:
         settings = MagicMock()
         settings.birth_date = date(1990, 1, 1)
         settings.life_expectancy = 75
-        settings.language = "en"
+        settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.return_value = True
 
-        new_language = "ru"
+        new_language = SupportedLanguage.RU.value
 
         # Should not raise any exception
         user_service.update_user_settings(123456789, language=new_language)
@@ -1034,7 +1035,7 @@ class TestUserServiceUpdateSettings:
         with pytest.raises(
             UserNotFoundError, match="Settings not found for user 123456789"
         ):
-            user_service.update_user_settings(123456789, language="ru")
+            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
 
     def test_update_user_settings_update_fails(self):
         """Test update_user_settings when repository update fails.
@@ -1053,7 +1054,7 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Failed to update settings for user 123456789",
         ):
-            user_service.update_user_settings(123456789, language="ru")
+            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
 
     def test_update_user_settings_repository_exception(self):
         """Test update_user_settings when repository raises exception.
@@ -1074,7 +1075,7 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(123456789, language="ru")
+            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
 
     def test_update_user_settings_get_settings_exception(self):
         """Test update_user_settings when get_user_settings raises exception.
@@ -1092,7 +1093,7 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(123456789, language="ru")
+            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
 
     def test_update_user_settings_no_fields_provided(self):
         """Test update_user_settings when no fields are provided.
@@ -1104,7 +1105,7 @@ class TestUserServiceUpdateSettings:
         settings = MagicMock()
         settings.birth_date = date(1990, 1, 1)
         settings.life_expectancy = 75
-        settings.language = "en"
+        settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
         user_service.settings_repository.get_user_settings.return_value = settings

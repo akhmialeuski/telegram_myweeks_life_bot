@@ -18,9 +18,9 @@ from src.bot.scheduler import (
     update_user_schedule,
 )
 from src.core.enums import WeekDay
+from tests.conftest import TEST_USER_ID
 
 # --- Test Constants ---
-TEST_USER_ID = 123456789
 TEST_JOB_ID = f"weekly_notification_user_{TEST_USER_ID}"
 TEST_MESSAGE = "Test weekly message"
 DB_ERROR = "Database error"

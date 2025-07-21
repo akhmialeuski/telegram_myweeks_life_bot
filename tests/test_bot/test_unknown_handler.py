@@ -10,6 +10,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_UNKNOWN
 from src.bot.handlers.unknown_handler import UnknownHandler
+from src.utils.localization import SupportedLanguage
 
 
 class TestUnknownHandler:
@@ -85,7 +86,7 @@ class TestUnknownHandler:
         :returns: None
         :rtype: None
         """
-        mock_update.effective_user.language_code = "ru"
+        mock_update.effective_user.language_code = SupportedLanguage.RU.value
         mock_generate_message_unknown_command.return_value = "Неизвестная команда!"
 
         await handler.handle(mock_update, mock_context)
@@ -147,7 +148,7 @@ class TestUnknownHandler:
         :returns: None
         :rtype: None
         """
-        mock_update.effective_user.language_code = "uk"
+        mock_update.effective_user.language_code = SupportedLanguage.UA.value
         mock_generate_message_unknown_command.return_value = "Невідома команда!"
 
         await handler.handle(mock_update, mock_context)
@@ -178,7 +179,7 @@ class TestUnknownHandler:
         :returns: None
         :rtype: None
         """
-        mock_update.effective_user.language_code = "be"
+        mock_update.effective_user.language_code = SupportedLanguage.BY.value
         mock_generate_message_unknown_command.return_value = "Невядомая каманда!"
 
         await handler.handle(mock_update, mock_context)

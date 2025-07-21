@@ -281,7 +281,7 @@ def mock_update() -> MagicMock:
     update.effective_user.username = "testuser"
     update.effective_user.first_name = "Test"
     update.effective_user.last_name = "User"
-    update.effective_user.language_code = "en"
+    update.effective_user.language_code = SupportedLanguage.EN.value
     update.message = MagicMock()
     update.message.reply_text = AsyncMock()
     update.message.reply_photo = AsyncMock()
@@ -382,7 +382,7 @@ def mock_user_profile() -> MagicMock:
     user = MagicMock()
     user.telegram_id = TEST_USER_ID
     user.birth_date = "15.03.1990"
-    user.language = "en"
+    user.language = SupportedLanguage.EN.value
     user.life_expectancy = 80
     user.subscription_type = "basic"
     return user
@@ -398,7 +398,7 @@ def mock_premium_user_profile() -> MagicMock:
     user = MagicMock()
     user.telegram_id = TEST_USER_ID
     user.birth_date = "15.03.1990"
-    user.language = "en"
+    user.language = SupportedLanguage.EN.value
     user.life_expectancy = 80
     user.subscription_type = "premium"
     return user
@@ -530,3 +530,23 @@ def mock_generate_message_week(mocker: MockerFixture) -> MagicMock:
     :rtype: MagicMock
     """
     return mocker.patch("src.bot.handlers.weeks_handler.generate_message_week")
+
+
+@pytest.fixture
+def mock_update_with_callback() -> MagicMock:
+    """Create mock Update object with callback query for testing.
+
+    :returns: Mock Update object with callback query
+    :rtype: MagicMock
+    """
+    update = MagicMock()
+    update.effective_user = MagicMock()
+    update.effective_user.id = TEST_USER_ID
+    update.effective_user.username = "testuser"
+    update.effective_user.first_name = "Test"
+    update.effective_user.language_code = SupportedLanguage.EN.value
+    update.callback_query = MagicMock()
+    update.callback_query.data = "settings_birth_date"
+    update.callback_query.answer = AsyncMock()
+    update.callback_query.edit_message_text = AsyncMock()
+    return update

@@ -12,6 +12,7 @@ from src.bot.constants import COMMAND_SUBSCRIPTION
 from src.bot.handlers.subscription_handler import SubscriptionHandler
 from src.core.enums import SubscriptionType
 from src.database.service import UserSubscriptionUpdateError
+from src.utils.localization import SupportedLanguage
 
 
 class TestSubscriptionHandler:
@@ -51,7 +52,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create user profile mock
         mock_user_profile = MagicMock()
@@ -108,7 +109,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Mock all required functions in the module where they're imported
         with patch(
@@ -126,7 +127,7 @@ class TestSubscriptionHandler:
 
             # Assert
             mock_get_message.assert_called_once_with(
-                message_key="common", sub_key="not_registered", language="en"
+                message_key="common", sub_key="not_registered", language=SupportedLanguage.EN.value
             )
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
@@ -153,7 +154,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create user profile mock
         mock_user_profile = MagicMock()
@@ -200,7 +201,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create mock callback query
         mock_query = MagicMock()
@@ -256,7 +257,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create mock callback query
         mock_query = MagicMock()
@@ -318,7 +319,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create mock callback query
         mock_query = MagicMock()
@@ -379,7 +380,7 @@ class TestSubscriptionHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = "en"
+        mock_get_user_language.return_value = SupportedLanguage.EN.value
 
         # Create mock callback query
         mock_query = MagicMock()
