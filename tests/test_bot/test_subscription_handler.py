@@ -391,6 +391,9 @@ class TestSubscriptionHandler:
 
             await handler.handle_subscription_callback(mock_update, mock_context)
 
+            # Verify that callback query was answered
+            mock_callback_query.answer.assert_called_once()
+
             # Verify that the callback execution log message is called
             mock_logger.info.assert_called()
             log_calls = [call.args[0] for call in mock_logger.info.call_args_list]

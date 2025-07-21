@@ -16,7 +16,7 @@ from src.core.enums import SubscriptionType
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.utils.config import MAX_LIFE_EXPECTANCY, MIN_BIRTH_YEAR, MIN_LIFE_EXPECTANCY
 from src.utils.localization import SupportedLanguage
-from tests.conftest import TEST_USER_ID, mock_get_user_language
+from tests.conftest import TEST_USER_ID
 
 # Test constants
 TEST_BIRTH_DATE = "15.03.1990"
@@ -48,7 +48,6 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
     ) -> None:
         """Test handle method with premium user.
@@ -56,9 +55,7 @@ class TestSettingsHandler:
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :param make_mock_user_profile: Factory for mock user profiles
-        :returns: None
         """
         mock_premium_user_profile = make_mock_user_profile(SubscriptionType.PREMIUM)
 
@@ -109,7 +106,6 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
     ) -> None:
         """Test handle method with basic user.
@@ -117,9 +113,7 @@ class TestSettingsHandler:
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :param make_mock_user_profile: Factory for mock user profiles
-        :returns: None
         """
         mock_basic_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
@@ -167,15 +161,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle method with no user profile.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Mock all required functions in the module where they're imported
         with patch(
@@ -209,7 +200,6 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
     ) -> None:
         """Test handle method with exception.
@@ -217,9 +207,7 @@ class TestSettingsHandler:
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :param make_mock_user_profile: Factory for mock user profiles
-        :returns: None
         """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
@@ -250,15 +238,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_callback method with birth_date callback.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "settings_birth_date"
@@ -286,15 +271,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_callback method with language callback.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "settings_language"
@@ -328,15 +310,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_callback method with life_expectancy callback.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "settings_life_expectancy"
@@ -364,15 +343,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_callback method with unknown callback.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "unknown_setting"
@@ -389,15 +365,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_callback method with exception.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "settings_birth_date"
@@ -426,15 +399,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_language_callback method successful language change.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "language_ru"
@@ -474,15 +444,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_language_callback method with invalid language.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update_with_callback.callback_query.data = "language_invalid"
@@ -509,14 +476,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_language_callback method with database error.
 
         :param handler: SettingsHandler instance
         :param mock_update_with_callback: Mock Update object with callback
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
         # Setup
@@ -553,15 +518,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_input method with birth date input.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update.message.text = TEST_BIRTH_DATE
@@ -582,15 +544,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_input method with life expectancy input.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update.message.text = str(DEFAULT_LIFE_EXPECTANCY)
@@ -615,15 +574,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_input method when not waiting for input.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update.message.text = "Some text"
@@ -648,15 +604,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_settings_input method with exception.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         mock_update.message.text = TEST_BIRTH_DATE
@@ -677,15 +630,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_birth_date_input method with valid birth date.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         test_birth_date = date(1990, 3, 15)
@@ -728,15 +678,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_birth_date_input method with future birth date.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         future_date = date(2025, 1, 1)
@@ -770,15 +717,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_birth_date_input method with too old birth date.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         old_date = date(1800, 1, 1)
@@ -811,15 +755,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_birth_date_input method with database error.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
         test_birth_date = date(1990, 3, 15)
@@ -852,15 +793,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_birth_date_input method with invalid date format.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
         """
         # Setup
 
@@ -887,14 +825,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_life_expectancy_input method with valid input.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
         # Setup
@@ -924,14 +860,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_life_expectancy_input method with invalid range.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
         # Setup
@@ -961,14 +895,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_life_expectancy_input method with database error.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
         # Setup
@@ -996,14 +928,12 @@ class TestSettingsHandler:
         handler: SettingsHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
         """Test handle_life_expectancy_input method with invalid format.
 
         :param handler: SettingsHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
         # Setup
