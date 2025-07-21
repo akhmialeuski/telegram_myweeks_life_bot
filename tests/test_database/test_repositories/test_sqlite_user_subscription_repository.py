@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from src.core.enums import SubscriptionType
 from src.database.constants import DEFAULT_DATABASE_PATH
 from src.database.models.user_subscription import UserSubscription
 from src.database.repositories.sqlite.user_subscription_repository import (
@@ -59,7 +60,7 @@ class TestSQLiteUserSubscriptionRepository:
         """
         return UserSubscription(
             telegram_id=123456789,
-            subscription_type="premium",
+            subscription_type=SubscriptionType.PREMIUM,
             is_active=True,
             created_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(days=30),
@@ -152,7 +153,7 @@ class TestSQLiteUserSubscriptionRepository:
         # Try to create duplicate with same telegram_id
         duplicate_subscription = UserSubscription(
             telegram_id=sample_subscription.telegram_id,
-            subscription_type="basic",
+            subscription_type=SubscriptionType.BASIC,
             is_active=True,
             created_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(days=30),
@@ -219,7 +220,7 @@ class TestSQLiteUserSubscriptionRepository:
         repository.create_subscription(sample_subscription)
 
         # Update subscription
-        sample_subscription.subscription_type = "basic"
+        sample_subscription.subscription_type = SubscriptionType.BASIC
         result = repository.update_subscription(sample_subscription)
         assert result is True
 
@@ -227,7 +228,7 @@ class TestSQLiteUserSubscriptionRepository:
         updated_subscription = repository.get_subscription(
             sample_subscription.telegram_id
         )
-        assert updated_subscription.subscription_type == "basic"
+        assert updated_subscription.subscription_type == SubscriptionType.BASIC
 
     def test_update_subscription_not_found(self, repository, sample_subscription):
         """Test subscription update when subscription doesn't exist.

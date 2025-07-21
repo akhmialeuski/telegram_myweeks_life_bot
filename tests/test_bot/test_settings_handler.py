@@ -16,11 +16,10 @@ from src.core.enums import SubscriptionType
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.utils.config import MAX_LIFE_EXPECTANCY, MIN_BIRTH_YEAR, MIN_LIFE_EXPECTANCY
 from src.utils.localization import SupportedLanguage
-from tests.conftest import TEST_USER_ID
+from tests.conftest import TEST_USER_ID, mock_get_user_language
 
 # Test constants
 TEST_BIRTH_DATE = "15.03.1990"
-TEST_LANGUAGE = SupportedLanguage.EN.value
 
 
 class TestSettingsHandler:
@@ -50,6 +49,7 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
         mock_get_user_language: MagicMock,
+        make_mock_user_profile,
     ) -> None:
         """Test handle method with premium user.
 
@@ -57,17 +57,10 @@ class TestSettingsHandler:
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         :param mock_get_user_language: Mocked get_user_language function
+        :param make_mock_user_profile: Factory for mock user profiles
         :returns: None
         """
-        # Setup
-        mock_get_user_language.return_value = "en"
-
-        # Create premium user profile mock
-        mock_premium_user_profile = MagicMock()
-        mock_premium_user_profile.subscription = MagicMock()
-        mock_premium_user_profile.subscription.subscription_type = (
-            SubscriptionType.PREMIUM
-        )
+        mock_premium_user_profile = make_mock_user_profile(SubscriptionType.PREMIUM)
 
         # Mock all required functions in the module where they're imported
         with patch(
@@ -117,6 +110,7 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
         mock_get_user_language: MagicMock,
+        make_mock_user_profile,
     ) -> None:
         """Test handle method with basic user.
 
@@ -124,15 +118,10 @@ class TestSettingsHandler:
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         :param mock_get_user_language: Mocked get_user_language function
+        :param make_mock_user_profile: Factory for mock user profiles
         :returns: None
         """
-        # Setup
-        mock_get_user_language.return_value = "en"
-
-        # Create basic user profile mock
-        mock_basic_user_profile = MagicMock()
-        mock_basic_user_profile.subscription = MagicMock()
-        mock_basic_user_profile.subscription.subscription_type = SubscriptionType.BASIC
+        mock_basic_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         # Mock all required functions in the module where they're imported
         with patch(
@@ -188,9 +177,6 @@ class TestSettingsHandler:
         :param mock_get_user_language: Mocked get_user_language function
         :returns: None
         """
-        # Setup
-        mock_get_user_language.return_value = "en"
-
         # Mock all required functions in the module where they're imported
         with patch(
             "src.bot.handlers.base_handler.user_service"
@@ -224,6 +210,7 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
         mock_get_user_language: MagicMock,
+        make_mock_user_profile,
     ) -> None:
         """Test handle method with exception.
 
@@ -231,15 +218,10 @@ class TestSettingsHandler:
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         :param mock_get_user_language: Mocked get_user_language function
+        :param make_mock_user_profile: Factory for mock user profiles
         :returns: None
         """
-        # Setup
-        mock_get_user_language.return_value = "en"
-
-        # Create user profile mock
-        mock_user_profile = MagicMock()
-        mock_user_profile.subscription = MagicMock()
-        mock_user_profile.subscription.subscription_type = SubscriptionType.BASIC
+        mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         # Mock all required functions in the module where they're imported
         with patch(
@@ -279,7 +261,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "settings_birth_date"
 
         with patch(
@@ -316,7 +297,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "settings_language"
 
         with patch(
@@ -359,7 +339,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "settings_life_expectancy"
 
         with patch(
@@ -396,7 +375,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "unknown_setting"
 
         # Execute
@@ -422,7 +400,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "settings_birth_date"
         mock_update_with_callback.callback_query.answer.side_effect = Exception(
             "Test error"
@@ -460,7 +437,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "language_ru"
 
         with patch(
@@ -509,7 +485,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "language_invalid"
 
         with patch(
@@ -545,7 +520,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update_with_callback.callback_query.data = "language_en"
 
         with patch(
@@ -590,7 +564,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {"waiting_for": "settings_birth_date"}
 
@@ -620,7 +593,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update.message.text = str(DEFAULT_LIFE_EXPECTANCY)
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
 
@@ -654,7 +626,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update.message.text = "Some text"
         mock_context.user_data = {}
 
@@ -688,7 +659,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {"waiting_for": "settings_birth_date"}
 
@@ -718,7 +688,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         test_birth_date = date(1990, 3, 15)
         mock_context.user_data = {"waiting_for": "settings_birth_date"}
 
@@ -770,7 +739,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         future_date = date(2025, 1, 1)
 
         with patch(
@@ -813,7 +781,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         old_date = date(1800, 1, 1)
 
         with patch(
@@ -855,7 +822,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         test_birth_date = date(1990, 3, 15)
 
         with patch(
@@ -897,7 +863,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
 
         with patch(
             "src.bot.handlers.settings_handler.generate_message_birth_date_format_error"
@@ -933,7 +898,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
 
         with patch(
@@ -971,7 +935,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
 
         with patch(
             "src.bot.handlers.settings_handler.generate_message_invalid_life_expectancy"
@@ -1009,7 +972,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
 
         with patch(
             "src.bot.handlers.settings_handler.user_service"
@@ -1045,7 +1007,6 @@ class TestSettingsHandler:
         :returns: None
         """
         # Setup
-        mock_get_user_language.return_value = TEST_LANGUAGE
 
         with patch(
             "src.bot.handlers.settings_handler.generate_message_invalid_life_expectancy"

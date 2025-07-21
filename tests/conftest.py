@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import Application, ContextTypes
 
 from src.bot.application import LifeWeeksBot
-from src.core.enums import WeekDay
+from src.core.enums import SubscriptionType, WeekDay
 from src.utils.localization import SupportedLanguage
 
 # --- Test Constants ---
@@ -357,7 +357,11 @@ def mock_get_user_language(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked get_user_language function
     :rtype: MagicMock
     """
-    return mocker.patch("src.bot.handlers.base_handler.get_user_language")
+    mock = mocker.patch(
+        "src.bot.handlers.base_handler.get_user_language", autospec=True
+    )
+    mock.return_value = SupportedLanguage.EN.value
+    return mock
 
 
 @pytest.fixture
@@ -373,6 +377,29 @@ def mock_get_message(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture
+def make_mock_user_profile():
+    """Provides a factory for creating mock user profiles.
+
+    :returns: Factory function for creating mock user profiles
+    :rtype: function
+    """
+
+    def _make(subscription_type: SubscriptionType):
+        """Create a mock user profile with the given subscription type.
+
+        :param subscription_type: Subscription type
+        :type subscription_type: SubscriptionType
+        :returns: Mock user profile with the given subscription type
+        :rtype: MagicMock
+        """
+        mock_user = MagicMock()
+        mock_user.subscription.subscription_type = subscription_type.value
+        return mock_user
+
+    return _make
+
+
+@pytest.fixture
 def mock_user_profile() -> MagicMock:
     """Provides a mock user profile for testing.
 
@@ -384,7 +411,7 @@ def mock_user_profile() -> MagicMock:
     user.birth_date = "15.03.1990"
     user.language = SupportedLanguage.EN.value
     user.life_expectancy = 80
-    user.subscription_type = "basic"
+    user.subscription_type = SubscriptionType.BASIC
     return user
 
 
@@ -400,7 +427,7 @@ def mock_premium_user_profile() -> MagicMock:
     user.birth_date = "15.03.1990"
     user.language = SupportedLanguage.EN.value
     user.life_expectancy = 80
-    user.subscription_type = "premium"
+    user.subscription_type = SubscriptionType.PREMIUM
     return user
 
 
