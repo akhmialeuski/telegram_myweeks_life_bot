@@ -4,7 +4,7 @@ Tests the SettingsHandler class which handles /settings command.
 """
 
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from telegram.constants import ParseMode
@@ -34,8 +34,6 @@ class TestSettingsHandler:
         :rtype: SettingsHandler
         """
         return SettingsHandler()
-
-
 
     def test_handler_creation(self, handler: SettingsHandler) -> None:
         """Test SettingsHandler creation.

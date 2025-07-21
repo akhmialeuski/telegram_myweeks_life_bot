@@ -10,7 +10,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.core.enums import SubscriptionType
-from src.utils.localization import SupportedLanguage
 from src.core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -28,6 +27,7 @@ from src.core.messages import (
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
+from src.utils.localization import SupportedLanguage
 
 
 class TestMessageGeneration:

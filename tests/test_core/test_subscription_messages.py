@@ -3,12 +3,12 @@
 import pytest
 
 from src.core.enums import SubscriptionType
-from src.utils.localization import SupportedLanguage
 from src.core.subscription_messages import (
     generate_message_week_addition_basic,
     generate_message_week_addition_premium,
     get_subscription_addition_message,
 )
+from src.utils.localization import SupportedLanguage
 
 
 class TestSubscriptionMessages:

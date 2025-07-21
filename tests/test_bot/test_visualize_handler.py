@@ -6,8 +6,6 @@ Tests the VisualizeHandler class which handles /visualize command.
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-from telegram import Update
-from telegram.ext import ContextTypes
 
 from src.bot.handlers.visualize_handler import VisualizeHandler
 from src.utils.localization import SupportedLanguage
@@ -24,8 +22,6 @@ class TestVisualizeHandler:
         :rtype: VisualizeHandler
         """
         return VisualizeHandler()
-
-
 
     def test_handler_creation(self, handler: VisualizeHandler) -> None:
         """Test VisualizeHandler creation.

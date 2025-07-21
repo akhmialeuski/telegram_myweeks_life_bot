@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from src.utils.localization import SupportedLanguage
 from src.core.enums import SubscriptionType
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
@@ -34,6 +33,7 @@ from src.database.service import (
     UserSettingsUpdateError,
     UserSubscriptionUpdateError,
 )
+from src.utils.localization import SupportedLanguage
 
 
 class TestUserServiceExceptions:
@@ -1035,7 +1035,9 @@ class TestUserServiceUpdateSettings:
         with pytest.raises(
             UserNotFoundError, match="Settings not found for user 123456789"
         ):
-            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
+            user_service.update_user_settings(
+                123456789, language=SupportedLanguage.RU.value
+            )
 
     def test_update_user_settings_update_fails(self):
         """Test update_user_settings when repository update fails.
@@ -1054,7 +1056,9 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Failed to update settings for user 123456789",
         ):
-            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
+            user_service.update_user_settings(
+                123456789, language=SupportedLanguage.RU.value
+            )
 
     def test_update_user_settings_repository_exception(self):
         """Test update_user_settings when repository raises exception.
@@ -1075,7 +1079,9 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
+            user_service.update_user_settings(
+                123456789, language=SupportedLanguage.RU.value
+            )
 
     def test_update_user_settings_get_settings_exception(self):
         """Test update_user_settings when get_user_settings raises exception.
@@ -1093,7 +1099,9 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(123456789, language=SupportedLanguage.RU.value)
+            user_service.update_user_settings(
+                123456789, language=SupportedLanguage.RU.value
+            )
 
     def test_update_user_settings_no_fields_provided(self):
         """Test update_user_settings when no fields are provided.

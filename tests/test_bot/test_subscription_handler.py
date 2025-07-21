@@ -127,7 +127,9 @@ class TestSubscriptionHandler:
 
             # Assert
             mock_get_message.assert_called_once_with(
-                message_key="common", sub_key="not_registered", language=SupportedLanguage.EN.value
+                message_key="common",
+                sub_key="not_registered",
+                language=SupportedLanguage.EN.value,
             )
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
