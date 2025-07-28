@@ -40,9 +40,11 @@ Dependencies:
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from telegram import User as TelegramUser
+from telegram import User
+from telegram.constants import ParseMode
 from telegram.ext import Application
 
+from ..constants import DEFAULT_USER_FIRST_NAME
 from ..core.enums import WeekDay
 from ..core.messages import generate_message_week
 from ..database.service import user_service
@@ -163,10 +165,10 @@ async def send_weekly_message_to_user(application: Application, user_id: int) ->
 
         # Create a mock Telegram User object for message generation compatibility
         # This is necessary because generate_message_week expects a Telegram User object
-        telegram_user = TelegramUser(
+        telegram_user = User(
             id=user.telegram_id,
             is_bot=False,
-            first_name=user.first_name or "User",
+            first_name=user.first_name or DEFAULT_USER_FIRST_NAME,
             username=user.username,
             language_code=user.settings.language if user.settings else DEFAULT_LANGUAGE,
         )
@@ -176,11 +178,10 @@ async def send_weekly_message_to_user(application: Application, user_id: int) ->
         message_text = generate_message_week(user_info=telegram_user)
 
         # Send message to user via Telegram Bot API
-        # Uses HTML parse mode for rich text formatting
         await application.bot.send_message(
             chat_id=user_id,
             text=message_text,
-            parse_mode="HTML",
+            parse_mode=ParseMode.HTML,
         )
 
         logger.debug(f"Successfully sent weekly notification to user {user_id}")
@@ -190,8 +191,10 @@ async def send_weekly_message_to_user(application: Application, user_id: int) ->
 
 
 def _create_user_notification_job(
-    user, application: Application, scheduler: AsyncIOScheduler
-) -> bool:
+    user: User,
+    application: Application,
+    scheduler: AsyncIOScheduler,
+) -> None:
     """Create a notification job for a specific user.
 
     This helper function creates a cron job for a single user based on their
@@ -203,19 +206,24 @@ def _create_user_notification_job(
     :type application: Application
     :param scheduler: The scheduler instance to add the job to
     :type scheduler: AsyncIOScheduler
-    :returns: True if job was created successfully, False otherwise
-    :rtype: bool
+    :returns: None
+    :raises SchedulerOperationError: If job creation fails
     """
     try:
         # Validate user has settings configured
         if not user.settings:
-            logger.warning(f"No settings found for user {user.telegram_id}")
-            return False
+            error_message = f"No settings found for user {user.telegram_id}"
+            logger.warning(error_message)
+            raise SchedulerOperationError(
+                message=error_message,
+                user_id=user.telegram_id,
+                operation="create_notification_job",
+            )
 
         # Check if notifications are enabled for this user
         if not user.settings.notifications:
             logger.debug(f"Notifications disabled for user {user.telegram_id}")
-            return False
+            return
 
         # Extract notification preferences from user settings
         notification_day = user.settings.notifications_day
@@ -223,23 +231,19 @@ def _create_user_notification_job(
 
         # Validate that both day and time are configured
         if not notification_day or not notification_time:
-            logger.warning(
+            error_message = (
                 f"Incomplete notification settings for user {user.telegram_id}"
             )
-            return False
+            logger.warning(error_message)
+            raise SchedulerOperationError(
+                message=error_message,
+                user_id=user.telegram_id,
+                operation="create_notification_job",
+            )
 
         # Convert WeekDay enum to cron-compatible weekday number (0-6)
-        # Use standard Python enum capabilities
-        day_mapping = {
-            WeekDay.MONDAY: 0,
-            WeekDay.TUESDAY: 1,
-            WeekDay.WEDNESDAY: 2,
-            WeekDay.THURSDAY: 3,
-            WeekDay.FRIDAY: 4,
-            WeekDay.SATURDAY: 5,
-            WeekDay.SUNDAY: 6,
-        }
-        cron_day = day_mapping[notification_day]
+        # Use list(WeekDay) to get the order, then find the index
+        cron_day = list(WeekDay).index(notification_day)
 
         # Extract hour and minute from time object for cron trigger
         hour = notification_time.hour
@@ -251,6 +255,9 @@ def _create_user_notification_job(
 
         # Add cron job to scheduler for this specific user
         # CronTrigger provides precise scheduling based on day and time
+        logger.info(
+            f"Adding cron job for user {user.telegram_id}: {cron_day} at {hour}:{minute}"
+        )
         scheduler.add_job(
             func=send_weekly_message_to_user,
             trigger=CronTrigger(
@@ -268,16 +275,24 @@ def _create_user_notification_job(
             f"Successfully created notification job for user {user.telegram_id}: "
             f"{notification_day.value} at {hour:02d}:{minute:02d}"
         )
-        return True
 
+    except SchedulerOperationError:
+        # Re-raise SchedulerOperationError as-is
+        raise
     except Exception as error:  # pylint: disable=broad-exception-caught
-        logger.error(
+        error_message = (
             f"Failed to create notification job for user {user.telegram_id}: {error}"
         )
-        return False
+        logger.error(error_message)
+        raise SchedulerOperationError(
+            message=error_message,
+            user_id=user.telegram_id,
+            operation="create_notification_job",
+            original_error=error,
+        )
 
 
-def add_user_to_scheduler(user_id: int) -> bool:
+def add_user_to_scheduler(user_id: int) -> None:
     """Add a new user to the notification scheduler.
 
     This function adds a single user to the running scheduler without
@@ -286,36 +301,48 @@ def add_user_to_scheduler(user_id: int) -> bool:
 
     :param user_id: Telegram user ID to add to scheduler
     :type user_id: int
-    :returns: True if user was added successfully, False otherwise
-    :rtype: bool
+    :returns: None
+    :raises SchedulerOperationError: If user cannot be added to scheduler
     """
 
     if not _scheduler_instance or not _application_instance:
-        logger.error("Scheduler not initialized, cannot add user")
-        return False
+        error_message = "Scheduler not initialized, cannot add user"
+        logger.error(error_message)
+        raise SchedulerOperationError(
+            message=error_message, user_id=user_id, operation="add_user"
+        )
 
     try:
         # Get user profile from database
         user = user_service.get_user_profile(user_id)
         if not user:
-            logger.warning(f"User {user_id} not found for scheduler addition")
-            return False
+            error_message = f"User {user_id} not found for scheduler addition"
+            logger.warning(error_message)
+            raise SchedulerOperationError(
+                message=error_message, user_id=user_id, operation="add_user"
+            )
 
         # Create notification job for this user
-        success = _create_user_notification_job(
-            user, _application_instance, _scheduler_instance
+        _create_user_notification_job(
+            user=user,
+            application=_application_instance,
+            scheduler=_scheduler_instance,
         )
 
-        if success:
-            logger.info(f"Successfully added user {user_id} to notification scheduler")
-        else:
-            logger.warning(f"Failed to add user {user_id} to notification scheduler")
+        logger.info(f"Successfully added user {user_id} to notification scheduler")
 
-        return success
-
+    except SchedulerOperationError:
+        # Re-raise SchedulerOperationError as-is
+        raise
     except Exception as error:  # pylint: disable=broad-exception-caught
-        logger.error(f"Error adding user {user_id} to scheduler: {error}")
-        return False
+        error_message = f"Error adding user {user_id} to scheduler: {error}"
+        logger.error(error_message)
+        raise SchedulerOperationError(
+            message=error_message,
+            user_id=user_id,
+            operation="add_user",
+            original_error=error,
+        )
 
 
 def remove_user_from_scheduler(user_id: int) -> None:
@@ -343,17 +370,8 @@ def remove_user_from_scheduler(user_id: int) -> None:
         job_id = f"weekly_notification_user_{user_id}"
 
         # Try to remove the job - if it doesn't exist, it will raise an exception
-        try:
-            _scheduler_instance.remove_job(job_id)
-            logger.info(
-                f"Successfully removed user {user_id} from notification scheduler"
-            )
-        except Exception as job_error:
-            # Job might not exist, which is fine
-            logger.debug(
-                f"Job for user {user_id} not found in scheduler (already removed): {job_error}"
-            )
-
+        _scheduler_instance.remove_job(job_id)
+        logger.info(f"Successfully removed user {user_id} from notification scheduler")
     except Exception as error:  # pylint: disable=broad-exception-caught
         error_message = f"Error removing user {user_id} from scheduler: {error}"
         logger.error(error_message)
@@ -390,14 +408,8 @@ def update_user_schedule(user_id: int) -> None:
         job_id = f"weekly_notification_user_{user_id}"
 
         # Try to remove the job - if it doesn't exist, it will raise an exception
-        try:
-            _scheduler_instance.remove_job(job_id)
-            logger.debug(f"Removed existing notification job for user {user_id}")
-        except Exception as job_error:
-            # Job might not exist, which is fine
-            logger.debug(
-                f"Job for user {user_id} not found in scheduler (already removed): {job_error}"
-            )
+        _scheduler_instance.remove_job(job_id)
+        logger.debug(f"Removed existing notification job for user {user_id}")
 
         # Get updated user profile from database
         user = user_service.get_user_profile(user_id)
@@ -409,20 +421,13 @@ def update_user_schedule(user_id: int) -> None:
             )
 
         # Create new notification job with updated settings
-        success = _create_user_notification_job(
-            user, _application_instance, _scheduler_instance
+        _create_user_notification_job(
+            user=user,
+            application=_application_instance,
+            scheduler=_scheduler_instance,
         )
 
-        if success:
-            logger.info(
-                f"Successfully updated notification schedule for user {user_id}"
-            )
-        else:
-            error_message = f"Failed to create notification job for user {user_id}"
-            logger.warning(error_message)
-            raise SchedulerOperationError(
-                message=error_message, user_id=user_id, operation="update_schedule"
-            )
+        logger.info(f"Successfully updated notification schedule for user {user_id}")
 
     except SchedulerOperationError:
         # Re-raise SchedulerOperationError as-is

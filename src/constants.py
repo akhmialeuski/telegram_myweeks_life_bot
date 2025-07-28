@@ -12,3 +12,4 @@ DEFAULT_NOTIFICATIONS_DAY = (
     "monday"  # Default day for weekly notifications (WeekDay enum value)
 )
 DEFAULT_NOTIFICATIONS_TIME = "09:00:00"  # Default time for notifications (HH:MM:SS)
+DEFAULT_USER_FIRST_NAME = "User"  # Default first name for users

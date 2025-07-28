@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_START
 from src.bot.handlers.start_handler import StartHandler
+from src.bot.scheduler import SchedulerOperationError
 from src.database.service import (
     UserRegistrationError,
     UserServiceError,
@@ -130,7 +131,7 @@ class TestStartHandler:
         mock_generate_message_start_welcome_existing.return_value = (
             "Registration successful!"
         )
-        mock_add_user_to_scheduler.return_value = True
+        mock_add_user_to_scheduler.return_value = None
 
         # Execute
         await handler.handle_birth_date_input(mock_update, mock_context)
@@ -312,7 +313,7 @@ class TestStartHandler:
         assert "waiting_for" not in mock_context.user_data
 
     @pytest.mark.asyncio
-    async def test_handle_birth_date_input_scheduler_failure(
+    async def test_handle_birth_date_input_scheduler_exception(
         self,
         handler: StartHandler,
         mock_update: MagicMock,
@@ -321,7 +322,7 @@ class TestStartHandler:
         mock_generate_message_start_welcome_existing: MagicMock,
         mock_add_user_to_scheduler: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with scheduler failure.
+        """Test handle_birth_date_input with scheduler exception.
 
         :param handler: StartHandler instance
         :param mock_update: Mock Update object
@@ -339,7 +340,9 @@ class TestStartHandler:
         mock_generate_message_start_welcome_existing.return_value = (
             "Registration successful!"
         )
-        mock_add_user_to_scheduler.return_value = False
+        mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
+            "Scheduler error", 123, "add_user"
+        )
 
         # Execute
         await handler.handle_birth_date_input(mock_update, mock_context)

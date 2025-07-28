@@ -32,7 +32,7 @@ from ...database.service import (
 from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
 from ...utils.logger import get_logger
 from ..constants import COMMAND_START
-from ..scheduler import add_user_to_scheduler
+from ..scheduler import SchedulerOperationError, add_user_to_scheduler
 from .base_handler import BaseHandler
 
 # Initialize logger for this module
@@ -168,14 +168,14 @@ class StartHandler(BaseHandler):
             user_service.create_user_profile(user_info=user, birth_date=birth_date)
 
             # Add user to notification scheduler
-            scheduler_success = add_user_to_scheduler(user_id)
-            if scheduler_success:
+            try:
+                add_user_to_scheduler(user_id)
                 logger.info(
                     f"{self.command_name}: [{user_id}]: User added to notification scheduler"
                 )
-            else:
+            except SchedulerOperationError as scheduler_error:
                 logger.warning(
-                    f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler"
+                    f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"
                 )
 
             # Send success message with calculated statistics
