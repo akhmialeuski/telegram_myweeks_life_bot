@@ -1,0 +1,89 @@
+@startuml LifeWeeksBot Component Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram for LifeWeeksBot
+
+Person(user, "Telegram User", "A user who wants to track their life weeks and receive weekly notifications")
+
+System_Boundary(c1, "LifeWeeksBot System") {
+    Container_Boundary(telegram_bot, "LifeWeeksBot Application") {
+        Component(main_app, "LifeWeeksBot", "Python", "Main application class that initializes and manages the bot")
+        Component(handler_registry, "Handler Registry", "Python", "Registers and manages all command handlers")
+        Component(text_handler, "Universal Text Handler", "Python", "Handles text input and state management")
+    }
+
+    Container_Boundary(handlers, "Command Handlers") {
+        Component(start_handler, "StartHandler", "Python", "Handles /start command and user registration")
+        Component(weeks_handler, "WeeksHandler", "Python", "Handles /weeks command and life statistics")
+        Component(visualize_handler, "VisualizeHandler", "Python", "Handles /visualize command and charts")
+        Component(settings_handler, "SettingsHandler", "Python", "Handles /settings command and user preferences")
+        Component(subscription_handler, "SubscriptionHandler", "Python", "Handles subscription management")
+        Component(help_handler, "HelpHandler", "Python", "Handles /help command")
+        Component(cancel_handler, "CancelHandler", "Python", "Handles /cancel command")
+    }
+
+    Container_Boundary(life_calculator, "Life Calculator") {
+        Component(calculator, "LifeCalculator", "Python", "Calculates life weeks and statistics")
+        Component(visualizer, "LifeVisualizer", "Python", "Generates life progress visualizations")
+        Component(statistics, "Statistics Engine", "Python", "Computes life statistics and metrics")
+    }
+
+    Container_Boundary(database_service, "Database Service") {
+        Component(db_service, "DatabaseService", "Python", "Main database service interface")
+        Component(user_repo, "UserRepository", "Python", "User data operations")
+        Component(settings_repo, "SettingsRepository", "Python", "User settings operations")
+        Component(migration_service, "MigrationService", "Python/Alembic", "Database migration management")
+    }
+
+    Container_Boundary(scheduler_service, "Scheduler Service") {
+        Component(scheduler, "NotificationScheduler", "Python/APScheduler", "Manages scheduled notifications")
+        Component(schedule_manager, "ScheduleManager", "Python", "User schedule management")
+        Component(notification_sender, "NotificationSender", "Python", "Sends weekly notifications")
+    }
+
+    Container_Boundary(message_service, "Message Service") {
+        Component(message_generator, "MessageGenerator", "Python", "Generates localized messages")
+        Component(localization, "Localization", "Python", "Handles multi-language support")
+        Component(message_formatter, "MessageFormatter", "Python", "Formats messages for display")
+    }
+}
+
+System_Ext(telegram_api, "Telegram Bot API", "External API for bot communication")
+System_Ext(sqlite_db, "SQLite Database", "Local database for user data and settings")
+System_Ext(matplotlib, "Matplotlib", "External library for generating life visualizations")
+
+Rel(user, main_app, "Uses", "Telegram messages")
+Rel(main_app, telegram_api, "Sends/receives messages", "HTTPS/JSON")
+Rel(main_app, handler_registry, "Uses", "Handler management")
+Rel(handler_registry, start_handler, "Routes to", "Command routing")
+Rel(handler_registry, weeks_handler, "Routes to", "Command routing")
+Rel(handler_registry, visualize_handler, "Routes to", "Command routing")
+Rel(handler_registry, settings_handler, "Routes to", "Command routing")
+Rel(handler_registry, subscription_handler, "Routes to", "Command routing")
+Rel(handler_registry, help_handler, "Routes to", "Command routing")
+Rel(handler_registry, cancel_handler, "Routes to", "Command routing")
+
+Rel(start_handler, calculator, "Uses", "Life calculations")
+Rel(weeks_handler, calculator, "Uses", "Life calculations")
+Rel(visualize_handler, visualizer, "Uses", "Chart generation")
+Rel(settings_handler, db_service, "Uses", "Settings storage")
+Rel(subscription_handler, message_generator, "Uses", "Message generation")
+
+Rel(calculator, statistics, "Uses", "Statistics computation")
+Rel(visualizer, matplotlib, "Uses", "Chart generation")
+Rel(db_service, sqlite_db, "Stores/retrieves data", "SQLAlchemy")
+Rel(db_service, user_repo, "Uses", "User operations")
+Rel(db_service, settings_repo, "Uses", "Settings operations")
+Rel(db_service, migration_service, "Uses", "Migration management")
+
+Rel(scheduler, schedule_manager, "Uses", "Schedule management")
+Rel(scheduler, notification_sender, "Uses", "Notification sending")
+Rel(scheduler, db_service, "Reads user settings", "Database queries")
+Rel(notification_sender, message_generator, "Uses", "Message generation")
+
+Rel(message_generator, localization, "Uses", "Language support")
+Rel(message_generator, message_formatter, "Uses", "Message formatting")
+
+@enduml

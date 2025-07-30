@@ -78,21 +78,27 @@ def mock_scheduler() -> MagicMock:
 
 @pytest.fixture
 def mock_globals(mocker: MockerFixture) -> dict[str, MagicMock]:
-    """Mocks the global scheduler and application instances and returns them.
+    """Mocks the global scheduler instance and returns it.
 
     This fixture is used for testing scheduler management functions that rely on
-    global _scheduler_instance and _application_instance variables.
+    global _global_scheduler_instance variable.
 
     :param mocker: Pytest mocker fixture
     :type mocker: MockerFixture
-    :returns: A dictionary containing the mocked scheduler and application
+    :returns: A dictionary containing the mocked scheduler components
     :rtype: dict[str, MagicMock]
     """
-    mock_scheduler = MagicMock()
-    mock_app = MagicMock()
-    mocker.patch("src.bot.scheduler._scheduler_instance", mock_scheduler)
-    mocker.patch("src.bot.scheduler._application_instance", mock_app)
-    return {"scheduler": mock_scheduler, "app": mock_app}
+    # Create mock for the APScheduler inside NotificationScheduler
+    mock_apscheduler = MagicMock()
+
+    # Create mock for NotificationScheduler instance
+    mock_scheduler_instance = MagicMock()
+    mock_scheduler_instance.scheduler = mock_apscheduler
+
+    mocker.patch(
+        "src.bot.scheduler._global_scheduler_instance", mock_scheduler_instance
+    )
+    return {"scheduler": mock_apscheduler, "instance": mock_scheduler_instance}
 
 
 @pytest.fixture

@@ -1,0 +1,24 @@
+@startuml LifeWeeksBot System Context Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System Context Diagram for LifeWeeksBot
+
+Person(user, "Telegram User", "A user who wants to track their life weeks and receive weekly notifications")
+
+System_Boundary(c1, "LifeWeeksBot System") {
+    Container(telegram_bot, "LifeWeeksBot", "Python Telegram Bot", "Provides life weeks tracking, visualization, and weekly notifications to users")
+}
+
+System_Ext(telegram_api, "Telegram Bot API", "External API for bot communication")
+System_Ext(sqlite_db, "SQLite Database", "Local database for user data and settings")
+System_Ext(scheduler, "APScheduler", "Task scheduler for weekly notifications")
+
+Rel(user, telegram_bot, "Uses", "Telegram messages")
+Rel(telegram_bot, telegram_api, "Sends/receives messages", "HTTPS/JSON")
+Rel(telegram_bot, sqlite_db, "Stores/retrieves user data", "SQLAlchemy")
+Rel(telegram_bot, scheduler, "Manages notifications", "APScheduler API")
+
+@enduml

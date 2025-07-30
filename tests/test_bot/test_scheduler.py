@@ -6,12 +6,11 @@ import pytest
 from telegram.constants import ParseMode
 
 from src.bot.scheduler import (
+    NotificationScheduler,
     SchedulerOperationError,
     SchedulerSetupError,
-    _create_user_notification_job,
     add_user_to_scheduler,
     remove_user_from_scheduler,
-    send_weekly_message_to_user,
     setup_user_notification_schedules,
     start_scheduler,
     stop_scheduler,
@@ -31,7 +30,7 @@ SCHEDULER_ERROR = "Scheduler error"
 
 
 class TestSendWeeklyMessageToUser:
-    """Tests for the send_weekly_message_to_user function."""
+    """Tests for the send_weekly_message_to_user method."""
 
     @pytest.mark.asyncio
     async def test_sends_message_if_user_found(
@@ -53,8 +52,9 @@ class TestSendWeeklyMessageToUser:
         :type mock_generate_message: MagicMock
         """
         mock_user_service.get_user_profile.return_value = mock_user_with_settings
+        notification_scheduler = NotificationScheduler(mock_app)
 
-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
+        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
 
         mock_app.bot.send_message.assert_called_once_with(
             chat_id=TEST_USER_ID,
@@ -80,8 +80,9 @@ class TestSendWeeklyMessageToUser:
         :type mock_scheduler_logger: MagicMock
         """
         mock_user_service.get_user_profile.return_value = None
+        notification_scheduler = NotificationScheduler(mock_app)
 
-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
+        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
 
         mock_scheduler_logger.warning.assert_called_once_with(
             f"User {TEST_USER_ID} not found for weekly notification"
@@ -105,8 +106,9 @@ class TestSendWeeklyMessageToUser:
         :type mock_scheduler_logger: MagicMock
         """
         mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
+        notification_scheduler = NotificationScheduler(mock_app)
 
-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
+        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
 
         mock_scheduler_logger.error.assert_called_once_with(
             f"Failed to send weekly notification to user {TEST_USER_ID}: {DB_ERROR}"
@@ -114,7 +116,7 @@ class TestSendWeeklyMessageToUser:
 
 
 class TestCreateUserNotificationJob:
-    """Tests for the private _create_user_notification_job function."""
+    """Tests for the private _create_user_notification_job method."""
 
     def test_creates_job_if_settings_are_valid(
         self,
@@ -134,7 +136,8 @@ class TestCreateUserNotificationJob:
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        _create_user_notification_job(mock_user_with_settings, mock_app, mock_scheduler)
+        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
+        notification_scheduler._create_user_notification_job(mock_user_with_settings)
 
         mock_scheduler.add_job.assert_called_once()
         # Check that info was called twice: once for adding job, once for success
@@ -146,7 +149,7 @@ class TestCreateUserNotificationJob:
         mock_scheduler: MagicMock,
         mock_scheduler_logger: MagicMock,
     ) -> None:
-        """Verify that the function raises exception if the user has no settings attribute.
+        """Verify that the method raises exception if the user has no settings attribute.
 
         :param mock_app: Mocked Application instance
         :type mock_app: MagicMock
@@ -156,9 +159,10 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler_logger: MagicMock
         """
         user_no_settings = MagicMock(telegram_id=TEST_USER_ID, settings=None)
+        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
 
         with pytest.raises(SchedulerOperationError):
-            _create_user_notification_job(user_no_settings, mock_app, mock_scheduler)
+            notification_scheduler._create_user_notification_job(user_no_settings)
 
         mock_scheduler_logger.warning.assert_called_once_with(
             f"No settings found for user {TEST_USER_ID}"
@@ -170,7 +174,7 @@ class TestCreateUserNotificationJob:
         mock_scheduler: MagicMock,
         mock_scheduler_logger: MagicMock,
     ) -> None:
-        """Verify that the function returns None if user notifications are disabled.
+        """Verify that the method returns None if user notifications are disabled.
 
         :param mock_app: Mocked Application instance
         :type mock_app: MagicMock
@@ -181,8 +185,9 @@ class TestCreateUserNotificationJob:
         """
         user_disabled = MagicMock(telegram_id=TEST_USER_ID)
         user_disabled.settings.notifications = False
+        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
 
-        result = _create_user_notification_job(user_disabled, mock_app, mock_scheduler)
+        result = notification_scheduler._create_user_notification_job(user_disabled)
 
         assert result is None
         mock_scheduler_logger.debug.assert_called_once_with(
@@ -201,7 +206,7 @@ class TestCreateUserNotificationJob:
         mock_scheduler: MagicMock,
         mock_scheduler_logger: MagicMock,
     ) -> None:
-        """Verify that the function raises exception if notification day or time is missing.
+        """Verify that the method raises exception if notification day or time is missing.
 
         :param missing_field: Which field is missing
         :type missing_field: str
@@ -224,9 +229,10 @@ class TestCreateUserNotificationJob:
             if missing_field != "time" and missing_field != "both"
             else None
         )
+        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
 
         with pytest.raises(SchedulerOperationError):
-            _create_user_notification_job(user, mock_app, mock_scheduler)
+            notification_scheduler._create_user_notification_job(user)
 
         mock_scheduler_logger.warning.assert_called_once_with(
             f"Incomplete notification settings for user {TEST_USER_ID}"
@@ -251,10 +257,11 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler_logger: MagicMock
         """
         mock_scheduler.add_job.side_effect = Exception(SCHEDULER_ERROR)
+        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
 
         with pytest.raises(SchedulerOperationError):
-            _create_user_notification_job(
-                mock_user_with_settings, mock_app, mock_scheduler
+            notification_scheduler._create_user_notification_job(
+                mock_user_with_settings
             )
 
         mock_scheduler_logger.error.assert_called_once_with(
@@ -274,7 +281,7 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that a user is successfully added to the scheduler.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_with_settings: Mocked user with valid settings
         :type mock_user_with_settings: MagicMock
@@ -283,12 +290,8 @@ class TestSchedulerManagementFunctions:
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
-        mock_create_job = MagicMock()
-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
-            add_user_to_scheduler(TEST_USER_ID)
-
-        mock_create_job.assert_called_once()
+        add_user_to_scheduler(TEST_USER_ID)
+        mock_globals["instance"].add_user.assert_called_once_with(TEST_USER_ID)
 
     def test_add_user_raises_exception_if_job_creation_fails(
         self,
@@ -296,24 +299,20 @@ class TestSchedulerManagementFunctions:
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
     ) -> None:
-        """Verify that add_user raises exception if the job isn't created.
+        """Verify that add_user raises exception if the job creation fails.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_with_settings: Mocked user with valid settings
         :type mock_user_with_settings: MagicMock
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
-        with patch(
-            "src.bot.scheduler._create_user_notification_job",
-            side_effect=SchedulerOperationError(
-                "Job creation failed", TEST_USER_ID, "create_notification_job"
-            ),
-        ):
-            with pytest.raises(SchedulerOperationError):
-                add_user_to_scheduler(TEST_USER_ID)
+        mock_globals["instance"].add_user.side_effect = SchedulerOperationError(
+            "Job creation failed", TEST_USER_ID, "create_notification_job"
+        )
+        with pytest.raises(SchedulerOperationError):
+            add_user_to_scheduler(TEST_USER_ID)
 
     def test_add_user_raises_exception_on_exception(
         self,
@@ -323,20 +322,17 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that add_user_to_scheduler raises exception on exception.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
+        mock_globals["instance"].add_user.side_effect = Exception(DB_ERROR)
 
         with pytest.raises(SchedulerOperationError):
             add_user_to_scheduler(TEST_USER_ID)
-        mock_scheduler_logger.error.assert_called_with(
-            f"Error adding user {TEST_USER_ID} to scheduler: {DB_ERROR}"
-        )
 
     def test_add_user_raises_exception_when_user_not_found(
         self,
@@ -346,65 +342,60 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that add_user_to_scheduler raises exception when user is not found.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = None
+        mock_globals["instance"].add_user.side_effect = SchedulerOperationError(
+            f"User {TEST_USER_ID} not found for scheduler addition",
+            TEST_USER_ID,
+            "add_user",
+        )
 
         with pytest.raises(SchedulerOperationError):
             add_user_to_scheduler(TEST_USER_ID)
-        mock_scheduler_logger.warning.assert_called_with(
-            f"User {TEST_USER_ID} not found for scheduler addition"
-        )
 
-    def test_add_user_raises_exception_when_scheduler_not_initialized(
-        self, mock_scheduler_logger: MagicMock
-    ) -> None:
+    def test_add_user_raises_exception_when_scheduler_not_initialized(self) -> None:
         """Verify that add_user_to_scheduler raises exception when scheduler is not initialized.
 
-        :param mock_scheduler_logger: Mocked logger for scheduler module
-        :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
-        with patch("src.bot.scheduler._scheduler_instance", None), patch(
-            "src.bot.scheduler._application_instance", None
-        ):
+        with patch("src.bot.scheduler._global_scheduler_instance", None):
             with pytest.raises(SchedulerOperationError):
                 add_user_to_scheduler(TEST_USER_ID)
-            mock_scheduler_logger.error.assert_called_with(
-                "Scheduler not initialized, cannot add user"
-            )
 
     def test_remove_user_success(
         self, mock_globals: dict[str, MagicMock], mock_scheduler_logger: MagicMock
     ) -> None:
         """Verify that a user's job is successfully removed.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
         remove_user_from_scheduler(TEST_USER_ID)
-        mock_globals["scheduler"].remove_job.assert_called_once_with(TEST_JOB_ID)
-        mock_scheduler_logger.info.assert_called_once_with(
-            f"Successfully removed user {TEST_USER_ID} from notification scheduler"
-        )
+        mock_globals["instance"].remove_user.assert_called_once_with(TEST_USER_ID)
 
     def test_remove_user_handles_nonexistent_job(
         self, mock_globals: dict[str, MagicMock], mock_scheduler_logger: MagicMock
     ) -> None:
         """Verify that non-existent job is handled gracefully.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
+        mock_globals["instance"].remove_user.side_effect = SchedulerOperationError(
+            f"Error removing user {TEST_USER_ID} from scheduler: Job not found",
+            TEST_USER_ID,
+            "remove_user",
+        )
 
         with pytest.raises(SchedulerOperationError) as exc:
             remove_user_from_scheduler(user_id=TEST_USER_ID)
@@ -413,11 +404,10 @@ class TestSchedulerManagementFunctions:
             f"Error removing user {TEST_USER_ID} from scheduler: Job not found"
             in str(exc.value)
         )
-        mock_scheduler_logger.error.assert_called_once()
 
     def test_remove_user_raises_if_not_initialized(self) -> None:
         """Verify that SchedulerOperationError is raised if scheduler is not initialized."""
-        with patch("src.bot.scheduler._scheduler_instance", None):
+        with patch("src.bot.scheduler._global_scheduler_instance", None):
             with pytest.raises(SchedulerOperationError):
                 remove_user_from_scheduler(TEST_USER_ID)
 
@@ -426,24 +416,20 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that logger.error exceptions are properly handled.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        # 1. First, `remove_job` raises an exception to get into the except block.
-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
+        # Mock remove_user to raise an exception directly
+        mock_globals["instance"].remove_user.side_effect = Exception("Job not found")
 
-        # 2. Then, `logger.error` inside the except block raises another exception.
-        error_message = "Error from logger.error"
-        mock_scheduler_logger.error.side_effect = Exception(error_message)
-
-        # This should raise the logger.error exception directly.
-        with pytest.raises(Exception) as exc:
+        # This should raise SchedulerOperationError from global function
+        with pytest.raises(SchedulerOperationError) as exc:
             remove_user_from_scheduler(TEST_USER_ID)
 
-        # Check if the logger.error exception is propagated.
-        assert error_message in str(exc.value)
+        # Check if the original error is wrapped
+        assert "Job not found" in str(exc.value)
 
     def test_update_user_success(
         self,
@@ -454,7 +440,7 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that a user's schedule is successfully updated.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_with_settings: Mocked user with valid settings
         :type mock_user_with_settings: MagicMock
@@ -463,16 +449,9 @@ class TestSchedulerManagementFunctions:
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
-        mock_create_job = MagicMock(return_value=True)
-
-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
-            update_user_schedule(TEST_USER_ID)
-
-        mock_globals["scheduler"].remove_job.assert_called_once_with(TEST_JOB_ID)
-        mock_create_job.assert_called_once()
-        mock_scheduler_logger.info.assert_called_once_with(
-            f"Successfully updated notification schedule for user {TEST_USER_ID}"
+        update_user_schedule(TEST_USER_ID)
+        mock_globals["instance"].update_user_schedule.assert_called_once_with(
+            TEST_USER_ID
         )
 
     def test_update_user_handles_nonexistent_job(
@@ -484,7 +463,7 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that non-existent job is handled during update.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_with_settings: Mocked user with valid settings
         :type mock_user_with_settings: MagicMock
@@ -493,24 +472,24 @@ class TestSchedulerManagementFunctions:
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
         """
-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
-        mock_create_job = MagicMock(return_value=True)
+        mock_globals["instance"].update_user_schedule.side_effect = (
+            SchedulerOperationError(
+                f"Error updating schedule for user {TEST_USER_ID}: Job not found",
+                TEST_USER_ID,
+                "update_schedule",
+            )
+        )
 
-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
-            with pytest.raises(SchedulerOperationError) as exc:
-                update_user_schedule(TEST_USER_ID)
+        with pytest.raises(SchedulerOperationError) as exc:
+            update_user_schedule(TEST_USER_ID)
 
         assert f"Error updating schedule for user {TEST_USER_ID}: Job not found" in str(
             exc.value
         )
-        mock_scheduler_logger.error.assert_called_once()
 
     def test_update_user_raises_if_not_initialized(self) -> None:
         """Verify that SchedulerOperationError is raised if scheduler is not initialized."""
-        with patch("src.bot.scheduler._scheduler_instance", None), patch(
-            "src.bot.scheduler._application_instance", None
-        ):
+        with patch("src.bot.scheduler._global_scheduler_instance", None):
             with pytest.raises(SchedulerOperationError):
                 update_user_schedule(TEST_USER_ID)
 
@@ -519,12 +498,18 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that SchedulerOperationError is raised if user not found.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = None
+        mock_globals["instance"].update_user_schedule.side_effect = (
+            SchedulerOperationError(
+                f"User {TEST_USER_ID} not found for schedule update",
+                TEST_USER_ID,
+                "update_schedule",
+            )
+        )
 
         with pytest.raises(SchedulerOperationError):
             update_user_schedule(TEST_USER_ID)
@@ -537,35 +522,39 @@ class TestSchedulerManagementFunctions:
     ) -> None:
         """Verify that SchedulerOperationError is raised if job creation fails.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_with_settings: Mocked user with valid settings
         :type mock_user_with_settings: MagicMock
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         """
-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
-
-        with patch(
-            "src.bot.scheduler._create_user_notification_job",
-            side_effect=SchedulerOperationError(
+        mock_globals["instance"].update_user_schedule.side_effect = (
+            SchedulerOperationError(
                 "Job creation failed", TEST_USER_ID, "create_notification_job"
-            ),
-        ):
-            with pytest.raises(SchedulerOperationError):
-                update_user_schedule(TEST_USER_ID)
+            )
+        )
+
+        with pytest.raises(SchedulerOperationError):
+            update_user_schedule(TEST_USER_ID)
 
     def test_update_user_raises_on_exception(
         self, mock_globals: dict[str, MagicMock], mock_user_service: MagicMock
     ) -> None:
         """Verify that SchedulerOperationError is raised on unexpected exception.
 
-        :param mock_globals: Mocked global scheduler and application instances
+        :param mock_globals: Mocked global scheduler instance
         :type mock_globals: dict[str, MagicMock]
         :param mock_user_service: Mocked user_service
         :type mock_user_service: MagicMock
         """
-        mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
+        mock_globals["instance"].update_user_schedule.side_effect = (
+            SchedulerOperationError(
+                f"Error updating schedule for user {TEST_USER_ID}: {DB_ERROR}",
+                TEST_USER_ID,
+                "update_schedule",
+            )
+        )
 
         with pytest.raises(SchedulerOperationError) as exc:
             update_user_schedule(TEST_USER_ID)
@@ -596,7 +585,9 @@ class TestSetupUserNotificationSchedules:
         mock_get_all_users.return_value = [mock_user_with_settings]
         mock_create_job = MagicMock()
 
-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
+        with patch.object(
+            NotificationScheduler, "_create_user_notification_job", mock_create_job
+        ):
             setup_user_notification_schedules(mock_app)
 
         mock_create_job.assert_called_once()

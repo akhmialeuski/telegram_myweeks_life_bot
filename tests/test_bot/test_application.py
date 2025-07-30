@@ -343,11 +343,11 @@ class TestLifeWeeksBot:
         :rtype: None
         """
         fake_scheduler = "my_fake_scheduler"
-        with patch("src.bot.application._scheduler_instance", fake_scheduler):
-            bot._app = mock_app
-            bot._setup_scheduler()
-            assert bot._scheduler == fake_scheduler
-            mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
+        mock_setup_user_notification_schedules.return_value = fake_scheduler
+        bot._app = mock_app
+        bot._setup_scheduler()
+        assert bot._scheduler == fake_scheduler
+        mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
 
     def test_register_handlers_with_message_handler(
         self, bot: LifeWeeksBot, mock_handlers: dict, mock_app: MagicMock

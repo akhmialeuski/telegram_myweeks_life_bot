@@ -1,0 +1,39 @@
+@startuml LifeWeeksBot Container Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram for LifeWeeksBot
+
+Person(user, "Telegram User", "A user who wants to track their life weeks and receive weekly notifications")
+
+System_Boundary(c1, "LifeWeeksBot System") {
+    Container(telegram_bot, "LifeWeeksBot Application", "Python 3.12", "Main bot application that handles user interactions and coordinates all components")
+
+    Container(handlers, "Command Handlers", "Python", "Handles user commands and interactions (start, weeks, visualize, settings, etc.)")
+
+    Container(life_calculator, "Life Calculator", "Python", "Calculates life weeks, statistics, and generates visualizations")
+
+    Container(database_service, "Database Service", "Python/SQLAlchemy", "Manages user data, settings, and database operations")
+
+    Container(scheduler_service, "Scheduler Service", "Python/APScheduler", "Manages weekly notifications and user schedules")
+
+    Container(message_service, "Message Service", "Python", "Handles message localization and formatting")
+}
+
+System_Ext(telegram_api, "Telegram Bot API", "External API for bot communication")
+System_Ext(sqlite_db, "SQLite Database", "Local database for user data and settings")
+System_Ext(matplotlib, "Matplotlib", "External library for generating life visualizations")
+
+Rel(user, telegram_bot, "Uses", "Telegram messages")
+Rel(telegram_bot, telegram_api, "Sends/receives messages", "HTTPS/JSON")
+Rel(telegram_bot, handlers, "Routes commands to", "Internal calls")
+Rel(handlers, life_calculator, "Uses", "Calculations and visualizations")
+Rel(handlers, database_service, "Uses", "User data operations")
+Rel(handlers, message_service, "Uses", "Message formatting")
+Rel(database_service, sqlite_db, "Stores/retrieves data", "SQLAlchemy")
+Rel(scheduler_service, database_service, "Reads user settings", "Internal calls")
+Rel(scheduler_service, message_service, "Uses", "Notification messages")
+Rel(life_calculator, matplotlib, "Generates visualizations", "Matplotlib API")
+
+@enduml

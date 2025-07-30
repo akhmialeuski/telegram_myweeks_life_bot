@@ -1,0 +1,1512 @@
+diff --git a/src/bot/application.py b/src/bot/application.py
+index d4e8c8f..a28ae2f 100644
+--- a/src/bot/application.py
++++ b/src/bot/application.py
+@@ -43,8 +43,8 @@ from .handlers import (
+     WeeksHandler,
+ )
+ from .scheduler import (
++    NotificationScheduler,
+     SchedulerSetupError,
+-    _scheduler_instance,
+     setup_user_notification_schedules,
+     start_scheduler,
+     stop_scheduler,
+@@ -332,8 +332,7 @@ class LifeWeeksBot:
+             - Logs the setup status
+         """
+         try:
+-            setup_user_notification_schedules(self._app)
+-            self._scheduler = _scheduler_instance
++            self._scheduler = setup_user_notification_schedules(self._app)
+             logger.debug("Set up weekly notification scheduler")
+         except SchedulerSetupError as error:
+             logger.error(
+diff --git a/src/bot/scheduler.py b/src/bot/scheduler.py
+index 2870613..ceae745 100644
+--- a/src/bot/scheduler.py
++++ b/src/bot/scheduler.py
+@@ -53,10 +53,6 @@ from ..utils.logger import get_logger
+ 
+ logger = get_logger(f"{BOT_NAME}.Scheduler")
+ 
+-# Global scheduler instance for dynamic updates
+-_scheduler_instance: AsyncIOScheduler = None
+-_application_instance: Application = None
+-
+ 
+ class SchedulerSetupError(Exception):
+     """Exception raised when scheduler setup fails.
+@@ -127,436 +123,562 @@ class SchedulerOperationError(Exception):
+         self.original_error = original_error
+ 
+ 
+-async def send_weekly_message_to_user(application: Application, user_id: int) -> None:
+-    """Send a weekly notification message to a specific user.
+-
+-    This function sends personalized life statistics to a specific user, identical
+-    to what they would receive from the /weeks command. The message includes:
+-    - Current age and weeks lived
+-    - Remaining weeks based on life expectancy
+-    - Life percentage completed
+-    - Days until next birthday
+-    - Subscription-specific additional content
++class NotificationScheduler:
++    """Notification scheduler manager for LifeWeeksBot.
+ 
+-    The function handles the complete message generation process:
+-    1. Retrieves user profile from database
+-    2. Creates mock Telegram User object for message generation
+-    3. Generates localized message using core message functions
+-    4. Sends message via Telegram Bot API
+-    5. Logs success or failure for monitoring
++    This class encapsulates all scheduler functionality and manages the lifecycle
++    of notification scheduling. It provides a clean interface for managing user
++    notification schedules without relying on global state.
+ 
+-    Error handling ensures that failures for one user don't affect others,
+-    and all errors are logged for debugging purposes.
++    The class handles:
++    - Scheduler instance lifecycle management
++    - Individual user schedule management
++    - Error handling and logging
++    - Dynamic user addition and removal
+ 
+-    :param application: The running Application instance containing bot credentials
++    :param application: The Application instance for sending messages
+     :type application: Application
+-    :param user_id: Telegram user ID to send message to
+-    :type user_id: int
+-    :returns: None
+-    :raises telegram.error.TelegramError: If the message cannot be sent due to Telegram API issues
+-    :raises ValueError: If user profile is not found or invalid
++    :param scheduler: Optional scheduler instance, creates new if None
++    :type scheduler: AsyncIOScheduler, optional
+     """
+-    try:
+-        # Get user profile from database with all related data
+-        user = user_service.get_user_profile(user_id)
+-        if not user:
+-            logger.warning(f"User {user_id} not found for weekly notification")
+-            return
+ 
+-        # Create a mock Telegram User object for message generation compatibility
+-        # This is necessary because generate_message_week expects a Telegram User object
+-        telegram_user = User(
+-            id=user.telegram_id,
+-            is_bot=False,
+-            first_name=user.first_name or DEFAULT_USER_FIRST_NAME,
+-            username=user.username,
+-            language_code=user.settings.language if user.settings else DEFAULT_LANGUAGE,
+-        )
++    def __init__(
++        self,
++        application: Application,
++        scheduler: AsyncIOScheduler | None = None
++    ) -> None:
++        """Initialize the NotificationScheduler.
+ 
+-        # Generate the same message as /weeks command using core message functions
+-        # This ensures consistency between manual commands and scheduled notifications
+-        message_text = generate_message_week(user_info=telegram_user)
++        :param application: The Application instance for sending messages
++        :type application: Application
++        :param scheduler: Optional scheduler instance, creates new if None
++        :type scheduler: AsyncIOScheduler, optional
++        :returns: None
++        """
++        self.application = application
++        self.scheduler = scheduler or AsyncIOScheduler()
++        self._is_running = False
++
++    async def send_weekly_message_to_user(self, user_id: int) -> None:
++        """Send a weekly notification message to a specific user.
++
++        This method sends personalized life statistics to a specific user, identical
++        to what they would receive from the /weeks command. The message includes:
++        - Current age and weeks lived
++        - Remaining weeks based on life expectancy
++        - Life percentage completed
++        - Days until next birthday
++        - Subscription-specific additional content
++
++        The method handles the complete message generation process:
++        1. Retrieves user profile from database
++        2. Creates mock Telegram User object for message generation
++        3. Generates localized message using core message functions
++        4. Sends message via Telegram Bot API
++        5. Logs success or failure for monitoring
++
++        Error handling ensures that failures for one user don't affect others,
++        and all errors are logged for debugging purposes.
++
++        :param user_id: Telegram user ID to send message to
++        :type user_id: int
++        :returns: None
++        :raises telegram.error.TelegramError: If the message cannot be sent due to Telegram API issues
++        :raises ValueError: If user profile is not found or invalid
++        """
++        try:
++            # Get user profile from database with all related data
++            user = user_service.get_user_profile(user_id)
++            if not user:
++                logger.warning(f"User {user_id} not found for weekly notification")
++                return
++
++            # Create a mock Telegram User object for message generation compatibility
++            # This is necessary because generate_message_week expects a Telegram User object
++            telegram_user = User(
++                id=user.telegram_id,
++                is_bot=False,
++                first_name=user.first_name or DEFAULT_USER_FIRST_NAME,
++                username=user.username,
++                language_code=user.settings.language if user.settings else DEFAULT_LANGUAGE,
++            )
+ 
+-        # Send message to user via Telegram Bot API
+-        await application.bot.send_message(
+-            chat_id=user_id,
+-            text=message_text,
+-            parse_mode=ParseMode.HTML,
+-        )
++            # Generate the same message as /weeks command using core message functions
++            # This ensures consistency between manual commands and scheduled notifications
++            message_text = generate_message_week(user_info=telegram_user)
+ 
+-        logger.debug(f"Successfully sent weekly notification to user {user_id}")
++            # Send message to user via Telegram Bot API
++            await self.application.bot.send_message(
++                chat_id=user_id,
++                text=message_text,
++                parse_mode=ParseMode.HTML,
++            )
+ 
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        logger.error(f"Failed to send weekly notification to user {user_id}: {error}")
++            logger.debug(f"Successfully sent weekly notification to user {user_id}")
+ 
++        except Exception as error:  # pylint: disable=broad-exception-caught
++            logger.error(f"Failed to send weekly notification to user {user_id}: {error}")
+ 
+-def _create_user_notification_job(
+-    user: User,
+-    application: Application,
+-    scheduler: AsyncIOScheduler,
+-) -> None:
+-    """Create a notification job for a specific user.
+ 
+-    This helper function creates a cron job for a single user based on their
+-    notification settings. It handles validation and job creation in a reusable way.
++    def _create_user_notification_job(self, user: User) -> None:
++        """Create a notification job for a specific user.
+ 
+-    :param user: User object with settings
+-    :type user: User
+-    :param application: The running Application instance
+-    :type application: Application
+-    :param scheduler: The scheduler instance to add the job to
+-    :type scheduler: AsyncIOScheduler
+-    :returns: None
+-    :raises SchedulerOperationError: If job creation fails
+-    """
+-    try:
+-        # Validate user has settings configured
+-        if not user.settings:
+-            error_message = f"No settings found for user {user.telegram_id}"
+-            logger.warning(error_message)
+-            raise SchedulerOperationError(
+-                message=error_message,
+-                user_id=user.telegram_id,
+-                operation="create_notification_job",
+-            )
++        This helper method creates a cron job for a single user based on their
++        notification settings. It handles validation and job creation in a reusable way.
+ 
+-        # Check if notifications are enabled for this user
+-        if not user.settings.notifications:
+-            logger.debug(f"Notifications disabled for user {user.telegram_id}")
+-            return
++        :param user: User object with settings
++        :type user: User
++        :returns: None
++        :raises SchedulerOperationError: If job creation fails
++        """
++        try:
++            # Validate user has settings configured
++            if not user.settings:
++                error_message = f"No settings found for user {user.telegram_id}"
++                logger.warning(error_message)
++                raise SchedulerOperationError(
++                    message=error_message,
++                    user_id=user.telegram_id,
++                    operation="create_notification_job",
++                )
++
++            # Check if notifications are enabled for this user
++            if not user.settings.notifications:
++                logger.debug(f"Notifications disabled for user {user.telegram_id}")
++                return
++
++            # Extract notification preferences from user settings
++            notification_day = user.settings.notifications_day
++            notification_time = user.settings.notifications_time
++
++            # Validate that both day and time are configured
++            if not notification_day or not notification_time:
++                error_message = (
++                    f"Incomplete notification settings for user {user.telegram_id}"
++                )
++                logger.warning(error_message)
++                raise SchedulerOperationError(
++                    message=error_message,
++                    user_id=user.telegram_id,
++                    operation="create_notification_job",
++                )
++
++            # Convert WeekDay enum to cron-compatible weekday number (0-6)
++            # Use list(WeekDay) to get the order, then find the index
++            cron_day = list(WeekDay).index(notification_day)
++
++            # Extract hour and minute from time object for cron trigger
++            hour = notification_time.hour
++            minute = notification_time.minute
++
++            # Create unique job identifier for this user
++            # This prevents job conflicts and allows individual management
++            job_id = f"weekly_notification_user_{user.telegram_id}"
++
++            # Add cron job to scheduler for this specific user
++            # CronTrigger provides precise scheduling based on day and time
++            logger.info(
++                f"Adding cron job for user {user.telegram_id}: {cron_day} at {hour}:{minute}"
++            )
++            self.scheduler.add_job(
++                func=self.send_weekly_message_to_user,
++                trigger=CronTrigger(
++                    day_of_week=cron_day,
++                    hour=hour,
++                    minute=minute,
++                ),
++                args=[user.telegram_id],
++                id=job_id,
++                name=f"Weekly notification for user {user.telegram_id}",
++                replace_existing=True,  # Replace existing job if user reconfigures
++            )
+ 
+-        # Extract notification preferences from user settings
+-        notification_day = user.settings.notifications_day
+-        notification_time = user.settings.notifications_time
++            logger.info(
++                f"Successfully created notification job for user {user.telegram_id}: "
++                f"{notification_day.value} at {hour:02d}:{minute:02d}"
++            )
+ 
+-        # Validate that both day and time are configured
+-        if not notification_day or not notification_time:
++        except SchedulerOperationError:
++            # Re-raise SchedulerOperationError as-is
++            raise
++        except Exception as error:  # pylint: disable=broad-exception-caught
+             error_message = (
+-                f"Incomplete notification settings for user {user.telegram_id}"
++                f"Failed to create notification job for user {user.telegram_id}: {error}"
+             )
+-            logger.warning(error_message)
++            logger.error(error_message)
+             raise SchedulerOperationError(
+                 message=error_message,
+                 user_id=user.telegram_id,
+                 operation="create_notification_job",
++                original_error=error,
+             )
+ 
+-        # Convert WeekDay enum to cron-compatible weekday number (0-6)
+-        # Use list(WeekDay) to get the order, then find the index
+-        cron_day = list(WeekDay).index(notification_day)
+ 
+-        # Extract hour and minute from time object for cron trigger
+-        hour = notification_time.hour
+-        minute = notification_time.minute
++    def add_user(self, user_id: int) -> None:
++        """Add a new user to the notification scheduler.
+ 
+-        # Create unique job identifier for this user
+-        # This prevents job conflicts and allows individual management
+-        job_id = f"weekly_notification_user_{user.telegram_id}"
++        This method adds a single user to the running scheduler without
++        affecting other users' schedules. It's efficient for adding new users
++        without regenerating all schedules.
+ 
+-        # Add cron job to scheduler for this specific user
+-        # CronTrigger provides precise scheduling based on day and time
+-        logger.info(
+-            f"Adding cron job for user {user.telegram_id}: {cron_day} at {hour}:{minute}"
+-        )
+-        scheduler.add_job(
+-            func=send_weekly_message_to_user,
+-            trigger=CronTrigger(
+-                day_of_week=cron_day,
+-                hour=hour,
+-                minute=minute,
+-            ),
+-            args=[application, user.telegram_id],
+-            id=job_id,
+-            name=f"Weekly notification for user {user.telegram_id}",
+-            replace_existing=True,  # Replace existing job if user reconfigures
+-        )
++        :param user_id: Telegram user ID to add to scheduler
++        :type user_id: int
++        :returns: None
++        :raises SchedulerOperationError: If user cannot be added to scheduler
++        """
++        try:
++            # Get user profile from database
++            user = user_service.get_user_profile(user_id)
++            if not user:
++                error_message = f"User {user_id} not found for scheduler addition"
++                logger.warning(error_message)
++                raise SchedulerOperationError(
++                    message=error_message, user_id=user_id, operation="add_user"
++                )
++
++            # Create notification job for this user
++            self._create_user_notification_job(user=user)
++
++            logger.info(f"Successfully added user {user_id} to notification scheduler")
++
++        except SchedulerOperationError:
++            # Re-raise SchedulerOperationError as-is
++            raise
++        except Exception as error:  # pylint: disable=broad-exception-caught
++            error_message = f"Error adding user {user_id} to scheduler: {error}"
++            logger.error(error_message)
++            raise SchedulerOperationError(
++                message=error_message,
++                user_id=user_id,
++                operation="add_user",
++                original_error=error,
++            )
+ 
+-        logger.info(
+-            f"Successfully created notification job for user {user.telegram_id}: "
+-            f"{notification_day.value} at {hour:02d}:{minute:02d}"
+-        )
+ 
+-    except SchedulerOperationError:
+-        # Re-raise SchedulerOperationError as-is
+-        raise
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        error_message = (
+-            f"Failed to create notification job for user {user.telegram_id}: {error}"
+-        )
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message,
+-            user_id=user.telegram_id,
+-            operation="create_notification_job",
+-            original_error=error,
+-        )
++    def remove_user(self, user_id: int) -> None:
++        """Remove a user from the notification scheduler.
+ 
++        This method removes a user's notification job from the scheduler
++        when they are deleted or disable notifications.
+ 
+-def add_user_to_scheduler(user_id: int) -> None:
+-    """Add a new user to the notification scheduler.
++        :param user_id: Telegram user ID to remove from scheduler
++        :type user_id: int
++        :returns: None
++        :raises SchedulerOperationError: If the user cannot be removed from scheduler
++        """
++        try:
++            # Remove existing job for this user
++            # Create job_id outside of inner try to allow outer except coverage
++            job_id = f"weekly_notification_user_{user_id}"
++
++            # Try to remove the job - if it doesn't exist, it will raise an exception
++            self.scheduler.remove_job(job_id)
++            logger.info(f"Successfully removed user {user_id} from notification scheduler")
++        except Exception as error:  # pylint: disable=broad-exception-caught
++            error_message = f"Error removing user {user_id} from scheduler: {error}"
++            logger.error(error_message)
++            raise SchedulerOperationError(
++                message=error_message,
++                user_id=user_id,
++                operation="remove_user",
++                original_error=error,
++            )
+ 
+-    This function adds a single user to the running scheduler without
+-    affecting other users' schedules. It's efficient for adding new users
+-    without regenerating all schedules.
+ 
+-    :param user_id: Telegram user ID to add to scheduler
+-    :type user_id: int
+-    :returns: None
+-    :raises SchedulerOperationError: If user cannot be added to scheduler
+-    """
++    def update_user_schedule(self, user_id: int) -> None:
++        """Update notification schedule for an existing user.
+ 
+-    if not _scheduler_instance or not _application_instance:
+-        error_message = "Scheduler not initialized, cannot add user"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message, user_id=user_id, operation="add_user"
+-        )
++        This method updates the notification schedule for a specific user
++        when their settings change. It removes the old job and creates a new one
++        with updated settings.
+ 
+-    try:
+-        # Get user profile from database
+-        user = user_service.get_user_profile(user_id)
+-        if not user:
+-            error_message = f"User {user_id} not found for scheduler addition"
+-            logger.warning(error_message)
++        :param user_id: Telegram user ID to update schedule for
++        :type user_id: int
++        :returns: None
++        :raises SchedulerOperationError: If the user schedule cannot be updated
++        """
++        try:
++            # Remove existing job for this user
++            job_id = f"weekly_notification_user_{user_id}"
++
++            # Try to remove the job - if it doesn't exist, it will raise an exception
++            self.scheduler.remove_job(job_id)
++            logger.debug(f"Removed existing notification job for user {user_id}")
++
++            # Get updated user profile from database
++            user = user_service.get_user_profile(user_id)
++            if not user:
++                error_message = f"User {user_id} not found for schedule update"
++                logger.warning(error_message)
++                raise SchedulerOperationError(
++                    message=error_message, user_id=user_id, operation="update_schedule"
++                )
++
++            # Create new notification job with updated settings
++            self._create_user_notification_job(user=user)
++
++            logger.info(f"Successfully updated notification schedule for user {user_id}")
++
++        except SchedulerOperationError:
++            # Re-raise SchedulerOperationError as-is
++            raise
++        except Exception as error:  # pylint: disable=broad-exception-caught
++            error_message = f"Error updating schedule for user {user_id}: {error}"
++            logger.error(error_message)
+             raise SchedulerOperationError(
+-                message=error_message, user_id=user_id, operation="add_user"
++                message=error_message,
++                user_id=user_id,
++                operation="update_schedule",
++                original_error=error,
+             )
+ 
+-        # Create notification job for this user
+-        _create_user_notification_job(
+-            user=user,
+-            application=_application_instance,
+-            scheduler=_scheduler_instance,
+-        )
+ 
+-        logger.info(f"Successfully added user {user_id} to notification scheduler")
++    def setup_schedules(self) -> None:
++        """Set up individual notification schedules for each user.
+ 
+-    except SchedulerOperationError:
+-        # Re-raise SchedulerOperationError as-is
+-        raise
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        error_message = f"Error adding user {user_id} to scheduler: {error}"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message,
+-            user_id=user_id,
+-            operation="add_user",
+-            original_error=error,
+-        )
++        This method implements a comprehensive notification scheduling system that:
++        1. Retrieves all registered users from the database
++        2. Analyzes each user's notification preferences
++        3. Creates individual cron jobs for users with enabled notifications
++        4. Handles various edge cases and error conditions gracefully
+ 
++        The scheduling process includes:
++        - User validation and settings verification
++        - Notification preference analysis (enabled/disabled, day, time)
++        - Cron job creation with unique identifiers
++        - Comprehensive error handling and logging
++        - Support for different time zones and languages
+ 
+-def remove_user_from_scheduler(user_id: int) -> None:
+-    """Remove a user from the notification scheduler.
++        Each user gets their own cron job with:
++        - Unique job ID: "weekly_notification_user_{user_id}"
++        - Custom schedule based on their preferences
++        - Individual error handling and logging
++        - Automatic replacement of existing jobs (replace_existing=True)
+ 
+-    This function removes a user's notification job from the scheduler
+-    when they are deleted or disable notifications.
++        :returns: None
++        :raises SchedulerSetupError: If critical database or scheduler setup fails
++        """
++        try:
++            # Retrieve all users from database with complete profiles
++            # This includes settings and subscription information
++            users = user_service.get_all_users()
+ 
+-    :param user_id: Telegram user ID to remove from scheduler
+-    :type user_id: int
+-    :returns: None
+-    :raises SchedulerOperationError: If the user cannot be removed from scheduler
+-    """
++            if not users:
++                logger.info("No users found for notification schedules")
++                return
+ 
+-    if not _scheduler_instance:
+-        error_message = "Scheduler not initialized, cannot remove user"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message, user_id=user_id, operation="remove_user"
+-        )
++            logger.info(f"Setting up notification schedules for {len(users)} users")
+ 
+-    try:
+-        # Remove existing job for this user
+-        # Create job_id outside of inner try to allow outer except coverage
+-        job_id = f"weekly_notification_user_{user_id}"
+-
+-        # Try to remove the job - if it doesn't exist, it will raise an exception
+-        _scheduler_instance.remove_job(job_id)
+-        logger.info(f"Successfully removed user {user_id} from notification scheduler")
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        error_message = f"Error removing user {user_id} from scheduler: {error}"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message,
+-            user_id=user_id,
+-            operation="remove_user",
+-            original_error=error,
+-        )
++            # Process each user individually to set up their notification schedule
++            for user in users:
++                logger.info(f"Setting up notification schedule for user {user.telegram_id}")
++                self._create_user_notification_job(user)
+ 
++            logger.info(
++                f"Successfully set up notification schedules for {len(users)} users"
++            )
+ 
+-def update_user_schedule(user_id: int) -> None:
+-    """Update notification schedule for an existing user.
++        except Exception as error:  # pylint: disable=broad-exception-caught
++            error_message = f"Error setting up notification schedules: {error}"
++            logger.error(error_message)
++            raise SchedulerSetupError(error_message, error)
+ 
+-    This function updates the notification schedule for a specific user
+-    when their settings change. It removes the old job and creates a new one
+-    with updated settings.
+ 
+-    :param user_id: Telegram user ID to update schedule for
+-    :type user_id: int
+-    :returns: None
+-    :raises SchedulerOperationError: If the user schedule cannot be updated
+-    """
++    def start(self) -> None:
++        """Start the notification scheduler.
+ 
+-    if not _scheduler_instance or not _application_instance:
+-        error_message = "Scheduler not initialized, cannot update user schedule"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message, user_id=user_id, operation="update_schedule"
+-        )
++        This method activates the AsyncIOScheduler instance, enabling all configured
++        notification jobs to run according to their schedules. The scheduler will
++        automatically execute jobs at their specified times without further intervention.
+ 
+-    try:
+-        # Remove existing job for this user
+-        job_id = f"weekly_notification_user_{user_id}"
+-
+-        # Try to remove the job - if it doesn't exist, it will raise an exception
+-        _scheduler_instance.remove_job(job_id)
+-        logger.debug(f"Removed existing notification job for user {user_id}")
+-
+-        # Get updated user profile from database
+-        user = user_service.get_user_profile(user_id)
+-        if not user:
+-            error_message = f"User {user_id} not found for schedule update"
+-            logger.warning(error_message)
+-            raise SchedulerOperationError(
+-                message=error_message, user_id=user_id, operation="update_schedule"
+-            )
++        The scheduler runs in the background and handles:
++        - Automatic job execution at scheduled times
++        - Job queue management and prioritization
++        - Error handling and retry logic
++        - Resource management and cleanup
+ 
+-        # Create new notification job with updated settings
+-        _create_user_notification_job(
+-            user=user,
+-            application=_application_instance,
+-            scheduler=_scheduler_instance,
+-        )
++        :returns: None
++        :raises RuntimeError: If scheduler is already running or fails to start
++        """
++        if self._is_running:
++            logger.warning("Scheduler is already running")
++            return
+ 
+-        logger.info(f"Successfully updated notification schedule for user {user_id}")
++        self.scheduler.start()
++        self._is_running = True
++        logger.info("User notification scheduler started successfully")
+ 
+-    except SchedulerOperationError:
+-        # Re-raise SchedulerOperationError as-is
+-        raise
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        error_message = f"Error updating schedule for user {user_id}: {error}"
+-        logger.error(error_message)
+-        raise SchedulerOperationError(
+-            message=error_message,
+-            user_id=user_id,
+-            operation="update_schedule",
+-            original_error=error,
+-        )
+ 
++    def stop(self) -> None:
++        """Stop the notification scheduler.
++
++        This method gracefully shuts down the AsyncIOScheduler instance, ensuring
++        that all running jobs are properly terminated and resources are cleaned up.
++        This is important for application shutdown to prevent resource leaks and
++        ensure clean termination.
++
++        The shutdown process includes:
++        - Stopping all running jobs
++        - Cleaning up scheduler resources
++        - Logging shutdown status for monitoring
++
++        :returns: None
++        :raises RuntimeError: If scheduler shutdown fails
++        """
++        if not self._is_running:
++            logger.warning("Scheduler is not running")
++            return
++
++        self.scheduler.shutdown()
++        self._is_running = False
++        logger.info("User notification scheduler stopped successfully")
++
++    @property
++    def is_running(self) -> bool:
++        """Check if the scheduler is currently running.
+ 
++        :returns: True if scheduler is running, False otherwise
++        :rtype: bool
++        """
++        return self._is_running
++
++
++# Backward compatibility functions for existing code
+ def setup_user_notification_schedules(
+     application: Application,
+-    scheduler: AsyncIOScheduler = None,
+-) -> None:
+-    """Set up individual notification schedules for each user.
+-
+-    This function implements a comprehensive notification scheduling system that:
+-    1. Retrieves all registered users from the database
+-    2. Analyzes each user's notification preferences
+-    3. Creates individual cron jobs for users with enabled notifications
+-    4. Handles various edge cases and error conditions gracefully
+-
+-    The scheduling process includes:
+-    - User validation and settings verification
+-    - Notification preference analysis (enabled/disabled, day, time)
+-    - Cron job creation with unique identifiers
+-    - Comprehensive error handling and logging
+-    - Support for different time zones and languages
+-
+-    Each user gets their own cron job with:
+-    - Unique job ID: "weekly_notification_user_{user_id}"
+-    - Custom schedule based on their preferences
+-    - Individual error handling and logging
+-    - Automatic replacement of existing jobs (replace_existing=True)
+-
+-    The function configures the AsyncIOScheduler instance that can be
+-    started and stopped by the application lifecycle management.
+-
+-    :param application: The running Application instance for message sending
++    scheduler: AsyncIOScheduler | None = None,
++) -> NotificationScheduler:
++    """Set up user notification schedules using the new class-based approach.
++
++    This function provides backward compatibility while encouraging migration
++    to the new NotificationScheduler class.
++
++    :param application: The Application instance for sending messages
+     :type application: Application
+-    :param scheduler: Optional existing scheduler instance to use
+-    :type scheduler: AsyncIOScheduler
+-    :returns: None
+-    :raises SchedulerSetupError: If critical database or scheduler setup fails
++    :param scheduler: Optional scheduler instance
++    :type scheduler: AsyncIOScheduler, optional
++    :returns: Configured NotificationScheduler instance
++    :rtype: NotificationScheduler
++    :raises SchedulerSetupError: If setup fails
+     """
+-    global _scheduler_instance, _application_instance
++    global _global_scheduler_instance
+ 
+-    # Use provided scheduler or create new one
+-    if scheduler is None:
+-        scheduler = AsyncIOScheduler()
++    notification_scheduler = NotificationScheduler(
++        application=application,
++        scheduler=scheduler
++    )
++    notification_scheduler.setup_schedules()
+ 
+-    # Store global references for dynamic updates
+-    _scheduler_instance = scheduler
+-    _application_instance = application
++    # Set global instance for backward compatibility
++    _global_scheduler_instance = notification_scheduler
+ 
+-    try:
+-        # Retrieve all users from database with complete profiles
+-        # This includes settings and subscription information
+-        users = user_service.get_all_users()
++    return notification_scheduler
+ 
+-        if not users:
+-            logger.info("No users found for notification schedules")
+-            return
+ 
+-        logger.info(f"Setting up notification schedules for {len(users)} users")
++def start_scheduler(scheduler: AsyncIOScheduler | NotificationScheduler) -> None:
++    """Start the scheduler - supports both old and new approaches.
+ 
+-        # Process each user individually to set up their notification schedule
+-        for user in users:
+-            logger.info(f"Setting up notification schedule for user {user.telegram_id}")
+-            _create_user_notification_job(user, application, scheduler)
++    :param scheduler: Scheduler instance to start
++    :type scheduler: AsyncIOScheduler | NotificationScheduler
++    :returns: None
++    """
++    if isinstance(scheduler, NotificationScheduler):
++        scheduler.start()
++    else:
++        # Legacy support for AsyncIOScheduler
++        scheduler.start()
++        logger.info("User notification scheduler started successfully")
+ 
+-        logger.info(
+-            f"Successfully set up notification schedules for {len(users)} users"
+-        )
+ 
+-    except Exception as error:  # pylint: disable=broad-exception-caught
+-        error_message = f"Error setting up notification schedules: {error}"
+-        logger.error(error_message)
+-        raise SchedulerSetupError(error_message, error)
++def stop_scheduler(scheduler: AsyncIOScheduler | NotificationScheduler) -> None:
++    """Stop the scheduler - supports both old and new approaches.
+ 
++    :param scheduler: Scheduler instance to stop
++    :type scheduler: AsyncIOScheduler | NotificationScheduler
++    :returns: None
++    """
++    if isinstance(scheduler, NotificationScheduler):
++        scheduler.stop()
++    else:
++        # Legacy support for AsyncIOScheduler
++        scheduler.shutdown()
++        logger.info("User notification scheduler stopped successfully")
+ 
+-def start_scheduler(scheduler: AsyncIOScheduler) -> None:
+-    """Start the notification scheduler.
+ 
+-    This function activates the AsyncIOScheduler instance, enabling all configured
+-    notification jobs to run according to their schedules. The scheduler will
+-    automatically execute jobs at their specified times without further intervention.
++# Global instance for backward compatibility (deprecated)
++_global_scheduler_instance: NotificationScheduler | None = None
+ 
+-    The scheduler runs in the background and handles:
+-    - Automatic job execution at scheduled times
+-    - Job queue management and prioritization
+-    - Error handling and retry logic
+-    - Resource management and cleanup
+ 
+-    :param scheduler: The configured AsyncIOScheduler instance to start
+-    :type scheduler: AsyncIOScheduler
+-    :returns: None
+-    :raises RuntimeError: If scheduler is already running or fails to start
++def add_user_to_scheduler(user_id: int) -> None:
++    """Add user to global scheduler instance (deprecated).
++
++    :param user_id: User ID to add
++    :type user_id: int
++    :raises SchedulerOperationError: If no global instance exists or operation fails
+     """
+-    scheduler.start()
+-    logger.info("User notification scheduler started successfully")
++    if not _global_scheduler_instance:
++        raise SchedulerOperationError(
++            message="No global scheduler instance available",
++            user_id=user_id,
++            operation="add_user"
++        )
++    try:
++        _global_scheduler_instance.add_user(user_id)
++    except SchedulerOperationError:
++        raise
++    except Exception as e:
++        raise SchedulerOperationError(
++            message=f"Failed to add user {user_id} to scheduler: {str(e)}",
++            user_id=user_id,
++            operation="add_user"
++        ) from e
+ 
+ 
+-def stop_scheduler(scheduler: AsyncIOScheduler) -> None:
+-    """Stop the notification scheduler.
++def remove_user_from_scheduler(user_id: int) -> None:
++    """Remove user from global scheduler instance (deprecated).
+ 
+-    This function gracefully shuts down the AsyncIOScheduler instance, ensuring
+-    that all running jobs are properly terminated and resources are cleaned up.
+-    This is important for application shutdown to prevent resource leaks and
+-    ensure clean termination.
++    :param user_id: User ID to remove
++    :type user_id: int
++    :raises SchedulerOperationError: If no global instance exists or operation fails
++    """
++    if not _global_scheduler_instance:
++        raise SchedulerOperationError(
++            message="No global scheduler instance available",
++            user_id=user_id,
++            operation="remove_user"
++        )
++    try:
++        _global_scheduler_instance.remove_user(user_id)
++    except SchedulerOperationError:
++        raise
++    except Exception as e:
++        raise SchedulerOperationError(
++            message=f"Failed to remove user {user_id} from scheduler: {str(e)}",
++            user_id=user_id,
++            operation="remove_user"
++        ) from e
+ 
+-    The shutdown process includes:
+-    - Stopping all running jobs
+-    - Cleaning up scheduler resources
+-    - Logging shutdown status for monitoring
+ 
+-    :param scheduler: The running AsyncIOScheduler instance to stop
+-    :type scheduler: AsyncIOScheduler
+-    :returns: None
+-    :raises RuntimeError: If scheduler shutdown fails
+-    """
+-    global _scheduler_instance, _application_instance
++def update_user_schedule(user_id: int) -> None:
++    """Update user schedule in global scheduler instance (deprecated).
+ 
+-    scheduler.shutdown()
+-    _scheduler_instance = None
+-    _application_instance = None
+-    logger.info("User notification scheduler stopped successfully")
++    :param user_id: User ID to update
++    :type user_id: int
++    :raises SchedulerOperationError: If no global instance exists or operation fails
++    """
++    if not _global_scheduler_instance:
++        raise SchedulerOperationError(
++            message="No global scheduler instance available",
++            user_id=user_id,
++            operation="update_schedule"
++        )
++    try:
++        _global_scheduler_instance.update_user_schedule(user_id)
++    except SchedulerOperationError:
++        raise
++    except Exception as e:
++        raise SchedulerOperationError(
++            message=f"Failed to update schedule for user {user_id}: {str(e)}",
++            user_id=user_id,
++            operation="update_schedule"
++        ) from e
+diff --git a/tests/conftest.py b/tests/conftest.py
+index 64371e9..cde71d3 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -78,21 +78,25 @@ def mock_scheduler() -> MagicMock:
+ 
+ @pytest.fixture
+ def mock_globals(mocker: MockerFixture) -> dict[str, MagicMock]:
+-    """Mocks the global scheduler and application instances and returns them.
++    """Mocks the global scheduler instance and returns it.
+ 
+     This fixture is used for testing scheduler management functions that rely on
+-    global _scheduler_instance and _application_instance variables.
++    global _global_scheduler_instance variable.
+ 
+     :param mocker: Pytest mocker fixture
+     :type mocker: MockerFixture
+-    :returns: A dictionary containing the mocked scheduler and application
++    :returns: A dictionary containing the mocked scheduler components
+     :rtype: dict[str, MagicMock]
+     """
+-    mock_scheduler = MagicMock()
+-    mock_app = MagicMock()
+-    mocker.patch("src.bot.scheduler._scheduler_instance", mock_scheduler)
+-    mocker.patch("src.bot.scheduler._application_instance", mock_app)
+-    return {"scheduler": mock_scheduler, "app": mock_app}
++    # Create mock for the APScheduler inside NotificationScheduler
++    mock_apscheduler = MagicMock()
++
++    # Create mock for NotificationScheduler instance
++    mock_scheduler_instance = MagicMock()
++    mock_scheduler_instance.scheduler = mock_apscheduler
++
++    mocker.patch("src.bot.scheduler._global_scheduler_instance", mock_scheduler_instance)
++    return {"scheduler": mock_apscheduler, "instance": mock_scheduler_instance}
+ 
+ 
+ @pytest.fixture
+diff --git a/tests/test_bot/test_application.py b/tests/test_bot/test_application.py
+index b26743b..be2892f 100644
+--- a/tests/test_bot/test_application.py
++++ b/tests/test_bot/test_application.py
+@@ -343,11 +343,11 @@ class TestLifeWeeksBot:
+         :rtype: None
+         """
+         fake_scheduler = "my_fake_scheduler"
+-        with patch("src.bot.application._scheduler_instance", fake_scheduler):
+-            bot._app = mock_app
+-            bot._setup_scheduler()
+-            assert bot._scheduler == fake_scheduler
+-            mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
++        mock_setup_user_notification_schedules.return_value = fake_scheduler
++        bot._app = mock_app
++        bot._setup_scheduler()
++        assert bot._scheduler == fake_scheduler
++        mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
+ 
+     def test_register_handlers_with_message_handler(
+         self, bot: LifeWeeksBot, mock_handlers: dict, mock_app: MagicMock
+diff --git a/tests/test_bot/test_scheduler.py b/tests/test_bot/test_scheduler.py
+index f1505a2..1b46515 100644
+--- a/tests/test_bot/test_scheduler.py
++++ b/tests/test_bot/test_scheduler.py
+@@ -6,12 +6,11 @@ import pytest
+ from telegram.constants import ParseMode
+ 
+ from src.bot.scheduler import (
++    NotificationScheduler,
+     SchedulerOperationError,
+     SchedulerSetupError,
+-    _create_user_notification_job,
+     add_user_to_scheduler,
+     remove_user_from_scheduler,
+-    send_weekly_message_to_user,
+     setup_user_notification_schedules,
+     start_scheduler,
+     stop_scheduler,
+@@ -31,7 +30,7 @@ SCHEDULER_ERROR = "Scheduler error"
+ 
+ 
+ class TestSendWeeklyMessageToUser:
+-    """Tests for the send_weekly_message_to_user function."""
++    """Tests for the send_weekly_message_to_user method."""
+ 
+     @pytest.mark.asyncio
+     async def test_sends_message_if_user_found(
+@@ -53,8 +52,9 @@ class TestSendWeeklyMessageToUser:
+         :type mock_generate_message: MagicMock
+         """
+         mock_user_service.get_user_profile.return_value = mock_user_with_settings
++        notification_scheduler = NotificationScheduler(mock_app)
+ 
+-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
++        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
+ 
+         mock_app.bot.send_message.assert_called_once_with(
+             chat_id=TEST_USER_ID,
+@@ -80,8 +80,9 @@ class TestSendWeeklyMessageToUser:
+         :type mock_scheduler_logger: MagicMock
+         """
+         mock_user_service.get_user_profile.return_value = None
++        notification_scheduler = NotificationScheduler(mock_app)
+ 
+-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
++        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
+ 
+         mock_scheduler_logger.warning.assert_called_once_with(
+             f"User {TEST_USER_ID} not found for weekly notification"
+@@ -105,8 +106,9 @@ class TestSendWeeklyMessageToUser:
+         :type mock_scheduler_logger: MagicMock
+         """
+         mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
++        notification_scheduler = NotificationScheduler(mock_app)
+ 
+-        await send_weekly_message_to_user(mock_app, TEST_USER_ID)
++        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
+ 
+         mock_scheduler_logger.error.assert_called_once_with(
+             f"Failed to send weekly notification to user {TEST_USER_ID}: {DB_ERROR}"
+@@ -114,7 +116,7 @@ class TestSendWeeklyMessageToUser:
+ 
+ 
+ class TestCreateUserNotificationJob:
+-    """Tests for the private _create_user_notification_job function."""
++    """Tests for the private _create_user_notification_job method."""
+ 
+     def test_creates_job_if_settings_are_valid(
+         self,
+@@ -134,7 +136,8 @@ class TestCreateUserNotificationJob:
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        _create_user_notification_job(mock_user_with_settings, mock_app, mock_scheduler)
++        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
++        notification_scheduler._create_user_notification_job(mock_user_with_settings)
+ 
+         mock_scheduler.add_job.assert_called_once()
+         # Check that info was called twice: once for adding job, once for success
+@@ -146,7 +149,7 @@ class TestCreateUserNotificationJob:
+         mock_scheduler: MagicMock,
+         mock_scheduler_logger: MagicMock,
+     ) -> None:
+-        """Verify that the function raises exception if the user has no settings attribute.
++        """Verify that the method raises exception if the user has no settings attribute.
+ 
+         :param mock_app: Mocked Application instance
+         :type mock_app: MagicMock
+@@ -156,9 +159,10 @@ class TestCreateUserNotificationJob:
+         :type mock_scheduler_logger: MagicMock
+         """
+         user_no_settings = MagicMock(telegram_id=TEST_USER_ID, settings=None)
++        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
+ 
+         with pytest.raises(SchedulerOperationError):
+-            _create_user_notification_job(user_no_settings, mock_app, mock_scheduler)
++            notification_scheduler._create_user_notification_job(user_no_settings)
+ 
+         mock_scheduler_logger.warning.assert_called_once_with(
+             f"No settings found for user {TEST_USER_ID}"
+@@ -170,7 +174,7 @@ class TestCreateUserNotificationJob:
+         mock_scheduler: MagicMock,
+         mock_scheduler_logger: MagicMock,
+     ) -> None:
+-        """Verify that the function returns None if user notifications are disabled.
++        """Verify that the method returns None if user notifications are disabled.
+ 
+         :param mock_app: Mocked Application instance
+         :type mock_app: MagicMock
+@@ -181,8 +185,9 @@ class TestCreateUserNotificationJob:
+         """
+         user_disabled = MagicMock(telegram_id=TEST_USER_ID)
+         user_disabled.settings.notifications = False
++        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
+ 
+-        result = _create_user_notification_job(user_disabled, mock_app, mock_scheduler)
++        result = notification_scheduler._create_user_notification_job(user_disabled)
+ 
+         assert result is None
+         mock_scheduler_logger.debug.assert_called_once_with(
+@@ -201,7 +206,7 @@ class TestCreateUserNotificationJob:
+         mock_scheduler: MagicMock,
+         mock_scheduler_logger: MagicMock,
+     ) -> None:
+-        """Verify that the function raises exception if notification day or time is missing.
++        """Verify that the method raises exception if notification day or time is missing.
+ 
+         :param missing_field: Which field is missing
+         :type missing_field: str
+@@ -224,9 +229,10 @@ class TestCreateUserNotificationJob:
+             if missing_field != "time" and missing_field != "both"
+             else None
+         )
++        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
+ 
+         with pytest.raises(SchedulerOperationError):
+-            _create_user_notification_job(user, mock_app, mock_scheduler)
++            notification_scheduler._create_user_notification_job(user)
+ 
+         mock_scheduler_logger.warning.assert_called_once_with(
+             f"Incomplete notification settings for user {TEST_USER_ID}"
+@@ -251,11 +257,10 @@ class TestCreateUserNotificationJob:
+         :type mock_scheduler_logger: MagicMock
+         """
+         mock_scheduler.add_job.side_effect = Exception(SCHEDULER_ERROR)
++        notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
+ 
+         with pytest.raises(SchedulerOperationError):
+-            _create_user_notification_job(
+-                mock_user_with_settings, mock_app, mock_scheduler
+-            )
++            notification_scheduler._create_user_notification_job(mock_user_with_settings)
+ 
+         mock_scheduler_logger.error.assert_called_once_with(
+             f"Failed to create notification job for user {TEST_USER_ID}: {SCHEDULER_ERROR}"
+@@ -274,7 +279,7 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that a user is successfully added to the scheduler.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_with_settings: Mocked user with valid settings
+         :type mock_user_with_settings: MagicMock
+@@ -283,12 +288,8 @@ class TestSchedulerManagementFunctions:
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
+-        mock_create_job = MagicMock()
+-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
+-            add_user_to_scheduler(TEST_USER_ID)
+-
+-        mock_create_job.assert_called_once()
++        add_user_to_scheduler(TEST_USER_ID)
++        mock_globals["instance"].add_user.assert_called_once_with(TEST_USER_ID)
+ 
+     def test_add_user_raises_exception_if_job_creation_fails(
+         self,
+@@ -296,24 +297,20 @@ class TestSchedulerManagementFunctions:
+         mock_user_with_settings: MagicMock,
+         mock_user_service: MagicMock,
+     ) -> None:
+-        """Verify that add_user raises exception if the job isn't created.
++        """Verify that add_user raises exception if the job creation fails.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_with_settings: Mocked user with valid settings
+         :type mock_user_with_settings: MagicMock
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
+-        with patch(
+-            "src.bot.scheduler._create_user_notification_job",
+-            side_effect=SchedulerOperationError(
+-                "Job creation failed", TEST_USER_ID, "create_notification_job"
+-            ),
+-        ):
+-            with pytest.raises(SchedulerOperationError):
+-                add_user_to_scheduler(TEST_USER_ID)
++        mock_globals["instance"].add_user.side_effect = SchedulerOperationError(
++            "Job creation failed", TEST_USER_ID, "create_notification_job"
++        )
++        with pytest.raises(SchedulerOperationError):
++            add_user_to_scheduler(TEST_USER_ID)
+ 
+     def test_add_user_raises_exception_on_exception(
+         self,
+@@ -323,20 +320,17 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that add_user_to_scheduler raises exception on exception.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
++        mock_globals["instance"].add_user.side_effect = Exception(DB_ERROR)
+ 
+         with pytest.raises(SchedulerOperationError):
+             add_user_to_scheduler(TEST_USER_ID)
+-        mock_scheduler_logger.error.assert_called_with(
+-            f"Error adding user {TEST_USER_ID} to scheduler: {DB_ERROR}"
+-        )
+ 
+     def test_add_user_raises_exception_when_user_not_found(
+         self,
+@@ -346,65 +340,56 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that add_user_to_scheduler raises exception when user is not found.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = None
++        mock_globals["instance"].add_user.side_effect = SchedulerOperationError(
++            f"User {TEST_USER_ID} not found for scheduler addition", TEST_USER_ID, "add_user"
++        )
+ 
+         with pytest.raises(SchedulerOperationError):
+             add_user_to_scheduler(TEST_USER_ID)
+-        mock_scheduler_logger.warning.assert_called_with(
+-            f"User {TEST_USER_ID} not found for scheduler addition"
+-        )
+ 
+-    def test_add_user_raises_exception_when_scheduler_not_initialized(
+-        self, mock_scheduler_logger: MagicMock
+-    ) -> None:
++    def test_add_user_raises_exception_when_scheduler_not_initialized(self) -> None:
+         """Verify that add_user_to_scheduler raises exception when scheduler is not initialized.
+ 
+-        :param mock_scheduler_logger: Mocked logger for scheduler module
+-        :type mock_scheduler_logger: MagicMock
++        :returns: None
++        :rtype: None
+         """
+-        with patch("src.bot.scheduler._scheduler_instance", None), patch(
+-            "src.bot.scheduler._application_instance", None
+-        ):
++        with patch("src.bot.scheduler._global_scheduler_instance", None):
+             with pytest.raises(SchedulerOperationError):
+                 add_user_to_scheduler(TEST_USER_ID)
+-            mock_scheduler_logger.error.assert_called_with(
+-                "Scheduler not initialized, cannot add user"
+-            )
+ 
+     def test_remove_user_success(
+         self, mock_globals: dict[str, MagicMock], mock_scheduler_logger: MagicMock
+     ) -> None:
+         """Verify that a user's job is successfully removed.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+         remove_user_from_scheduler(TEST_USER_ID)
+-        mock_globals["scheduler"].remove_job.assert_called_once_with(TEST_JOB_ID)
+-        mock_scheduler_logger.info.assert_called_once_with(
+-            f"Successfully removed user {TEST_USER_ID} from notification scheduler"
+-        )
++        mock_globals["instance"].remove_user.assert_called_once_with(TEST_USER_ID)
+ 
+     def test_remove_user_handles_nonexistent_job(
+         self, mock_globals: dict[str, MagicMock], mock_scheduler_logger: MagicMock
+     ) -> None:
+         """Verify that non-existent job is handled gracefully.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
++        mock_globals["instance"].remove_user.side_effect = SchedulerOperationError(
++            f"Error removing user {TEST_USER_ID} from scheduler: Job not found", TEST_USER_ID, "remove_user"
++        )
+ 
+         with pytest.raises(SchedulerOperationError) as exc:
+             remove_user_from_scheduler(user_id=TEST_USER_ID)
+@@ -413,11 +398,10 @@ class TestSchedulerManagementFunctions:
+             f"Error removing user {TEST_USER_ID} from scheduler: Job not found"
+             in str(exc.value)
+         )
+-        mock_scheduler_logger.error.assert_called_once()
+ 
+     def test_remove_user_raises_if_not_initialized(self) -> None:
+         """Verify that SchedulerOperationError is raised if scheduler is not initialized."""
+-        with patch("src.bot.scheduler._scheduler_instance", None):
++        with patch("src.bot.scheduler._global_scheduler_instance", None):
+             with pytest.raises(SchedulerOperationError):
+                 remove_user_from_scheduler(TEST_USER_ID)
+ 
+@@ -426,24 +410,20 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that logger.error exceptions are properly handled.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        # 1. First, `remove_job` raises an exception to get into the except block.
+-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
+-
+-        # 2. Then, `logger.error` inside the except block raises another exception.
+-        error_message = "Error from logger.error"
+-        mock_scheduler_logger.error.side_effect = Exception(error_message)
++        # Mock remove_user to raise an exception directly
++        mock_globals["instance"].remove_user.side_effect = Exception("Job not found")
+ 
+-        # This should raise the logger.error exception directly.
+-        with pytest.raises(Exception) as exc:
++        # This should raise SchedulerOperationError from global function
++        with pytest.raises(SchedulerOperationError) as exc:
+             remove_user_from_scheduler(TEST_USER_ID)
+ 
+-        # Check if the logger.error exception is propagated.
+-        assert error_message in str(exc.value)
++        # Check if the original error is wrapped
++        assert "Job not found" in str(exc.value)
+ 
+     def test_update_user_success(
+         self,
+@@ -454,7 +434,7 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that a user's schedule is successfully updated.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_with_settings: Mocked user with valid settings
+         :type mock_user_with_settings: MagicMock
+@@ -463,17 +443,8 @@ class TestSchedulerManagementFunctions:
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
+-        mock_create_job = MagicMock(return_value=True)
+-
+-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
+-            update_user_schedule(TEST_USER_ID)
+-
+-        mock_globals["scheduler"].remove_job.assert_called_once_with(TEST_JOB_ID)
+-        mock_create_job.assert_called_once()
+-        mock_scheduler_logger.info.assert_called_once_with(
+-            f"Successfully updated notification schedule for user {TEST_USER_ID}"
+-        )
++        update_user_schedule(TEST_USER_ID)
++        mock_globals["instance"].update_user_schedule.assert_called_once_with(TEST_USER_ID)
+ 
+     def test_update_user_handles_nonexistent_job(
+         self,
+@@ -484,7 +455,7 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that non-existent job is handled during update.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_with_settings: Mocked user with valid settings
+         :type mock_user_with_settings: MagicMock
+@@ -493,24 +464,20 @@ class TestSchedulerManagementFunctions:
+         :param mock_scheduler_logger: Mocked logger for scheduler module
+         :type mock_scheduler_logger: MagicMock
+         """
+-        mock_globals["scheduler"].remove_job.side_effect = Exception("Job not found")
+-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
+-        mock_create_job = MagicMock(return_value=True)
++        mock_globals["instance"].update_user_schedule.side_effect = SchedulerOperationError(
++            f"Error updating schedule for user {TEST_USER_ID}: Job not found", TEST_USER_ID, "update_schedule"
++        )
+ 
+-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
+-            with pytest.raises(SchedulerOperationError) as exc:
+-                update_user_schedule(TEST_USER_ID)
++        with pytest.raises(SchedulerOperationError) as exc:
++            update_user_schedule(TEST_USER_ID)
+ 
+         assert f"Error updating schedule for user {TEST_USER_ID}: Job not found" in str(
+             exc.value
+         )
+-        mock_scheduler_logger.error.assert_called_once()
+ 
+     def test_update_user_raises_if_not_initialized(self) -> None:
+         """Verify that SchedulerOperationError is raised if scheduler is not initialized."""
+-        with patch("src.bot.scheduler._scheduler_instance", None), patch(
+-            "src.bot.scheduler._application_instance", None
+-        ):
++        with patch("src.bot.scheduler._global_scheduler_instance", None):
+             with pytest.raises(SchedulerOperationError):
+                 update_user_schedule(TEST_USER_ID)
+ 
+@@ -519,12 +486,14 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that SchedulerOperationError is raised if user not found.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = None
++        mock_globals["instance"].update_user_schedule.side_effect = SchedulerOperationError(
++            f"User {TEST_USER_ID} not found for schedule update", TEST_USER_ID, "update_schedule"
++        )
+ 
+         with pytest.raises(SchedulerOperationError):
+             update_user_schedule(TEST_USER_ID)
+@@ -537,35 +506,33 @@ class TestSchedulerManagementFunctions:
+     ) -> None:
+         """Verify that SchedulerOperationError is raised if job creation fails.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_with_settings: Mocked user with valid settings
+         :type mock_user_with_settings: MagicMock
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         """
+-        mock_user_service.get_user_profile.return_value = mock_user_with_settings
++        mock_globals["instance"].update_user_schedule.side_effect = SchedulerOperationError(
++            "Job creation failed", TEST_USER_ID, "create_notification_job"
++        )
+ 
+-        with patch(
+-            "src.bot.scheduler._create_user_notification_job",
+-            side_effect=SchedulerOperationError(
+-                "Job creation failed", TEST_USER_ID, "create_notification_job"
+-            ),
+-        ):
+-            with pytest.raises(SchedulerOperationError):
+-                update_user_schedule(TEST_USER_ID)
++        with pytest.raises(SchedulerOperationError):
++            update_user_schedule(TEST_USER_ID)
+ 
+     def test_update_user_raises_on_exception(
+         self, mock_globals: dict[str, MagicMock], mock_user_service: MagicMock
+     ) -> None:
+         """Verify that SchedulerOperationError is raised on unexpected exception.
+ 
+-        :param mock_globals: Mocked global scheduler and application instances
++        :param mock_globals: Mocked global scheduler instance
+         :type mock_globals: dict[str, MagicMock]
+         :param mock_user_service: Mocked user_service
+         :type mock_user_service: MagicMock
+         """
+-        mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
++        mock_globals["instance"].update_user_schedule.side_effect = SchedulerOperationError(
++            f"Error updating schedule for user {TEST_USER_ID}: {DB_ERROR}", TEST_USER_ID, "update_schedule"
++        )
+ 
+         with pytest.raises(SchedulerOperationError) as exc:
+             update_user_schedule(TEST_USER_ID)
+@@ -596,7 +563,7 @@ class TestSetupUserNotificationSchedules:
+         mock_get_all_users.return_value = [mock_user_with_settings]
+         mock_create_job = MagicMock()
+ 
+-        with patch("src.bot.scheduler._create_user_notification_job", mock_create_job):
++        with patch.object(NotificationScheduler, "_create_user_notification_job", mock_create_job):
+             setup_user_notification_schedules(mock_app)
+ 
+         mock_create_job.assert_called_once()

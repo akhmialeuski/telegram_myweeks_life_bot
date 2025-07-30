@@ -44,7 +44,6 @@ from .handlers import (
 )
 from .scheduler import (
     SchedulerSetupError,
-    _scheduler_instance,
     setup_user_notification_schedules,
     start_scheduler,
     stop_scheduler,
@@ -332,8 +331,7 @@ class LifeWeeksBot:
             - Logs the setup status
         """
         try:
-            setup_user_notification_schedules(self._app)
-            self._scheduler = _scheduler_instance
+            self._scheduler = setup_user_notification_schedules(self._app)
             logger.debug("Set up weekly notification scheduler")
         except SchedulerSetupError as error:
             logger.error(
