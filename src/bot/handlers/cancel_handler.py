@@ -111,10 +111,16 @@ class CancelHandler(BaseHandler):
 
         try:
             # First remove user from notification scheduler
-            remove_user_from_scheduler(user_id=user_id)
-            logger.info(
-                f"{self.command_name}: [{user_id}]: User removed from notification scheduler"
-            )
+            scheduler = context.bot_data.get("scheduler")
+            if scheduler:
+                remove_user_from_scheduler(scheduler, user_id)
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: User removed from notification scheduler"
+                )
+            else:
+                logger.warning(
+                    f"{self.command_name}: [{user_id}]: No scheduler available"
+                )
 
             # Then attempt to delete user profile and all associated data
             logger.info(

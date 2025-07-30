@@ -329,9 +329,12 @@ class LifeWeeksBot:
             - Sets up the weekly notification scheduler
             - Sets up the scheduler instance
             - Logs the setup status
+            - Stores scheduler in bot_data for access by handlers
         """
         try:
             self._scheduler = setup_user_notification_schedules(self._app)
+            # Store scheduler in bot_data for access by handlers
+            self._app.bot_data["scheduler"] = self._scheduler
             logger.debug("Set up weekly notification scheduler")
         except SchedulerSetupError as error:
             logger.error(

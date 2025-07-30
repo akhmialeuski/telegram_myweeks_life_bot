@@ -169,10 +169,16 @@ class StartHandler(BaseHandler):
 
             # Add user to notification scheduler
             try:
-                add_user_to_scheduler(user_id)
-                logger.info(
-                    f"{self.command_name}: [{user_id}]: User added to notification scheduler"
-                )
+                scheduler = context.bot_data.get("scheduler")
+                if scheduler:
+                    add_user_to_scheduler(scheduler, user_id)
+                    logger.info(
+                        f"{self.command_name}: [{user_id}]: User added to notification scheduler"
+                    )
+                else:
+                    logger.warning(
+                        f"{self.command_name}: [{user_id}]: No scheduler available"
+                    )
             except SchedulerOperationError as scheduler_error:
                 logger.warning(
                     f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"

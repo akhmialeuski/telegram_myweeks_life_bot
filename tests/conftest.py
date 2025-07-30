@@ -343,18 +343,6 @@ def mock_generate_message_cancel_error(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture
-def mock_remove_user_from_scheduler(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked remove_user_from_scheduler function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked remove_user_from_scheduler function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.scheduler.remove_user_from_scheduler")
-
-
-@pytest.fixture
 def mock_get_user_language(mocker: MockerFixture) -> MagicMock:
     """Provides a mocked get_user_language function.
 
@@ -536,18 +524,6 @@ def mock_generate_message_registration_error(mocker: MockerFixture) -> MagicMock
     return mocker.patch(
         "src.bot.handlers.start_handler.generate_message_registration_error"
     )
-
-
-@pytest.fixture
-def mock_add_user_to_scheduler(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked add_user_to_scheduler function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked add_user_to_scheduler function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.handlers.start_handler.add_user_to_scheduler")
 
 
 # --- Weeks Handler Fixtures ---

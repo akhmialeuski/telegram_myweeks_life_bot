@@ -40,6 +40,12 @@ Dependencies:
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
+try:
+    from apscheduler.errors import JobLookupError
+except ImportError:
+    # Fallback for older versions of APScheduler
+    from apscheduler.jobstores.base import JobLookupError
 from telegram import User
 from telegram.constants import ParseMode
 from telegram.ext import Application
@@ -67,7 +73,7 @@ class SchedulerSetupError(Exception):
     :type original_error: Exception, optional
     """
 
-    def __init__(self, message: str, original_error: Exception = None) -> None:
+    def __init__(self, message: str, original_error: Exception | None = None) -> None:
         """Initialize the SchedulerSetupError.
 
         :param message: Error message describing the setup failure
@@ -102,7 +108,7 @@ class SchedulerOperationError(Exception):
         message: str,
         user_id: int,
         operation: str,
-        original_error: Exception = None,
+        original_error: Exception | None = None,
     ) -> None:
         """Initialize the SchedulerOperationError.
 
@@ -232,66 +238,49 @@ class NotificationScheduler:
         :returns: None
         :raises SchedulerOperationError: If job creation fails
         """
+        if not user.settings:
+            error_message = f"No settings found for user {user.telegram_id}"
+            logger.warning(error_message)
+            raise SchedulerOperationError(
+                message=error_message,
+                user_id=user.telegram_id,
+                operation="create_notification_job",
+            )
+
+        if not user.settings.notifications:
+            logger.debug(f"Notifications disabled for user {user.telegram_id}")
+            return
+
+        notification_day = user.settings.notifications_day
+        notification_time = user.settings.notifications_time
+
+        if not notification_day or not notification_time:
+            error_message = (
+                f"Incomplete notification settings for user {user.telegram_id}"
+            )
+            logger.warning(error_message)
+            raise SchedulerOperationError(
+                message=error_message,
+                user_id=user.telegram_id,
+                operation="create_notification_job",
+            )
+
         try:
-            # Validate user has settings configured
-            if not user.settings:
-                error_message = f"No settings found for user {user.telegram_id}"
-                logger.warning(error_message)
-                raise SchedulerOperationError(
-                    message=error_message,
-                    user_id=user.telegram_id,
-                    operation="create_notification_job",
-                )
-
-            # Check if notifications are enabled for this user
-            if not user.settings.notifications:
-                logger.debug(f"Notifications disabled for user {user.telegram_id}")
-                return
-
-            # Extract notification preferences from user settings
-            notification_day = user.settings.notifications_day
-            notification_time = user.settings.notifications_time
-
-            # Validate that both day and time are configured
-            if not notification_day or not notification_time:
-                error_message = (
-                    f"Incomplete notification settings for user {user.telegram_id}"
-                )
-                logger.warning(error_message)
-                raise SchedulerOperationError(
-                    message=error_message,
-                    user_id=user.telegram_id,
-                    operation="create_notification_job",
-                )
-
-            # Convert WeekDay enum to cron-compatible weekday number (0-6)
-            # Use list(WeekDay) to get the order, then find the index
             cron_day = list(WeekDay).index(notification_day)
-
-            # Extract hour and minute from time object for cron trigger
             hour = notification_time.hour
             minute = notification_time.minute
-
-            # Create unique job identifier for this user
-            # This prevents job conflicts and allows individual management
             job_id = f"weekly_notification_user_{user.telegram_id}"
 
-            # Add cron job to scheduler for this specific user
-            # CronTrigger provides precise scheduling based on day and time
             logger.info(
                 f"Adding cron job for user {user.telegram_id}: {cron_day} at {hour}:{minute}"
             )
             self.scheduler.add_job(
                 func=self.send_weekly_message_to_user,
-                trigger=CronTrigger(
-                    day_of_week=cron_day,
-                    hour=hour,
-                    minute=minute,
-                ),
+                trigger=CronTrigger(day_of_week=cron_day, hour=hour, minute=minute),
                 args=[user.telegram_id],
                 id=job_id,
                 name=f"Weekly notification for user {user.telegram_id}",
-                replace_existing=True,  # Replace existing job if user reconfigures
+                replace_existing=True,
             )
 
             logger.info(
@@ -299,9 +288,6 @@ class NotificationScheduler:
                 f"{notification_day.value} at {hour:02d}:{minute:02d}"
             )
 
-        except SchedulerOperationError:
-            # Re-raise SchedulerOperationError as-is
-            raise
         except Exception as error:  # pylint: disable=broad-exception-caught
             error_message = f"Failed to create notification job for user {user.telegram_id}: {error}"
             logger.error(error_message)
@@ -313,16 +299,17 @@ class NotificationScheduler:
             )
 
     def add_user(self, user_id: int) -> None:
-        """Add a new user to the notification scheduler.
+        """Add or update a user in the notification scheduler.
 
-        This method adds a single user to the running scheduler without
-        affecting other users' schedules. It's efficient for adding new users
-        without regenerating all schedules.
+        This method adds a user to the running scheduler or updates an existing
+        schedule. Thanks to `replace_existing=True`, it's efficient for both
+        adding new users and updating their notification settings without
+        manual removal.
 
-        :param user_id: Telegram user ID to add to scheduler
+        :param user_id: Telegram user ID to add or update in the scheduler
         :type user_id: int
         :returns: None
-        :raises SchedulerOperationError: If user cannot be added to scheduler
+        :raises SchedulerOperationError: If the user cannot be added or updated
         """
         try:
             # Get user profile from database
@@ -363,17 +350,17 @@ class NotificationScheduler:
         :returns: None
         :raises SchedulerOperationError: If the user cannot be removed from scheduler
         """
+        job_id = f"weekly_notification_user_{user_id}"
         try:
-            # Remove existing job for this user
-            # Create job_id outside of inner try to allow outer except coverage
-            job_id = f"weekly_notification_user_{user_id}"
-
-            # Try to remove the job - if it doesn't exist, it will raise an exception
             self.scheduler.remove_job(job_id)
             logger.info(
                 f"Successfully removed user {user_id} from notification scheduler"
             )
-        except Exception as error:  # pylint: disable=broad-exception-caught
+        except JobLookupError:
+            logger.warning(
+                f"Job {job_id} not found for user {user_id}, nothing to remove"
+            )
+        except Exception as error:
             error_message = f"Error removing user {user_id} from scheduler: {error}"
             logger.error(error_message)
             raise SchedulerOperationError(
@@ -387,50 +374,15 @@ class NotificationScheduler:
         """Update notification schedule for an existing user.
 
         This method updates the notification schedule for a specific user
-        when their settings change. It removes the old job and creates a new one
-        with updated settings.
+        when their settings change. It is an alias for `add_user`, which handles
+        both adding and updating schedules atomically.
 
         :param user_id: Telegram user ID to update schedule for
         :type user_id: int
         :returns: None
         :raises SchedulerOperationError: If the user schedule cannot be updated
         """
-        try:
-            # Remove existing job for this user
-            job_id = f"weekly_notification_user_{user_id}"
-
-            # Try to remove the job - if it doesn't exist, it will raise an exception
-            self.scheduler.remove_job(job_id)
-            logger.debug(f"Removed existing notification job for user {user_id}")
-
-            # Get updated user profile from database
-            user = user_service.get_user_profile(user_id)
-            if not user:
-                error_message = f"User {user_id} not found for schedule update"
-                logger.warning(error_message)
-                raise SchedulerOperationError(
-                    message=error_message, user_id=user_id, operation="update_schedule"
-                )
-
-            # Create new notification job with updated settings
-            self._create_user_notification_job(user=user)
-
-            logger.info(
-                f"Successfully updated notification schedule for user {user_id}"
-            )
-
-        except SchedulerOperationError:
-            # Re-raise SchedulerOperationError as-is
-            raise
-        except Exception as error:  # pylint: disable=broad-exception-caught
-            error_message = f"Error updating schedule for user {user_id}: {error}"
-            logger.error(error_message)
-            raise SchedulerOperationError(
-                message=error_message,
-                user_id=user_id,
-                operation="update_schedule",
-                original_error=error,
-            )
+        self.add_user(user_id=user_id)
 
     def setup_schedules(self) -> None:
         """Set up individual notification schedules for each user.
@@ -560,15 +512,10 @@ def setup_user_notification_schedules(
     :rtype: NotificationScheduler
     :raises SchedulerSetupError: If setup fails
     """
-    global _global_scheduler_instance
-
     notification_scheduler = NotificationScheduler(
         application=application, scheduler=scheduler
     )
     notification_scheduler.setup_schedules()
-
-    # Set global instance for backward compatibility
-    _global_scheduler_instance = notification_scheduler
 
     return notification_scheduler
 
@@ -603,25 +550,17 @@ def stop_scheduler(scheduler: AsyncIOScheduler | NotificationScheduler) -> None:
         logger.info("User notification scheduler stopped successfully")
 
 
-# Global instance for backward compatibility (deprecated)
-_global_scheduler_instance: NotificationScheduler | None = None
+def add_user_to_scheduler(scheduler: NotificationScheduler, user_id: int) -> None:
+    """Add user to scheduler instance.
 
-
-def add_user_to_scheduler(user_id: int) -> None:
-    """Add user to global scheduler instance (deprecated).
-
+    :param scheduler: NotificationScheduler instance
+    :type scheduler: NotificationScheduler
     :param user_id: User ID to add
     :type user_id: int
-    :raises SchedulerOperationError: If no global instance exists or operation fails
+    :raises SchedulerOperationError: If operation fails
     """
-    if not _global_scheduler_instance:
-        raise SchedulerOperationError(
-            message="No global scheduler instance available",
-            user_id=user_id,
-            operation="add_user",
-        )
     try:
-        _global_scheduler_instance.add_user(user_id)
+        scheduler.add_user(user_id)
     except SchedulerOperationError:
         raise
     except Exception as e:
@@ -632,51 +571,35 @@ def add_user_to_scheduler(user_id: int) -> None:
         ) from e
 
 
-def remove_user_from_scheduler(user_id: int) -> None:
-    """Remove user from global scheduler instance (deprecated).
+def remove_user_from_scheduler(scheduler: NotificationScheduler, user_id: int) -> None:
+    """Remove user from scheduler instance.
 
+    :param scheduler: NotificationScheduler instance
+    :type scheduler: NotificationScheduler
     :param user_id: User ID to remove
     :type user_id: int
-    :raises SchedulerOperationError: If no global instance exists or operation fails
+    :raises SchedulerOperationError: If operation fails
     """
-    if not _global_scheduler_instance:
-        raise SchedulerOperationError(
-            message="No global scheduler instance available",
-            user_id=user_id,
-            operation="remove_user",
-        )
     try:
-        _global_scheduler_instance.remove_user(user_id)
+        scheduler.remove_user(user_id)
     except SchedulerOperationError:
         raise
-    except Exception as e:
-        raise SchedulerOperationError(
-            message=f"Failed to remove user {user_id} from scheduler: {str(e)}",
-            user_id=user_id,
-            operation="remove_user",
-        ) from e
+    except JobLookupError:
+        logger.warning(
+            f"Job for user {user_id} not found, nothing to remove from scheduler"
+        )
 
 
-def update_user_schedule(user_id: int) -> None:
-    """Update user schedule in global scheduler instance (deprecated).
+def update_user_schedule(scheduler: NotificationScheduler, user_id: int) -> None:
+    """Add or update user schedule in scheduler.
 
-    :param user_id: User ID to update
+    This function is an alias for `add_user_to_scheduler` and handles both
+    adding and updating user schedules.
+
+    :param scheduler: NotificationScheduler instance
+    :type scheduler: NotificationScheduler
+    :param user_id: User ID to add or update
     :type user_id: int
-    :raises SchedulerOperationError: If no global instance exists or operation fails
+    :raises SchedulerOperationError: If operation fails
     """
-    if not _global_scheduler_instance:
-        raise SchedulerOperationError(
-            message="No global scheduler instance available",
-            user_id=user_id,
-            operation="update_schedule",
-        )
-    try:
-        _global_scheduler_instance.update_user_schedule(user_id)
-    except SchedulerOperationError:
-        raise
-    except Exception as e:
-        raise SchedulerOperationError(
-            message=f"Failed to update schedule for user {user_id}: {str(e)}",
-            user_id=user_id,
-            operation="update_schedule",
-        ) from e
+    add_user_to_scheduler(scheduler=scheduler, user_id=user_id)

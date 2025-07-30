@@ -432,7 +432,10 @@ class TestSettingsHandler:
             mock_user_service.update_user_settings.assert_called_once_with(
                 telegram_id=TEST_USER_ID, language=SupportedLanguage.RU.value
             )
-            mock_update_schedule.assert_called_once_with(user_id=TEST_USER_ID)
+            # Verify that update_user_schedule was called with scheduler and user_id
+            mock_update_schedule.assert_called_once_with(
+                mock_context.bot_data.get.return_value, TEST_USER_ID
+            )
             mock_generate_msg.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user,
                 new_language="Русский",

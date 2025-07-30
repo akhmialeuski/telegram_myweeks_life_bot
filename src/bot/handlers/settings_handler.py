@@ -297,7 +297,11 @@ class SettingsHandler(BaseHandler):
             )
 
             # Update user's notification schedule
-            update_user_schedule(user_id=user_id)
+            scheduler = context.bot_data.get("scheduler")
+            if scheduler:
+                update_user_schedule(scheduler, user_id)
+            else:
+                logger.warning(f"No scheduler available for user {user_id}")
 
             # Show success message
             success_message = generate_message_language_updated(

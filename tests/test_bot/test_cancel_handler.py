@@ -78,8 +78,9 @@ class TestCancelHandler:
 
             await handler.handle(mock_update, mock_context)
 
+            # Verify that remove_user_from_scheduler was called with scheduler and user_id
             mock_remove_scheduler.assert_called_once_with(
-                user_id=mock_update.effective_user.id
+                mock_context.bot_data.get.return_value, mock_update.effective_user.id
             )
             mock_generate_success.assert_called_once()
             mock_user_service.delete_user_profile.assert_called_once_with(

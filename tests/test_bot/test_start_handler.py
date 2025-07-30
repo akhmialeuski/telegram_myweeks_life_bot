@@ -4,7 +4,7 @@ Tests the StartHandler class which handles /start command and user registration.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from telegram.constants import ParseMode
@@ -111,7 +111,6 @@ class TestStartHandler:
         mock_context: MagicMock,
         mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_existing: MagicMock,
-        mock_add_user_to_scheduler: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with valid birth date.
 
@@ -120,7 +119,6 @@ class TestStartHandler:
         :param mock_context: Mock ContextTypes object
         :param mock_start_handler_user_service: Mocked user_service for start handler
         :param mock_generate_message_start_welcome_existing: Mocked generate_message_start_welcome_existing function
-        :param mock_add_user_to_scheduler: Mocked add_user_to_scheduler function
         :returns: None
         """
         # Setup
@@ -131,12 +129,21 @@ class TestStartHandler:
         mock_generate_message_start_welcome_existing.return_value = (
             "Registration successful!"
         )
-        mock_add_user_to_scheduler.return_value = None
 
-        # Execute
-        await handler.handle_birth_date_input(mock_update, mock_context)
+        with patch(
+            "src.bot.handlers.start_handler.add_user_to_scheduler"
+        ) as mock_add_user_to_scheduler:
+            mock_add_user_to_scheduler.return_value = None
 
-        # Assert
+            # Execute
+            await handler.handle_birth_date_input(mock_update, mock_context)
+
+            # Assert scheduler call
+            mock_add_user_to_scheduler.assert_called_once_with(
+                mock_context.bot_data.get.return_value, mock_update.effective_user.id
+            )
+
+        # Assert other functionality
         mock_start_handler_user_service.create_user_profile.assert_called_once_with(
             user_info=mock_update.effective_user, birth_date=birth_date
         )
@@ -320,7 +327,6 @@ class TestStartHandler:
         mock_context: MagicMock,
         mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_existing: MagicMock,
-        mock_add_user_to_scheduler: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with scheduler exception.
 
@@ -329,7 +335,6 @@ class TestStartHandler:
         :param mock_context: Mock ContextTypes object
         :param mock_start_handler_user_service: Mocked user_service for start handler
         :param mock_generate_message_start_welcome_existing: Mocked generate_message_start_welcome_existing function
-        :param mock_add_user_to_scheduler: Mocked add_user_to_scheduler function
         :returns: None
         """
         # Setup
@@ -340,12 +345,16 @@ class TestStartHandler:
         mock_generate_message_start_welcome_existing.return_value = (
             "Registration successful!"
         )
-        mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
-            "Scheduler error", 123, "add_user"
-        )
 
-        # Execute
-        await handler.handle_birth_date_input(mock_update, mock_context)
+        with patch(
+            "src.bot.handlers.start_handler.add_user_to_scheduler"
+        ) as mock_add_user_to_scheduler:
+            mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
+                "Scheduler error", 123, "add_user"
+            )
+
+            # Execute
+            await handler.handle_birth_date_input(mock_update, mock_context)
 
         # Assert
         mock_start_handler_user_service.create_user_profile.assert_called_once_with(
