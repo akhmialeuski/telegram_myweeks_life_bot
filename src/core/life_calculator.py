@@ -4,8 +4,10 @@ This module provides a comprehensive calculator for life-related metrics
 including age, weeks lived, months lived, and remaining time calculations.
 """
 
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Tuple
+
+from dateutil.relativedelta import relativedelta
 
 from ..database.models.user import User
 
@@ -86,9 +88,10 @@ class LifeCalculatorEngine:
     def calculate_months_lived(self) -> int:
         """Calculate total months lived since birth.
 
-        This is an approximation based on weeks lived.
+        Calculates the exact number of calendar months between birth date
+        and current date, considering varying month lengths for precision.
 
-        :returns: Approximate number of months lived
+        :returns: Exact number of months lived
         :rtype: int
 
         Example:
@@ -96,7 +99,8 @@ class LifeCalculatorEngine:
             >>> calculator.calculate_months_lived()
             444
         """
-        return self.calculate_weeks_lived() // 4
+        delta = relativedelta(self.today, self.birth_date)
+        return delta.years * 12 + delta.months
 
     def calculate_years_and_remaining_weeks(self) -> Tuple[int, int]:
         """Calculate years lived and remaining weeks in current year.
@@ -152,6 +156,9 @@ class LifeCalculatorEngine:
     def get_next_birthday(self) -> date:
         """Calculate the next birthday date.
 
+        Handles leap year edge case for February 29 birthdays by using
+        February 28 in non-leap years.
+
         :returns: Date of the next birthday
         :rtype: date
 
@@ -160,15 +167,25 @@ class LifeCalculatorEngine:
             >>> calculator.get_next_birthday()
             datetime.date(2025, 3, 15)
         """
-        next_birthday = date(
-            self.today.year, self.birth_date.month, self.birth_date.day
-        )
+        # Handle February 29 edge case for non-leap years
+        target_day = self.birth_date.day
+        if self.birth_date.month == 2 and self.birth_date.day == 29:
+            # Check if target year is a leap year, if not use February 28
+            if not self._is_leap_year(self.today.year):
+                target_day = 28
+
+        next_birthday = date(self.today.year, self.birth_date.month, target_day)
 
         # If birthday has passed this year, next birthday is next year
         if next_birthday < self.today:
-            next_birthday = date(
-                self.today.year + 1, self.birth_date.month, self.birth_date.day
-            )
+            # Check leap year for next year as well
+            next_year = self.today.year + 1
+            target_day = self.birth_date.day
+            if self.birth_date.month == 2 and self.birth_date.day == 29:
+                if not self._is_leap_year(next_year):
+                    target_day = 28
+
+            next_birthday = date(next_year, self.birth_date.month, target_day)
 
         return next_birthday
 
@@ -213,76 +230,19 @@ class LifeCalculatorEngine:
             "life_expectancy": life_expectancy,
         }
 
-    @classmethod
-    def from_birth_date(cls, birth_date: date) -> "LifeCalculatorEngine":
-        """Create calculator from birth date (for backward compatibility).
+    def _is_leap_year(self, year: int) -> bool:
+        """Check if a given year is a leap year.
 
-        :param birth_date: Birth date
-        :type birth_date: date
-        :returns: LifeCalculatorEngine instance
-        :rtype: LifeCalculatorEngine
-        :raises ValueError: If birth date is invalid
+        :param year: Year to check
+        :type year: int
+        :returns: True if the year is a leap year, False otherwise
+        :rtype: bool
 
         Example:
-            >>> calculator = LifeCalculatorEngine.from_birth_date(date(1990, 3, 15))
-            >>> calculator.calculate_age()
-            34
+            >>> calculator = LifeCalculatorEngine(user_profile)
+            >>> calculator._is_leap_year(year=2024)
+            True
+            >>> calculator._is_leap_year(year=2023)
+            False
         """
-        if not birth_date:
-            raise ValueError("Birth date cannot be None")
-
-        # Create a mock user object for backward compatibility
-        from ..core.enums import WeekDay
-        from ..database.models.user import User
-        from ..database.models.user_settings import UserSettings
-
-        mock_user = User(telegram_id=0, first_name="Mock", created_at=datetime.now(UTC))
-        mock_user.settings = UserSettings(
-            telegram_id=0,
-            birth_date=birth_date,
-            notifications=True,
-            timezone="UTC",
-            notifications_day=WeekDay.MONDAY,
-            notifications_time=datetime.strptime("09:00:00", "%H:%M:%S").time(),
-            updated_at=datetime.now(UTC),
-        )
-        return cls(mock_user)
-
-    @classmethod
-    def from_string(cls, birth_date_str: str) -> "LifeCalculatorEngine":
-        """Create calculator from birth date string.
-
-        :param birth_date_str: Birth date in YYYY-MM-DD format
-        :type birth_date_str: str
-        :returns: LifeCalculatorEngine instance
-        :rtype: LifeCalculatorEngine
-        :raises ValueError: If date string is invalid
-
-        Example:
-            >>> calculator = LifeCalculatorEngine.from_string("1990-03-15")
-            >>> calculator.calculate_age()
-            34
-        """
-        try:
-            birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d").date()
-            return cls.from_birth_date(birth_date)
-        except ValueError as e:
-            raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {e}")
-
-    @classmethod
-    def from_datetime(cls, birth_datetime: datetime) -> "LifeCalculatorEngine":
-        """Create calculator from datetime object.
-
-        :param birth_datetime: Birth datetime object
-        :type birth_datetime: datetime
-        :returns: LifeCalculatorEngine instance
-        :rtype: LifeCalculatorEngine
-
-        Example:
-            >>> from datetime import datetime
-            >>> dt = datetime(1990, 3, 15)
-            >>> calculator = LifeCalculatorEngine.from_datetime(dt)
-            >>> calculator.calculate_age()
-            34
-        """
-        return cls.from_birth_date(birth_datetime.date())
+        return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)

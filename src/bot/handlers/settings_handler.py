@@ -36,11 +36,7 @@ from ...core.messages import (
     generate_message_settings_premium,
     generate_settings_buttons,
 )
-from ...database.service import (
-    UserNotFoundError,
-    UserSettingsUpdateError,
-    user_service,
-)
+from ...database.service import UserNotFoundError, UserSettingsUpdateError, user_service
 from ...utils.config import (
     BOT_NAME,
     MAX_LIFE_EXPECTANCY,

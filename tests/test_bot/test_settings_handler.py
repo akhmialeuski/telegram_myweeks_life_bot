@@ -73,7 +73,6 @@ class TestSettingsHandler:
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
-
             # Setup mocks
             mock_user_service.is_valid_user_profile.return_value = True
             mock_base_user_service.is_valid_user_profile.return_value = True
@@ -131,7 +130,6 @@ class TestSettingsHandler:
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
-
             # Setup mocks
             mock_user_service.is_valid_user_profile.return_value = True
             mock_base_user_service.is_valid_user_profile.return_value = True
@@ -174,7 +172,6 @@ class TestSettingsHandler:
         ) as mock_base_user_service, patch(
             "src.bot.handlers.base_handler.get_message"
         ) as mock_get_message:
-
             # Setup mocks - user not registered
             mock_base_user_service.is_valid_user_profile.return_value = False
             mock_get_message.return_value = "You need to register first!"
@@ -216,11 +213,13 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.user_service"
         ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_basic"
-        ) as mock_generate_basic:
-
+        ) as mock_generate_basic, patch(
+            "src.bot.handlers.base_handler.user_service"
+        ) as mock_base_user_service:
             # Setup mocks
             mock_user_service.is_valid_user_profile.return_value = True
             mock_user_service.get_user_profile.return_value = mock_user_profile
+            mock_base_user_service.is_valid_user_profile.return_value = True
             mock_generate_basic.side_effect = Exception("Test exception")
 
             # Execute
@@ -229,7 +228,11 @@ class TestSettingsHandler:
             # Assert that error message was sent
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
-            assert "Test exception" in call_args.kwargs["text"]
+            # Check if text is in args (positional) or kwargs (named)
+            if call_args.args:
+                assert "Test exception" in call_args.args[0]
+            else:
+                assert "Test exception" in call_args.kwargs["text"]
             assert call_args.kwargs["parse_mode"] == ParseMode.HTML
 
     @pytest.mark.asyncio
@@ -288,7 +291,6 @@ class TestSettingsHandler:
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
-
             mock_generate_msg.return_value = "Change language message"
             mock_button.return_value = MagicMock()
             mock_markup.return_value = MagicMock()
@@ -418,7 +420,6 @@ class TestSettingsHandler:
         ) as mock_update_schedule, patch(
             "src.bot.handlers.settings_handler.generate_message_language_updated"
         ) as mock_generate_msg:
-
             mock_get_lang_name.return_value = "Русский"
             mock_generate_msg.return_value = "Language updated!"
 
@@ -497,7 +498,6 @@ class TestSettingsHandler:
         ) as mock_get_lang_name, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_error"
         ) as mock_generate_error:
-
             mock_get_lang_name.return_value = "English"
             mock_user_service.update_user_settings.side_effect = UserNotFoundError(
                 "User not found"
@@ -593,7 +593,6 @@ class TestSettingsHandler:
         ) as mock_handle_birth_date, patch.object(
             handler, "handle_life_expectancy_input"
         ) as mock_handle_life_expectancy:
-
             # Execute
             await handler.handle_settings_input(mock_update, mock_context)
 
@@ -657,7 +656,6 @@ class TestSettingsHandler:
         ) as mock_generate_msg, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
-
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
             mock_user_service.get_user_profile.return_value = mock_updated_profile
             mock_calc_class.return_value = mock_calculator
@@ -698,7 +696,6 @@ class TestSettingsHandler:
         ) as mock_datetime, patch(
             "src.bot.handlers.settings_handler.date"
         ) as mock_date:
-
             mock_datetime.strptime.return_value.date.return_value = future_date
             mock_date.today.return_value = date(2024, 1, 1)
             mock_generate_error.return_value = "Future date error!"
@@ -737,7 +734,6 @@ class TestSettingsHandler:
         ) as mock_datetime, patch(
             "src.bot.handlers.settings_handler.MIN_BIRTH_YEAR", MIN_BIRTH_YEAR
         ):
-
             mock_datetime.strptime.return_value.date.return_value = old_date
             mock_generate_error.return_value = "Old date error!"
 
@@ -775,7 +771,6 @@ class TestSettingsHandler:
         ) as mock_generate_error, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
-
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
             mock_user_service.update_user_settings.side_effect = UserNotFoundError(
                 "User not found"
@@ -810,7 +805,6 @@ class TestSettingsHandler:
         ) as mock_generate_error, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
-
             mock_datetime.strptime.side_effect = ValueError("Invalid date format")
             mock_generate_error.return_value = "Format error!"
 
@@ -844,7 +838,6 @@ class TestSettingsHandler:
         ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_life_expectancy_updated"
         ) as mock_generate_msg:
-
             mock_generate_msg.return_value = "Life expectancy updated!"
 
             await handler.handle_life_expectancy_input(
@@ -880,7 +873,6 @@ class TestSettingsHandler:
         ), patch(
             "src.bot.handlers.settings_handler.MAX_LIFE_EXPECTANCY", MAX_LIFE_EXPECTANCY
         ):
-
             mock_generate_error.return_value = "Invalid life expectancy!"
 
             # Execute - test with too low value
@@ -913,7 +905,6 @@ class TestSettingsHandler:
         ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_error"
         ) as mock_generate_error:
-
             mock_user_service.update_user_settings.side_effect = (
                 UserSettingsUpdateError("Update failed")
             )

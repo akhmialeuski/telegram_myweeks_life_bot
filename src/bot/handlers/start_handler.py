@@ -24,11 +24,7 @@ from ...core.messages import (
     generate_message_start_welcome_existing,
     generate_message_start_welcome_new,
 )
-from ...database.service import (
-    UserRegistrationError,
-    UserServiceError,
-    user_service,
-)
+from ...database.service import UserRegistrationError, UserServiceError, user_service
 from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
 from ...utils.logger import get_logger
 from ..constants import COMMAND_START

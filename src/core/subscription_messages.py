@@ -9,10 +9,7 @@ import random
 
 from telegram import User as TelegramUser
 
-from ..utils.config import (
-    BUYMEACOFFEE_URL,
-    SUBSCRIPTION_MESSAGE_PROBABILITY,
-)
+from ..utils.config import BUYMEACOFFEE_URL, SUBSCRIPTION_MESSAGE_PROBABILITY
 from ..utils.localization import get_message
 from .enums import SubscriptionType
 

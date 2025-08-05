@@ -7,13 +7,8 @@ to ensure the database schema is up to date.
 
 import subprocess
 import sys
-from pathlib import Path
 
-from database.constants import DEFAULT_DATABASE_PATH
-
-# Add src directory to Python path
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
+from src.database.constants import DEFAULT_DATABASE_PATH
 
 
 def run_command(command: list[str], description: str) -> bool:

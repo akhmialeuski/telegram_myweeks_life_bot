@@ -11,11 +11,7 @@ from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Strin
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.enums import WeekDay
-from ..constants import (
-    MAX_TIMEZONE_LENGTH,
-    USER_SETTINGS_TABLE,
-    USERS_TABLE,
-)
+from ..constants import MAX_TIMEZONE_LENGTH, USER_SETTINGS_TABLE, USERS_TABLE
 from .base import Base
 
 

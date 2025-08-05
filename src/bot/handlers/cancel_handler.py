@@ -13,18 +13,13 @@ The cancel functionality includes:
 from typing import Optional
 
 from telegram import Update
-from telegram.ext import (
-    ContextTypes,
-    ConversationHandler,
-)
+from telegram.ext import ContextTypes, ConversationHandler
 
 from ...core.messages import (
     generate_message_cancel_error,
     generate_message_cancel_success,
 )
-from ...database.service import (
-    user_service,
-)
+from ...database.service import user_service
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_CANCEL

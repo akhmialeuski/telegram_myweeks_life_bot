@@ -24,10 +24,7 @@ from ...core.messages import (
     generate_message_subscription_change_success,
     generate_message_subscription_current,
 )
-from ...database.service import (
-    UserSubscriptionUpdateError,
-    user_service,
-)
+from ...database.service import UserSubscriptionUpdateError, user_service
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_SUBSCRIPTION

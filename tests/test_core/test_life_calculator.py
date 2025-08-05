@@ -317,53 +317,442 @@ class TestLifeCalculatorEngine:
         with pytest.raises(ValueError, match="User must have a valid birth date"):
             LifeCalculatorEngine(user)
 
-    def test_from_birth_date_classmethod(self):
-        """Test creating calculator from birth date.
+
+class TestLeapYearHandling:
+    """Test suite for leap year edge case handling in LifeCalculatorEngine."""
+
+    @pytest.fixture
+    def february_29_user(self) -> Mock:
+        """Create a user with February 29 birth date.
+
+        :returns: User with February 29 birth date
+        :rtype: Mock
+        """
+        user: Mock = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(1996, 2, 29)  # Leap year birth
+        return user
+
+    @pytest.fixture
+    def february_29_calculator(self, february_29_user: Mock) -> LifeCalculatorEngine:
+        """Create LifeCalculatorEngine instance for February 29 birth date.
+
+        :param february_29_user: User with February 29 birth date
+        :type february_29_user: Mock
+        :returns: LifeCalculatorEngine instance
+        :rtype: LifeCalculatorEngine
+        """
+        return LifeCalculatorEngine(february_29_user)
+
+    def test_is_leap_year_helper_method(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test the _is_leap_year helper method.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Test leap years
+        assert (
+            february_29_calculator._is_leap_year(year=2000) is True
+        )  # Century leap year
+        assert (
+            february_29_calculator._is_leap_year(year=2024) is True
+        )  # Regular leap year
+        assert (
+            february_29_calculator._is_leap_year(year=1996) is True
+        )  # Regular leap year
+
+        # Test non-leap years
+        assert february_29_calculator._is_leap_year(year=2023) is False  # Regular year
+        assert february_29_calculator._is_leap_year(year=2025) is False  # Regular year
+        assert (
+            february_29_calculator._is_leap_year(year=2100) is False
+        )  # Century non-leap year
+        assert (
+            february_29_calculator._is_leap_year(year=1900) is False
+        )  # Century non-leap year
+
+    def test_get_next_birthday_february_29_in_leap_year(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation for February 29 in a leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to 2024 (leap year) before February 29
+        february_29_calculator.today = date(2024, 1, 15)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # Should return February 29, 2024 (leap year)
+        assert next_birthday == date(2024, 2, 29)
+
+    def test_get_next_birthday_february_29_in_non_leap_year(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation for February 29 in a non-leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to 2023 (non-leap year) before February 28
+        february_29_calculator.today = date(2023, 1, 15)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # Should return February 28, 2023 (fallback for non-leap year)
+        assert next_birthday == date(2023, 2, 28)
+
+    def test_get_next_birthday_february_29_passed_this_year_leap(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation when February 29 has passed in leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to 2024 (leap year) after February 29
+        february_29_calculator.today = date(2024, 3, 15)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # Should return February 28, 2025 (next year, not leap year)
+        assert next_birthday == date(2025, 2, 28)
+
+    def test_get_next_birthday_february_29_passed_this_year_non_leap(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation when February 29 has passed in non-leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to 2023 (non-leap year) after February 28
+        february_29_calculator.today = date(2023, 3, 15)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # Should return February 29, 2024 (next leap year)
+        assert next_birthday == date(2024, 2, 29)
+
+    def test_get_next_birthday_february_29_on_birthday_leap_year(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation on February 29 in leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to February 29, 2024 (leap year)
+        february_29_calculator.today = date(2024, 2, 29)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # When today is the birthday, next birthday is today (same day)
+        # Should return February 29, 2024 (same day)
+        assert next_birthday == date(2024, 2, 29)
+
+    def test_get_next_birthday_february_29_on_birthday_non_leap_year(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test next birthday calculation on February 28 in non-leap year.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to February 28, 2023 (non-leap year, fallback date)
+        february_29_calculator.today = date(2023, 2, 28)
+
+        next_birthday: date = february_29_calculator.get_next_birthday()
+
+        # When today is the birthday, next birthday is today (same day)
+        # Should return February 28, 2023 (same day)
+        assert next_birthday == date(2023, 2, 28)
+
+    def test_days_until_next_birthday_february_29_edge_case(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test days until next birthday for February 29 edge case.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to February 27, 2023 (non-leap year)
+        february_29_calculator.today = date(2023, 2, 27)
+
+        days: int = february_29_calculator.days_until_next_birthday()
+
+        # Should be 1 day until February 28, 2023
+        assert days == 1
+
+    def test_life_statistics_with_february_29_birthday(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test life statistics calculation with February 29 birthday.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Set today to 2023 (non-leap year)
+        february_29_calculator.today = date(2023, 1, 15)
+
+        stats: dict = february_29_calculator.get_life_statistics(80)
+
+        # Verify that next_birthday is properly calculated
+        assert "next_birthday" in stats
+        assert stats["next_birthday"] == date(2023, 2, 28)  # Fallback to February 28
+
+        # Verify that days_until_birthday is calculated correctly
+        assert "days_until_birthday" in stats
+        assert isinstance(stats["days_until_birthday"], int)
+        assert stats["days_until_birthday"] > 0
+
+    def test_century_leap_year_edge_cases(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test century leap year edge cases (1900, 2000, 2100).
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Test 2000 (century leap year - should be leap year)
+        assert february_29_calculator._is_leap_year(year=2000) is True
+
+        # Test 1900 (century non-leap year - should not be leap year)
+        assert february_29_calculator._is_leap_year(year=1900) is False
+
+        # Test 2100 (century non-leap year - should not be leap year)
+        assert february_29_calculator._is_leap_year(year=2100) is False
+
+    def test_february_29_birthday_in_century_transition(
+        self, february_29_calculator: LifeCalculatorEngine
+    ) -> None:
+        """Test February 29 birthday handling during century transitions.
+
+        :param february_29_calculator: LifeCalculatorEngine instance
+        :type february_29_calculator: LifeCalculatorEngine
+        :returns: None
+        """
+        # Test transition from 2000 (leap year) to 2001 (non-leap year)
+        february_29_calculator.today = date(2000, 12, 31)
+        next_birthday: date = february_29_calculator.get_next_birthday()
+        assert next_birthday == date(2001, 2, 28)  # 2001 is not a leap year
+
+        # Test transition from 2099 (non-leap year) to 2100 (non-leap year)
+        february_29_calculator.today = date(2099, 12, 31)
+        next_birthday = february_29_calculator.get_next_birthday()
+        assert next_birthday == date(2100, 2, 28)  # 2100 is not a leap year
+
+
+class TestImprovedMonthsCalculation:
+    """Test suite for improved months calculation accuracy."""
+
+    def test_exact_month_calculation_same_day(self):
+        """Test exact month calculation when current day matches birth day.
 
         :returns: None
         """
-        birth_date = date(1990, 3, 15)
-        calculator = LifeCalculatorEngine.from_birth_date(birth_date)
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 1, 15)
 
-        assert isinstance(calculator, LifeCalculatorEngine)
-        assert calculator.birth_date == birth_date
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 1, 15)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
 
-    def test_from_string_classmethod(self):
-        """Test creating calculator from date string.
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
 
-        :returns: None
-        """
-        date_string = "1990-03-15"
-        calculator = LifeCalculatorEngine.from_string(date_string)
+            # Exactly 12 months
+            assert months == 12
 
-        assert isinstance(calculator, LifeCalculatorEngine)
-        assert calculator.birth_date == date(1990, 3, 15)
-
-    def test_from_string_invalid_format(self):
-        """Test creating calculator from invalid date string.
+    def test_exact_month_calculation_different_day(self):
+        """Test exact month calculation when current day differs from birth day.
 
         :returns: None
         """
-        with pytest.raises(ValueError, match="Invalid date format. Use YYYY-MM-DD"):
-            LifeCalculatorEngine.from_string("invalid-date-format")
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 1, 15)
 
-    def test_from_birth_date_none(self):
-        """Test creating calculator from None birth date.
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 1, 20)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Still 12 months (calendar months, not partial)
+            assert months == 12
+
+    def test_exact_month_calculation_partial_month(self):
+        """Test exact month calculation for partial month.
 
         :returns: None
         """
-        with pytest.raises(ValueError, match="Birth date cannot be None"):
-            LifeCalculatorEngine.from_birth_date(None)
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 1, 15)
 
-    def test_from_datetime_classmethod(self):
-        """Test creating calculator from datetime.
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2023, 2, 10)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Less than 1 month, should be 0
+            assert months == 0
+
+    def test_exact_month_calculation_varying_month_lengths(self):
+        """Test exact month calculation with varying month lengths.
 
         :returns: None
         """
-        from datetime import datetime
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 1, 31)  # January 31
 
-        birth_datetime = datetime(1990, 3, 15, 10, 30, 0)
-        calculator = LifeCalculatorEngine.from_datetime(birth_datetime)
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(
+                2023, 2, 28
+            )  # February 28 (non-leap year)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
 
-        assert isinstance(calculator, LifeCalculatorEngine)
-        assert calculator.birth_date == date(1990, 3, 15)
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Should be 1 month (calendar month difference)
+            assert months == 1
+
+    def test_exact_month_calculation_leap_year_february(self):
+        """Test exact month calculation with leap year February.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 1, 31)  # January 31
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 2, 29)  # February 29 (leap year)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Should be 13 months (1 year + 1 month)
+            assert months == 13
+
+    def test_exact_month_calculation_multi_year(self):
+        """Test exact month calculation over multiple years.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2020, 6, 15)
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 6, 15)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Exactly 4 years = 48 months
+            assert months == 48
+
+    def test_exact_month_calculation_edge_case_month_end(self):
+        """Test exact month calculation for month end edge cases.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2023, 3, 31)  # March 31
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2023, 4, 30)  # April 30
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Should be 1 month (calendar month difference)
+            assert months == 1
+
+    def test_exact_month_calculation_compared_to_old_method(self):
+        """Test that new method is more accurate than old approximation.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2020, 1, 15)
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 6, 15)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            new_months = calculator.calculate_months_lived()
+
+            # Calculate what old method would have returned
+            days_lived = calculator.calculate_days_lived()
+            old_months = days_lived // 7 // 4  # Old approximation
+
+            # New method should be more accurate
+            assert new_months != old_months
+            # New method should be closer to actual calendar months
+            assert abs(new_months - 53) <= 1  # Around 4 years + 5 months = 53 months
+
+    def test_exact_month_calculation_newborn(self):
+        """Test exact month calculation for newborn.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2024, 6, 15)
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 6, 20)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Less than 1 month, should be 0
+            assert months == 0
+
+    def test_exact_month_calculation_exactly_one_month(self):
+        """Test exact month calculation for exactly one month.
+
+        :returns: None
+        """
+        user = Mock()
+        user.settings = Mock()
+        user.settings.birth_date = date(2024, 5, 15)
+
+        with patch("src.core.life_calculator.date") as mock_date:
+            mock_date.today.return_value = date(2024, 6, 15)
+            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
+
+            calculator = LifeCalculatorEngine(user)
+            months = calculator.calculate_months_lived()
+
+            # Exactly 1 month
+            assert months == 1

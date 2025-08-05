@@ -29,8 +29,11 @@ def main() -> None:
     :returns: None
     :raises RuntimeError: If bot initialization or startup fails
     """
-    bot = LifeWeeksBot()
-    bot.start()
+    try:
+        bot = LifeWeeksBot()
+        bot.start()
+    except Exception as error:  # pylint: disable=broad-exception-caught
+        raise RuntimeError(f"Failed to initialize or start bot: {error}") from error
 
 
 if __name__ == "__main__":

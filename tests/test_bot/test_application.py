@@ -5,11 +5,7 @@ from types import SimpleNamespace
 from typing import List, Type
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from telegram.ext import (
-    CallbackQueryHandler,
-    CommandHandler,
-    MessageHandler,
-)
+from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
 from src.bot.application import HANDLERS, LifeWeeksBot
 from src.bot.constants import (

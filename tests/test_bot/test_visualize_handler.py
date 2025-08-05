@@ -129,7 +129,6 @@ class TestVisualizeHandler:
         ) as mock_generate_viz, patch(
             "src.bot.handlers.visualize_handler.generate_message_visualize"
         ) as mock_generate_msg:
-
             # Setup mocks
             mock_base_user_service.is_valid_user_profile.return_value = True
             mock_base_user_service.get_user_profile.return_value = MagicMock()

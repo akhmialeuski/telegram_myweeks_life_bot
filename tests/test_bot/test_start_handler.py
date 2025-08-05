@@ -12,10 +12,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_START
 from src.bot.handlers.start_handler import StartHandler
 from src.bot.scheduler import SchedulerOperationError
-from src.database.service import (
-    UserRegistrationError,
-    UserServiceError,
-)
+from src.database.service import UserRegistrationError, UserServiceError
 
 
 class TestStartHandler:

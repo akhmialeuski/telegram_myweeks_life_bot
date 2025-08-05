@@ -10,10 +10,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_CANCEL
 from src.bot.handlers.cancel_handler import CancelHandler
-from src.database.service import (
-    UserDeletionError,
-    UserServiceError,
-)
+from src.database.service import UserDeletionError, UserServiceError
 from src.utils.localization import SupportedLanguage
 from tests.conftest import TEST_USER_ID
 
@@ -66,19 +63,33 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
         ) as mock_user_service, patch(
+            "src.bot.handlers.base_handler.user_service"
+        ) as mock_base_user_service, patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
             "src.bot.handlers.cancel_handler.generate_message_cancel_success"
         ) as mock_generate_success:
+            # Create mock user profile
+            mock_user_profile = MagicMock()
+            mock_user_profile.user = mock_update.effective_user
+            mock_user_profile.settings = MagicMock()
+            mock_user_profile.settings.birth_date = MagicMock()
 
             mock_user_service.is_valid_user_profile.return_value = True
+            mock_user_service.get_user_profile.return_value = mock_user_profile
+            mock_base_user_service.is_valid_user_profile.return_value = True
             mock_user_service.delete_user_profile.return_value = None
             mock_remove_scheduler.return_value = None
             mock_generate_success.return_value = "Account deleted successfully!"
 
+            # Configure mock_context.bot_data.get to return a scheduler mock
+            mock_scheduler = MagicMock()
+            mock_context.bot_data.get.return_value = mock_scheduler
+
             await handler.handle(mock_update, mock_context)
 
             # Verify that remove_user_from_scheduler was called with scheduler and user_id
+            # Note: remove_user_from_scheduler is only called if scheduler exists in bot_data
             mock_remove_scheduler.assert_called_once_with(
                 mock_context.bot_data.get.return_value, mock_update.effective_user.id
             )
@@ -117,17 +128,30 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
         ) as mock_user_service, patch(
+            "src.bot.handlers.base_handler.user_service"
+        ) as mock_base_user_service, patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
             "src.bot.handlers.cancel_handler.generate_message_cancel_error"
         ) as mock_generate_error:
+            # Create mock user profile
+            mock_user_profile = MagicMock()
+            mock_user_profile.user = mock_update.effective_user
+            mock_user_profile.settings = MagicMock()
+            mock_user_profile.settings.birth_date = MagicMock()
 
             mock_user_service.is_valid_user_profile.return_value = True
+            mock_user_service.get_user_profile.return_value = mock_user_profile
+            mock_base_user_service.is_valid_user_profile.return_value = True
             mock_user_service.delete_user_profile.side_effect = UserDeletionError(
                 "Delete failed"
             )
             mock_remove_scheduler.return_value = None
             mock_generate_error.return_value = "Error deleting account!"
+
+            # Configure mock_context.bot_data.get to return a scheduler mock
+            mock_scheduler = MagicMock()
+            mock_context.bot_data.get.return_value = mock_scheduler
 
             await handler.handle(mock_update, mock_context)
 
@@ -163,17 +187,30 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
         ) as mock_user_service, patch(
+            "src.bot.handlers.base_handler.user_service"
+        ) as mock_base_user_service, patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
             "src.bot.handlers.cancel_handler.generate_message_cancel_error"
         ) as mock_generate_error:
+            # Create mock user profile
+            mock_user_profile = MagicMock()
+            mock_user_profile.user = mock_update.effective_user
+            mock_user_profile.settings = MagicMock()
+            mock_user_profile.settings.birth_date = MagicMock()
 
             mock_user_service.is_valid_user_profile.return_value = True
+            mock_user_service.get_user_profile.return_value = mock_user_profile
+            mock_base_user_service.is_valid_user_profile.return_value = True
             mock_user_service.delete_user_profile.side_effect = UserServiceError(
                 "Service error"
             )
             mock_remove_scheduler.return_value = None
             mock_generate_error.return_value = "Service error occurred!"
+
+            # Configure mock_context.bot_data.get to return a scheduler mock
+            mock_scheduler = MagicMock()
+            mock_context.bot_data.get.return_value = mock_scheduler
 
             await handler.handle(mock_update, mock_context)
 
@@ -209,12 +246,21 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.user_service"
         ) as mock_user_service, patch(
+            "src.bot.handlers.base_handler.user_service"
+        ) as mock_base_user_service, patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
             "src.bot.handlers.cancel_handler.generate_message_cancel_error"
         ) as mock_generate_error:
+            # Create mock user profile
+            mock_user_profile = MagicMock()
+            mock_user_profile.user = mock_update.effective_user
+            mock_user_profile.settings = MagicMock()
+            mock_user_profile.settings.birth_date = MagicMock()
 
             mock_user_service.is_valid_user_profile.return_value = True
+            mock_user_service.get_user_profile.return_value = mock_user_profile
+            mock_base_user_service.is_valid_user_profile.return_value = True
             mock_user_service.delete_user_profile.return_value = None
             mock_generate_error.return_value = "Scheduler error occurred!"
             from src.bot.scheduler import SchedulerOperationError
@@ -224,6 +270,10 @@ class TestCancelHandler:
                 user_id=TEST_USER_ID,
                 operation="remove_user",
             )
+
+            # Configure mock_context.bot_data.get to return a scheduler mock
+            mock_scheduler = MagicMock()
+            mock_context.bot_data.get.return_value = mock_scheduler
 
             await handler.handle(mock_update, mock_context)
 
