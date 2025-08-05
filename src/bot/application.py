@@ -20,6 +20,7 @@ from telegram.ext import (
     filters,
 )
 
+from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .constants import (
@@ -133,6 +134,7 @@ class LifeWeeksBot:
         self._handler_instances = {}
         self._text_input_handlers = {}
         self._waiting_states = {}
+        self.services = ServiceContainer()
         logger.info("Initializing LifeWeeksBot")
 
     def setup(self) -> None:
@@ -219,9 +221,9 @@ class LifeWeeksBot:
 
         # Collect all handler instances and text input methods automatically from HANDLERS
         for command, config in HANDLERS.items():
-            # Get handler class and create instance
+            # Get handler class and create instance with services
             handler_class = config["class"]
-            handler_instance = handler_class()
+            handler_instance = handler_class(self.services)
             self._handler_instances[command] = handler_instance
 
             # Register command handler
@@ -311,7 +313,7 @@ class LifeWeeksBot:
 
         :returns: None
         """
-        unknown_handler = UnknownHandler()
+        unknown_handler = UnknownHandler(self.services)
 
         # Register universal handler for all messages and commands
         # This will catch everything that wasn't handled by other handlers

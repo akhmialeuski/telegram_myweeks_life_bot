@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_unknown_command
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_UNKNOWN
@@ -31,12 +32,15 @@ class UnknownHandler(BaseHandler):
         command_name: Name of this handler for logging purposes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the unknown message handler.
 
         Sets up the handler name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_UNKNOWN}"
 
     async def handle(

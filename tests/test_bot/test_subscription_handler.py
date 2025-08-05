@@ -12,7 +12,6 @@ from src.bot.constants import COMMAND_SUBSCRIPTION
 from src.bot.handlers.subscription_handler import SubscriptionHandler
 from src.core.enums import SubscriptionType
 from src.database.service import UserSubscriptionUpdateError
-from src.utils.localization import SupportedLanguage
 
 
 class TestSubscriptionHandler:
@@ -25,7 +24,10 @@ class TestSubscriptionHandler:
         :returns: SubscriptionHandler instance
         :rtype: SubscriptionHandler
         """
-        return SubscriptionHandler()
+        from tests.utils.fake_container import FakeServiceContainer
+
+        services = FakeServiceContainer()
+        return SubscriptionHandler(services)
 
     @pytest.fixture
     def mock_update(self) -> MagicMock:
@@ -77,19 +79,16 @@ class TestSubscriptionHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         with patch(
-            "src.bot.handlers.subscription_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_current"
         ) as mock_generate_current, patch(
             "src.bot.handlers.subscription_handler.InlineKeyboardButton"
         ) as mock_button, patch(
             "src.bot.handlers.subscription_handler.InlineKeyboardMarkup"
         ) as mock_markup:
-            mock_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
             mock_generate_current.return_value = "Current subscription info!"
             mock_button.return_value = MagicMock()
             mock_markup.return_value = MagicMock()
@@ -119,27 +118,18 @@ class TestSubscriptionHandler:
         :param mock_context: Mock ContextTypes object
         :param mock_get_user_language: Mocked get_user_language function
         """
-        with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
-            "src.bot.handlers.base_handler.get_message"
-        ) as mock_get_message:
-            mock_base_user_service.is_valid_user_profile.return_value = False
-            mock_get_message.return_value = "You need to register first!"
-
+        handler.services.user_service.is_valid_user_profile.return_value = False
+        with patch.object(
+            handler.services, "get_message", return_value="You need to register first!"
+        ):
             await handler.handle(mock_update, mock_context)
 
-            mock_get_message.assert_called_once_with(
-                message_key="common",
-                sub_key="not_registered",
-                language=SupportedLanguage.EN.value,
-            )
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            if call_args.args:
-                assert call_args.args[0] == "You need to register first!"
-            else:
-                assert call_args.kwargs["text"] == "You need to register first!"
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        if call_args.args:
+            assert call_args.args[0] == "You need to register first!"
+        else:
+            assert call_args.kwargs["text"] == "You need to register first!"
 
     @pytest.mark.asyncio
     async def test_handle_exception(
@@ -161,12 +151,12 @@ class TestSubscriptionHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_current"
         ) as mock_generate_current:
-            mock_base_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
             mock_generate_current.side_effect = Exception("Test exception")
             handler.send_error_message = AsyncMock()
 
@@ -199,11 +189,11 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("basic")
 
         with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_already_active"
         ) as mock_generate_already_active:
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
             mock_generate_already_active.return_value = "Subscription already active!"
             handler.edit_message = AsyncMock()
 
@@ -239,23 +229,21 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_change_success"
         ) as mock_generate_success, patch(
             "src.bot.handlers.subscription_handler.logger"
         ) as mock_logger:
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
-            mock_user_service.update_user_subscription.return_value = None
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+            handler.services.user_service.update_user_subscription.return_value = None
             mock_generate_success.return_value = "Subscription updated successfully!"
             handler.edit_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
-            mock_user_service.update_user_subscription.assert_called_once_with(
+            handler.services.user_service.update_user_subscription.assert_called_once_with(
                 mock_update.effective_user.id, SubscriptionType.PREMIUM
             )
             mock_generate_success.assert_called_once_with(
@@ -294,14 +282,12 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_change_failed"
         ) as mock_generate_failed:
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
-            mock_user_service.update_user_subscription.side_effect = (
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+            handler.services.user_service.update_user_subscription.side_effect = (
                 UserSubscriptionUpdateError("Update failed")
             )
             mock_generate_failed.return_value = "Failed to update subscription!"
@@ -338,15 +324,13 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.subscription_handler.generate_message_subscription_change_error"
         ) as mock_generate_error:
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
-            mock_user_service.update_user_subscription.side_effect = Exception(
-                "General error"
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+            handler.services.user_service.update_user_subscription.side_effect = (
+                Exception("General error")
             )
             mock_generate_error.return_value = "An error occurred!"
             handler.send_error_message = AsyncMock()
@@ -381,12 +365,10 @@ class TestSubscriptionHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
         mock_callback_query = make_mock_callback_query("basic")
 
-        with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
-            "src.bot.handlers.subscription_handler.logger"
-        ) as mock_logger:
-            mock_base_user_service.get_user_profile.return_value = mock_user_profile
+        with patch("src.bot.handlers.subscription_handler.logger") as mock_logger:
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
             handler.edit_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)

@@ -137,28 +137,29 @@ def mock_user_service(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("src.bot.scheduler.user_service")
 
 
-@pytest.fixture
-def mock_start_handler_user_service(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked user_service for start handler testing.
+# These fixtures are no longer needed as we use FakeServiceContainer
+# @pytest.fixture
+# def mock_start_handler_user_service(mocker: MockerFixture) -> MagicMock:
+#     """Provides a mocked user_service for start handler testing.
 
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked user_service instance for start handler
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.handlers.start_handler.user_service")
+#     :param mocker: Pytest mocker fixture
+#     :type mocker: MockerFixture
+#     :returns: Mocked user_service instance for start handler
+#     :rtype: MagicMock
+#     """
+#     return mocker.patch("src.bot.handlers.start_handler.user_service")
 
 
-@pytest.fixture
-def mock_base_handler_user_service(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked user_service for base handler testing.
+# @pytest.fixture
+# def mock_base_handler_user_service(mocker: MockerFixture) -> MagicMock:
+#     """Provides a mocked user_service for base handler testing.
 
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked user_service instance for base handler
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.handlers.base_handler.user_service")
+#     :param mocker: Pytest mocker fixture
+#     :type mocker: MockerFixture
+#     :returns: Mocked user_service instance for base handler
+#     :rtype: MagicMock
+#     """
+#     return mocker.patch("src.bot.handlers.base_handler.user_service")
 
 
 @pytest.fixture
@@ -214,7 +215,7 @@ def mock_handlers(mocker: MockerFixture) -> dict:
     handler_instance = MagicMock(handle=MagicMock())
     return {
         "test_cmd": {
-            "class": lambda: handler_instance,
+            "class": lambda services=None: handler_instance,
             "callbacks": [],
             "message_handler": True,
         }
@@ -367,7 +368,7 @@ def mock_get_message(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked get_message function
     :rtype: MagicMock
     """
-    return mocker.patch("src.bot.handlers.base_handler.get_message")
+    return mocker.patch("src.utils.localization.get_message")
 
 
 @pytest.fixture

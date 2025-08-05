@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_WEEKS
 from src.bot.handlers.weeks_handler import WeeksHandler
 from src.utils.localization import SupportedLanguage
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestWeeksHandler:
@@ -23,7 +24,8 @@ class TestWeeksHandler:
         :returns: WeeksHandler instance
         :rtype: WeeksHandler
         """
-        return WeeksHandler()
+        services = FakeServiceContainer()
+        return WeeksHandler(services)
 
     def test_handler_creation(self, handler: WeeksHandler) -> None:
         """Test WeeksHandler creation.
@@ -40,7 +42,6 @@ class TestWeeksHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
         mock_user_profile: MagicMock,
-        mock_base_handler_user_service: MagicMock,
         mock_generate_message_week: MagicMock,
         mock_get_user_language: MagicMock,
     ) -> None:
@@ -56,8 +57,8 @@ class TestWeeksHandler:
         :returns: None
         """
         # Setup
-        mock_base_handler_user_service.is_valid_user_profile.return_value = True
-        mock_base_handler_user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
         mock_generate_message_week.return_value = "You have lived 1234 weeks!"
         mock_get_user_language.return_value = SupportedLanguage.EN.value
 
@@ -76,7 +77,6 @@ class TestWeeksHandler:
         handler: WeeksHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_base_handler_user_service: MagicMock,
         mock_get_message: MagicMock,
         mock_get_user_language: MagicMock,
     ) -> None:
@@ -91,15 +91,14 @@ class TestWeeksHandler:
         :returns: None
         """
         # Setup
-        mock_base_handler_user_service.is_valid_user_profile.return_value = False
+        handler.services.user_service.is_valid_user_profile.return_value = False
         mock_get_user_language.return_value = SupportedLanguage.EN.value
-        mock_get_message.return_value = "Please register first!"
+        mock_get_message.return_value = "Mock message: common.not_registered (en)"
 
         # Execute
         await handler.handle(mock_update, mock_context)
 
         # Assert
-        mock_get_message.assert_called_once()
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args
-        assert call_args.args[0] == "Please register first!"
+        assert call_args.args[0] == "Mock message: common.not_registered (en)"

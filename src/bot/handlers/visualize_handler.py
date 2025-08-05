@@ -18,6 +18,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ...core.messages import generate_message_visualize
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ...visualization.grid import generate_visualization
@@ -39,12 +40,15 @@ class VisualizeHandler(BaseHandler):
         command_name: Name of the command this handler processes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the visualize handler.
 
         Sets up the command name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_VISUALIZE}"
 
     async def handle(

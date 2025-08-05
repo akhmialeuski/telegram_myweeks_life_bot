@@ -24,7 +24,8 @@ from ...core.messages import (
     generate_message_subscription_change_success,
     generate_message_subscription_current,
 )
-from ...database.service import UserSubscriptionUpdateError, user_service
+from ...database.service import UserSubscriptionUpdateError
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_SUBSCRIPTION
@@ -45,12 +46,15 @@ class SubscriptionHandler(BaseHandler):
         command_name: Name of the command this handler processes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the subscription handler.
 
         Sets up the command name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_SUBSCRIPTION}"
 
     async def handle(
@@ -172,7 +176,7 @@ class SubscriptionHandler(BaseHandler):
                 return
 
             # Update subscription in database
-            user_service.update_user_subscription(
+            self.services.user_service.update_user_subscription(
                 user_id,
                 new_subscription_type,
             )

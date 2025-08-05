@@ -3,7 +3,7 @@
 Tests the BaseHandler class which provides common functionality.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from telegram import CallbackQuery, InlineKeyboardMarkup
@@ -12,6 +12,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_HELP, COMMAND_START, COMMAND_WEEKS
 from src.bot.handlers.base_handler import BaseHandler, CommandContext
 from src.utils.localization import SupportedLanguage
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestBaseHandler:
@@ -31,7 +32,8 @@ class TestBaseHandler:
         :returns: ConcreteHandler instance
         :rtype: ConcreteHandler
         """
-        return self.ConcreteHandler()
+        services = FakeServiceContainer()
+        return self.ConcreteHandler(services)
 
     def test_init_default_values(self, handler: ConcreteHandler) -> None:
         """Test BaseHandler initialization with default values.
@@ -143,10 +145,15 @@ class TestBaseHandler:
         )
 
     def test_extract_command_context(
-        self, mock_update: MagicMock, mock_get_user_language: MagicMock
+        self,
+        handler: ConcreteHandler,
+        mock_update: MagicMock,
+        mock_get_user_language: MagicMock,
     ) -> None:
         """Test _extract_command_context method.
 
+        :param handler: ConcreteHandler instance
+        :type handler: ConcreteHandler
         :param mock_update: Mock Update object
         :type mock_update: MagicMock
         :param mock_get_user_language: Mocked get_user_language function
@@ -156,15 +163,13 @@ class TestBaseHandler:
         """
         mock_get_user_language.return_value = SupportedLanguage.EN.value
         mock_user_profile = MagicMock()
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
-        with patch("src.bot.handlers.base_handler.user_service") as mock_user_service:
-            mock_user_service.get_user_profile.return_value = mock_user_profile
+        result = handler._extract_command_context(mock_update)
 
-            result = BaseHandler._extract_command_context(mock_update)
-
-            assert isinstance(result, CommandContext)
-            assert result.user == mock_update.effective_user
-            assert result.user_id == mock_update.effective_user.id
-            assert result.language == SupportedLanguage.EN.value
-            assert result.user_profile == mock_user_profile
-            assert result.command_name is None
+        assert isinstance(result, CommandContext)
+        assert result.user == mock_update.effective_user
+        assert result.user_id == mock_update.effective_user.id
+        assert result.language == SupportedLanguage.EN.value
+        assert result.user_profile == mock_user_profile
+        assert result.command_name is None

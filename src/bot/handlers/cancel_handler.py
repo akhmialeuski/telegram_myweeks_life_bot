@@ -19,7 +19,7 @@ from ...core.messages import (
     generate_message_cancel_error,
     generate_message_cancel_success,
 )
-from ...database.service import user_service
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_CANCEL
@@ -41,12 +41,15 @@ class CancelHandler(BaseHandler):
         command_name: Name of the command this handler processes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the cancel handler.
 
         Sets up the command name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_CANCEL}"
 
     async def handle(
@@ -121,7 +124,7 @@ class CancelHandler(BaseHandler):
             logger.info(
                 f"{self.command_name}: [{user_id}]: Deleting user profile and all associated data"
             )
-            user_service.delete_user_profile(telegram_id=user_id)
+            self.services.user_service.delete_user_profile(telegram_id=user_id)
             logger.info(
                 f"{self.command_name}: [{user_id}]: User data deleted successfully"
             )

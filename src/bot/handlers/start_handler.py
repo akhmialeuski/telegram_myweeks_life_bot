@@ -24,7 +24,8 @@ from ...core.messages import (
     generate_message_start_welcome_existing,
     generate_message_start_welcome_new,
 )
-from ...database.service import UserRegistrationError, UserServiceError, user_service
+from ...database.service import UserRegistrationError, UserServiceError
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
 from ...utils.logger import get_logger
 from ..constants import COMMAND_START
@@ -45,12 +46,15 @@ class StartHandler(BaseHandler):
         command_name: Name of the command this handler processes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the start handler.
 
         Sets up the command name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_START}"
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -83,7 +87,7 @@ class StartHandler(BaseHandler):
         logger.info(f"{self.command_name}: [{user_id}]: User started the bot")
 
         # Check if user has already completed registration
-        if user_service.is_valid_user_profile(user_id):
+        if self.services.user_service.is_valid_user_profile(user_id):
             # User is already registered - send welcome back message
             await self.send_message(
                 update=update,
@@ -161,7 +165,9 @@ class StartHandler(BaseHandler):
                 return
 
             # Attempt to create user profile in the database
-            user_service.create_user_profile(user_info=user, birth_date=birth_date)
+            self.services.user_service.create_user_profile(
+                user_info=user, birth_date=birth_date
+            )
 
             # Add user to notification scheduler
             try:

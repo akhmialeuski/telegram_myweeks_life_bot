@@ -9,6 +9,7 @@ import pytest
 
 from src.bot.handlers.visualize_handler import VisualizeHandler
 from src.utils.localization import SupportedLanguage
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestVisualizeHandler:
@@ -21,7 +22,8 @@ class TestVisualizeHandler:
         :returns: VisualizeHandler instance
         :rtype: VisualizeHandler
         """
-        return VisualizeHandler()
+        services = FakeServiceContainer()
+        return VisualizeHandler(services)
 
     def test_handler_creation(self, handler: VisualizeHandler) -> None:
         """Test VisualizeHandler creation.
@@ -43,30 +45,25 @@ class TestVisualizeHandler:
         :returns: None
         """
         # Setup
-        with patch("src.bot.handlers.base_handler.user_service") as mock_user_service:
+        with patch(
+            "src.bot.handlers.visualize_handler.generate_message_visualize"
+        ) as mock_generate_message:
             with patch(
-                "src.bot.handlers.visualize_handler.generate_message_visualize"
-            ) as mock_generate_message:
-                with patch(
-                    "src.bot.handlers.visualize_handler.generate_visualization"
-                ) as mock_generate_visualization:
-                    mock_user_service.is_valid_user_profile.return_value = True
-                    mock_user_service.get_user_profile.return_value = Mock()
-                    mock_generate_message.return_value = (
-                        "Here's your life visualization!"
-                    )
-                    mock_generate_visualization.return_value = Mock()
+                "src.bot.handlers.visualize_handler.generate_visualization"
+            ) as mock_generate_visualization:
+                handler.services.user_service.is_valid_user_profile.return_value = True
+                handler.services.user_service.get_user_profile.return_value = Mock()
+                mock_generate_message.return_value = "Here's your life visualization!"
+                mock_generate_visualization.return_value = Mock()
 
-                    # Execute
-                    await handler.handle(mock_update, mock_context)
+                # Execute
+                await handler.handle(mock_update, mock_context)
 
-                    # Assert
-                    mock_update.message.reply_photo.assert_called_once()
-                    call_args = mock_update.message.reply_photo.call_args
-                    assert (
-                        call_args.kwargs["caption"] == "Here's your life visualization!"
-                    )
-                    assert call_args.kwargs["parse_mode"] == "HTML"
+                # Assert
+                mock_update.message.reply_photo.assert_called_once()
+                call_args = mock_update.message.reply_photo.call_args
+                assert call_args.kwargs["caption"] == "Here's your life visualization!"
+                assert call_args.kwargs["parse_mode"] == "HTML"
 
     @pytest.mark.asyncio
     async def test_handle_not_registered(
@@ -74,7 +71,6 @@ class TestVisualizeHandler:
         handler: VisualizeHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_base_handler_user_service: MagicMock,
         mock_get_user_language: MagicMock,
         mock_get_message: MagicMock,
     ) -> None:
@@ -89,7 +85,7 @@ class TestVisualizeHandler:
         :returns: None
         """
         # Setup - user not registered
-        mock_base_handler_user_service.is_valid_user_profile.return_value = False
+        handler.services.user_service.is_valid_user_profile.return_value = False
         mock_get_user_language.return_value = SupportedLanguage.EN.value
         mock_get_message.return_value = "You need to register first!"
 
@@ -123,15 +119,13 @@ class TestVisualizeHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.visualize_handler.generate_visualization"
         ) as mock_generate_viz, patch(
             "src.bot.handlers.visualize_handler.generate_message_visualize"
         ) as mock_generate_msg:
             # Setup mocks
-            mock_base_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.get_user_profile.return_value = MagicMock()
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = MagicMock()
             mock_generate_viz.return_value = b"fake_image_data"
             mock_generate_msg.return_value = "Visualization caption"
 

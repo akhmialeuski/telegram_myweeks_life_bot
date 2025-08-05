@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_HELP
 from src.bot.handlers.help_handler import HelpHandler
 from src.utils.localization import SupportedLanguage
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestHelpHandler:
@@ -23,7 +24,8 @@ class TestHelpHandler:
         :returns: HelpHandler instance
         :rtype: HelpHandler
         """
-        return HelpHandler()
+        services = FakeServiceContainer()
+        return HelpHandler(services)
 
     def test_handler_creation(self, handler: HelpHandler) -> None:
         """Test HelpHandler creation.

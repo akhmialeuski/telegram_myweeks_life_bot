@@ -36,7 +36,8 @@ from ...core.messages import (
     generate_message_settings_premium,
     generate_settings_buttons,
 )
-from ...database.service import UserNotFoundError, UserSettingsUpdateError, user_service
+from ...database.service import UserNotFoundError, UserSettingsUpdateError
+from ...services.container import ServiceContainer
 from ...utils.config import (
     BOT_NAME,
     MAX_LIFE_EXPECTANCY,
@@ -70,12 +71,15 @@ class SettingsHandler(BaseHandler):
         command_name: Name of the command this handler processes
     """
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the settings handler.
 
         Sets up the command name and initializes the base handler.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
-        super().__init__()
+        super().__init__(services)
         self.command_name = f"/{COMMAND_SETTINGS}"
 
     async def handle(
@@ -288,7 +292,7 @@ class SettingsHandler(BaseHandler):
             language_name = get_localized_language_name(language_code, language_code)
 
             # Update user's language preference in database
-            user_service.update_user_settings(
+            self.services.user_service.update_user_settings(
                 telegram_id=user_id, language=language_code
             )
 
@@ -432,12 +436,12 @@ class SettingsHandler(BaseHandler):
             logger.info(
                 f"{self.command_name}: [{user_id}]: Updating birth date to {birth_date}"
             )
-            user_service.update_user_settings(
+            self.services.user_service.update_user_settings(
                 telegram_id=user_id, birth_date=birth_date
             )
 
             # Get updated user profile after birth date change
-            updated_user_profile = user_service.get_user_profile(user_id)
+            updated_user_profile = self.services.user_service.get_user_profile(user_id)
 
             # Calculate new age with updated profile
             calculator = LifeCalculatorEngine(user=updated_user_profile)
@@ -520,7 +524,7 @@ class SettingsHandler(BaseHandler):
                 return
 
             # Update life expectancy in database
-            user_service.update_user_settings(
+            self.services.user_service.update_user_settings(
                 telegram_id=user_id, life_expectancy=life_expectancy
             )
 

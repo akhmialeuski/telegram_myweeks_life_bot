@@ -13,6 +13,7 @@ from src.bot.constants import COMMAND_START
 from src.bot.handlers.start_handler import StartHandler
 from src.bot.scheduler import SchedulerOperationError
 from src.database.service import UserRegistrationError, UserServiceError
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestStartHandler:
@@ -25,7 +26,8 @@ class TestStartHandler:
         :returns: StartHandler instance
         :rtype: StartHandler
         """
-        return StartHandler()
+        services = FakeServiceContainer()
+        return StartHandler(services)
 
     def test_handler_creation(self, handler: StartHandler) -> None:
         """Test StartHandler creation.
@@ -41,7 +43,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_existing: MagicMock,
     ) -> None:
         """Test handle method with existing user.
@@ -49,12 +50,11 @@ class TestStartHandler:
         :param handler: StartHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_start_handler_user_service: Mocked user_service for start handler
         :param mock_generate_message_start_welcome_existing: Mocked generate_message_start_welcome_existing function
         :returns: None
         """
         # Setup
-        mock_start_handler_user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.is_valid_user_profile.return_value = True
         mock_generate_message_start_welcome_existing.return_value = "Welcome back!"
 
         # Execute
@@ -72,7 +72,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_new: MagicMock,
     ) -> None:
         """Test handle method with new user.
@@ -80,12 +79,11 @@ class TestStartHandler:
         :param handler: StartHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_start_handler_user_service: Mocked user_service for start handler
         :param mock_generate_message_start_welcome_new: Mocked generate_message_start_welcome_new function
         :returns: None
         """
         # Setup
-        mock_start_handler_user_service.is_valid_user_profile.return_value = False
+        handler.services.user_service.is_valid_user_profile.return_value = False
         mock_generate_message_start_welcome_new.return_value = (
             "Welcome! Please register."
         )
@@ -106,7 +104,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_existing: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with valid birth date.
@@ -114,7 +111,6 @@ class TestStartHandler:
         :param handler: StartHandler instance
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
-        :param mock_start_handler_user_service: Mocked user_service for start handler
         :param mock_generate_message_start_welcome_existing: Mocked generate_message_start_welcome_existing function
         :returns: None
         """
@@ -141,7 +137,7 @@ class TestStartHandler:
             )
 
         # Assert other functionality
-        mock_start_handler_user_service.create_user_profile.assert_called_once_with(
+        handler.services.user_service.create_user_profile.assert_called_once_with(
             user_info=mock_update.effective_user, birth_date=birth_date
         )
         mock_update.message.reply_text.assert_called_once()
@@ -248,7 +244,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_registration_error: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with registration error.
@@ -263,7 +258,7 @@ class TestStartHandler:
         # Setup
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
-        mock_start_handler_user_service.create_user_profile.side_effect = (
+        handler.services.user_service.create_user_profile.side_effect = (
             UserRegistrationError("Registration failed")
         )
         mock_generate_message_registration_error.return_value = "Registration failed!"
@@ -276,7 +271,7 @@ class TestStartHandler:
         call_args = mock_update.message.reply_text.call_args
         assert call_args.kwargs["text"] == "Registration failed!"
         assert call_args.kwargs["parse_mode"] == ParseMode.HTML
-        mock_start_handler_user_service.create_user_profile.assert_called_once()
+        handler.services.user_service.create_user_profile.assert_called_once()
         assert "waiting_for" not in mock_context.user_data
 
     @pytest.mark.asyncio
@@ -285,7 +280,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_registration_error: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with service error.
@@ -300,7 +294,7 @@ class TestStartHandler:
         # Setup
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
-        mock_start_handler_user_service.create_user_profile.side_effect = (
+        handler.services.user_service.create_user_profile.side_effect = (
             UserServiceError("Service error")
         )
         mock_generate_message_registration_error.return_value = "Service error!"
@@ -313,7 +307,7 @@ class TestStartHandler:
         call_args = mock_update.message.reply_text.call_args
         assert call_args.kwargs["text"] == "Service error!"
         assert call_args.kwargs["parse_mode"] == ParseMode.HTML
-        mock_start_handler_user_service.create_user_profile.assert_called_once()
+        handler.services.user_service.create_user_profile.assert_called_once()
         assert "waiting_for" not in mock_context.user_data
 
     @pytest.mark.asyncio
@@ -322,7 +316,6 @@ class TestStartHandler:
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_start_handler_user_service: MagicMock,
         mock_generate_message_start_welcome_existing: MagicMock,
     ) -> None:
         """Test handle_birth_date_input with scheduler exception.
@@ -354,7 +347,7 @@ class TestStartHandler:
             await handler.handle_birth_date_input(mock_update, mock_context)
 
         # Assert
-        mock_start_handler_user_service.create_user_profile.assert_called_once_with(
+        handler.services.user_service.create_user_profile.assert_called_once_with(
             user_info=mock_update.effective_user, birth_date=birth_date
         )
         mock_update.message.reply_text.assert_called_once()

@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_UNKNOWN
 from src.bot.handlers.unknown_handler import UnknownHandler
 from src.utils.localization import SupportedLanguage
+from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestUnknownHandler:
@@ -23,7 +24,8 @@ class TestUnknownHandler:
         :returns: UnknownHandler instance
         :rtype: UnknownHandler
         """
-        return UnknownHandler()
+        services = FakeServiceContainer()
+        return UnknownHandler(services)
 
     def test_handler_creation(self, handler: UnknownHandler) -> None:
         """Test UnknownHandler creation.

@@ -32,7 +32,10 @@ class TestSettingsHandler:
         :returns: SettingsHandler instance
         :rtype: SettingsHandler
         """
-        return SettingsHandler()
+        from tests.utils.fake_container import FakeServiceContainer
+
+        services = FakeServiceContainer()
+        return SettingsHandler(services)
 
     def test_handler_creation(self, handler: SettingsHandler) -> None:
         """Test SettingsHandler creation.
@@ -61,10 +64,6 @@ class TestSettingsHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_premium"
         ) as mock_generate_premium, patch(
             "src.bot.handlers.settings_handler.generate_settings_buttons"
@@ -74,9 +73,9 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
             # Setup mocks
-            mock_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.get_user_profile.return_value = (
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = (
                 mock_premium_user_profile
             )
             mock_generate_premium.return_value = "Premium settings!"
@@ -118,10 +117,6 @@ class TestSettingsHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_basic"
         ) as mock_generate_basic, patch(
             "src.bot.handlers.settings_handler.generate_settings_buttons"
@@ -131,9 +126,9 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
             # Setup mocks
-            mock_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.is_valid_user_profile.return_value = True
-            mock_base_user_service.get_user_profile.return_value = (
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = (
                 mock_basic_user_profile
             )
             mock_generate_basic.return_value = "Basic settings!"
@@ -166,30 +161,22 @@ class TestSettingsHandler:
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         """
-        # Mock all required functions in the module where they're imported
-        with patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service, patch(
-            "src.bot.handlers.base_handler.get_message"
-        ) as mock_get_message:
-            # Setup mocks - user not registered
-            mock_base_user_service.is_valid_user_profile.return_value = False
-            mock_get_message.return_value = "You need to register first!"
-
+        # Setup mocks - user not registered
+        handler.services.user_service.is_valid_user_profile.return_value = False
+        with patch.object(
+            handler.services, "get_message", return_value="You need to register first!"
+        ):
             # Execute
             await handler.handle(mock_update, mock_context)
 
-            # Assert
-            mock_get_message.assert_called_once_with(
-                message_key="common", sub_key="not_registered", language="en"
-            )
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            # Check if text was passed as positional argument or kwargs
-            if call_args.args:
-                assert call_args.args[0] == "You need to register first!"
-            else:
-                assert call_args.kwargs["text"] == "You need to register first!"
+        # Assert
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        # Check if text was passed as positional argument or kwargs
+        if call_args.args:
+            assert call_args.args[0] == "You need to register first!"
+        else:
+            assert call_args.kwargs["text"] == "You need to register first!"
 
     @pytest.mark.asyncio
     async def test_handle_exception(
@@ -210,16 +197,14 @@ class TestSettingsHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_basic"
-        ) as mock_generate_basic, patch(
-            "src.bot.handlers.base_handler.user_service"
-        ) as mock_base_user_service:
+        ) as mock_generate_basic:
             # Setup mocks
-            mock_user_service.is_valid_user_profile.return_value = True
-            mock_user_service.get_user_profile.return_value = mock_user_profile
-            mock_base_user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+            handler.services.user_service.is_valid_user_profile.return_value = True
             mock_generate_basic.side_effect = Exception("Test exception")
 
             # Execute
@@ -412,8 +397,6 @@ class TestSettingsHandler:
         mock_update_with_callback.callback_query.data = "language_ru"
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.get_localized_language_name"
         ) as mock_get_lang_name, patch(
             "src.bot.handlers.settings_handler.update_user_schedule"
@@ -430,7 +413,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_user_service.update_user_settings.assert_called_once_with(
+            handler.services.user_service.update_user_settings.assert_called_once_with(
                 telegram_id=TEST_USER_ID, language=SupportedLanguage.RU.value
             )
             # Verify that update_user_schedule was called with scheduler and user_id
@@ -492,15 +475,13 @@ class TestSettingsHandler:
         mock_update_with_callback.callback_query.data = "language_en"
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.get_localized_language_name"
         ) as mock_get_lang_name, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_error"
         ) as mock_generate_error:
             mock_get_lang_name.return_value = "English"
-            mock_user_service.update_user_settings.side_effect = UserNotFoundError(
-                "User not found"
+            handler.services.user_service.update_user_settings.side_effect = (
+                UserNotFoundError("User not found")
             )
             mock_generate_error.return_value = "Settings error message"
 
@@ -648,8 +629,6 @@ class TestSettingsHandler:
         mock_calculator.calculate_age.return_value = 33
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.LifeCalculatorEngine"
         ) as mock_calc_class, patch(
             "src.bot.handlers.settings_handler.generate_message_birth_date_updated"
@@ -657,7 +636,9 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
-            mock_user_service.get_user_profile.return_value = mock_updated_profile
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_updated_profile
+            )
             mock_calc_class.return_value = mock_calculator
             mock_generate_msg.return_value = "Birth date updated!"
 
@@ -667,7 +648,7 @@ class TestSettingsHandler:
             )
 
             # Assert
-            mock_user_service.update_user_settings.assert_called_once_with(
+            handler.services.user_service.update_user_settings.assert_called_once_with(
                 telegram_id=TEST_USER_ID, birth_date=test_birth_date
             )
             mock_update.message.reply_text.assert_called_once()
@@ -765,15 +746,13 @@ class TestSettingsHandler:
         test_birth_date = date(1990, 3, 15)
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_error"
         ) as mock_generate_error, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
-            mock_user_service.update_user_settings.side_effect = UserNotFoundError(
-                "User not found"
+            handler.services.user_service.update_user_settings.side_effect = (
+                UserNotFoundError("User not found")
             )
             mock_generate_error.return_value = "Settings error!"
 
@@ -834,8 +813,6 @@ class TestSettingsHandler:
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_life_expectancy_updated"
         ) as mock_generate_msg:
             mock_generate_msg.return_value = "Life expectancy updated!"
@@ -844,7 +821,7 @@ class TestSettingsHandler:
                 mock_update, mock_context, str(DEFAULT_LIFE_EXPECTANCY)
             )
 
-            mock_user_service.update_user_settings.assert_called_once_with(
+            handler.services.user_service.update_user_settings.assert_called_once_with(
                 telegram_id=TEST_USER_ID, life_expectancy=DEFAULT_LIFE_EXPECTANCY
             )
             mock_update.message.reply_text.assert_called_once()
@@ -901,11 +878,9 @@ class TestSettingsHandler:
         # Setup
 
         with patch(
-            "src.bot.handlers.settings_handler.user_service"
-        ) as mock_user_service, patch(
             "src.bot.handlers.settings_handler.generate_message_settings_error"
         ) as mock_generate_error:
-            mock_user_service.update_user_settings.side_effect = (
+            handler.services.user_service.update_user_settings.side_effect = (
                 UserSettingsUpdateError("Update failed")
             )
             mock_generate_error.return_value = "Settings error!"

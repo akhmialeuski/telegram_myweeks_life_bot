@@ -91,10 +91,48 @@ python src/main.py
 - `/setbirthdate` - Set your birth date
 - `/help` - Show help information
 
+## Architecture
+
+### Dependency Injection Container
+
+The project uses a Dependency Injection (DI) container to manage all application dependencies. This approach:
+
+- **Reduces coupling** between modules
+- **Simplifies testing** by allowing easy service substitution
+- **Centralizes dependency management** in one place
+- **Enables easy configuration changes** without modifying multiple files
+
+#### Key Components
+
+- **ServiceContainer** (`src/services/container.py`): Main container that creates and manages all services
+- **FakeServiceContainer** (`tests/utils/fake_container.py`): Mock container for testing
+- **Handler Dependencies**: All handlers receive services through their constructor
+
+#### Usage
+
+```python
+# Creating handlers with DI
+services = ServiceContainer()
+handler = StartHandler(services)
+
+# In tests
+fake_services = FakeServiceContainer()
+handler = StartHandler(fake_services)
+```
+
+#### Services Managed by Container
+
+- `user_service`: User management and database operations
+- `life_calculator`: Life statistics calculations
+- `localization_service`: Message localization and formatting
+
 ## Project Structure
 
 ```
 ├── src/
+│   ├── services/           # Dependency injection container
+│   │   ├── container.py    # ServiceContainer implementation
+│   │   └── __init__.py
 │   ├── database/           # Database layer
 │   │   ├── models.py       # SQLAlchemy models
 │   │   ├── constants.py    # Database constants

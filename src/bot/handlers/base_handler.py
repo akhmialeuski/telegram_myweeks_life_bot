@@ -22,9 +22,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ...core.messages import get_user_language
-from ...database.service import user_service
+from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
-from ...utils.localization import get_message
 from ...utils.logger import get_logger
 from ..constants import COMMAND_HELP, COMMAND_START
 
@@ -67,13 +66,17 @@ class BaseHandler(ABC):
         f"/{COMMAND_HELP}",
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, services: ServiceContainer) -> None:
         """Initialize the base handler.
 
         Sets up common attributes that all handlers need.
+
+        :param services: Service container with all dependencies
+        :type services: ServiceContainer
         """
         self.bot_name = BOT_NAME
         self.command_name: Optional[str] = None
+        self.services = services
 
     def _should_require_registration(self) -> bool:
         """Check if this handler should require registration.
@@ -97,8 +100,7 @@ class BaseHandler(ABC):
             return self.require_registration()(handler_method)
         return handler_method
 
-    @staticmethod
-    def _extract_command_context(update: Update) -> CommandContext:
+    def _extract_command_context(self, update: Update) -> CommandContext:
         """Extract common context information from an update.
 
         :param update: The update object containing the user's message
@@ -110,7 +112,7 @@ class BaseHandler(ABC):
         user_id = user.id
 
         # Get user profile from database
-        user_profile = user_service.get_user_profile(user_id)
+        user_profile = self.services.user_service.get_user_profile(user_id)
 
         return CommandContext(
             user=user,
@@ -158,9 +160,9 @@ class BaseHandler(ABC):
 
                 try:
                     # Validate that user has completed registration with birth date
-                    if not user_service.is_valid_user_profile(user_id):
+                    if not self.services.user_service.is_valid_user_profile(user_id):
                         await update.message.reply_text(
-                            get_message(
+                            self.services.get_message(
                                 message_key="common",
                                 sub_key="not_registered",
                                 language=user_lang,
