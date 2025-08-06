@@ -6,7 +6,6 @@ for default user settings and notification scheduling.
 
 DEFAULT_LIFE_EXPECTANCY = 80  # Default life expectancy in years
 DEFAULT_NOTIFICATIONS_ENABLED = True  # Default notification setting
-default_timezone = "UTC"  # Default timezone for new users
 DEFAULT_TIMEZONE = "UTC"  # Default timezone for new users
 DEFAULT_NOTIFICATIONS_DAY = (
     "monday"  # Default day for weekly notifications (WeekDay enum value)

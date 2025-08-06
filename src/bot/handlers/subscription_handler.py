@@ -69,7 +69,7 @@ class SubscriptionHandler(BaseHandler):
         :type update: Update
         :param context: The context object for the command execution
         :type context: ContextTypes.DEFAULT_TYPE
-        :returns: None
+        :returns: Optional[int] or None
         """
         return await self._wrap_with_registration(
             handler_method=self._handle_subscription
@@ -89,7 +89,7 @@ class SubscriptionHandler(BaseHandler):
         :type update: Update
         :param context: The context object for the command execution
         :type context: ContextTypes.DEFAULT_TYPE
-        :returns: None
+        :returns: Optional[int] or None
         """
         # Extract user information using the new helper method
         cmd_context = self._extract_command_context(update=update)

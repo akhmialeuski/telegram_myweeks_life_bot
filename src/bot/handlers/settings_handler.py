@@ -12,10 +12,10 @@ The settings management includes:
 - Integration with notification scheduler
 """
 
-from datetime import date, datetime
-from typing import Literal, Optional, TypedDict
 import time
 import uuid
+from datetime import date, datetime
+from typing import Literal, Optional, TypedDict
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes

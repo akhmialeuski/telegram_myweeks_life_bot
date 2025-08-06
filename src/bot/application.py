@@ -190,6 +190,7 @@ class LifeWeeksBot:
 
         This method:
             - Stops the weekly notification scheduler
+            - Cleans up service container resources (database connections)
             - Performs any necessary cleanup
 
         :returns: None
@@ -197,6 +198,10 @@ class LifeWeeksBot:
         if self._scheduler:
             stop_scheduler(self._scheduler)
             self._scheduler = None
+
+        # Clean up service container resources
+        if hasattr(self, "services"):
+            self.services.cleanup()
 
         logger.info("Life Weeks Bot stopped")
 
@@ -282,20 +287,119 @@ class LifeWeeksBot:
                 )
 
     async def _universal_text_handler(self, update, context):
-        """Universal text handler that routes messages to appropriate handlers."""
+        """Universal text handler that routes messages to appropriate handlers.
+
+        This method routes incoming text messages to the appropriate handler based on
+        the user's current waiting state. It includes comprehensive error handling to
+        prevent unhandled exceptions from propagating and ensure bot stability.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :returns: None
+        :raises Exception: Only if all error handling fails and fallback also fails
+        """
         waiting_for = context.user_data.get("waiting_for")
 
-        # Route based on waiting state using collected waiting_states
         if waiting_for in self._waiting_states:
-            target_command = self._waiting_states[waiting_for]
-            if target_command in self._text_input_handlers:
-                await self._text_input_handlers[target_command](update, context)
-            else:
-                # Fallback to unknown handler
-                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+            await self._handle_waiting_state(update, context, waiting_for)
         else:
-            # No specific handler waiting, route to unknown handler
+            await self._handle_no_waiting_state(update, context)
+
+    async def _handle_waiting_state(self, update, context, waiting_for: str) -> None:
+        """Handle message when user is in a waiting state.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :param waiting_for: The waiting state identifier
+        :returns: None
+        """
+        target_command = self._waiting_states[waiting_for]
+        error_occurred = await self._try_text_input_handler(
+            update, context, target_command
+        )
+
+        if error_occurred:
+            fallback_error = await self._try_unknown_handler_fallback(
+                update, context, waiting_for
+            )
+            if fallback_error:
+                await self._send_error_message(update, context)
+
+    async def _handle_no_waiting_state(self, update, context) -> None:
+        """Handle message when user is not in any waiting state.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :returns: None
+        """
+        try:
             await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+        except Exception as error:
+            logger.error(
+                f"Error in unknown handler for no waiting state: {error}",
+                exc_info=True,
+            )
+
+    async def _try_text_input_handler(
+        self, update, context, target_command: str
+    ) -> bool:
+        """Try to execute text input handler for the target command.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :param target_command: The command to handle
+        :returns: True if error occurred, False otherwise
+        """
+        if target_command not in self._text_input_handlers:
+            return True
+
+        try:
+            await self._text_input_handlers[target_command](update, context)
+            return False
+        except Exception as error:
+            logger.error(
+                f"Error in text input handler for command '{target_command}': {error}",
+                exc_info=True,
+            )
+            return True
+
+    async def _try_unknown_handler_fallback(
+        self, update, context, waiting_for: str
+    ) -> bool:
+        """Try to execute unknown handler as fallback.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :param waiting_for: The waiting state identifier for logging
+        :returns: True if error occurred, False otherwise
+        """
+        try:
+            await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+            return False
+        except Exception as error:
+            logger.error(
+                f"Error in unknown handler fallback for waiting state '{waiting_for}': {error}",
+                exc_info=True,
+            )
+            return True
+
+    async def _send_error_message(self, update, context) -> None:
+        """Send user-friendly error message when all handlers fail.
+
+        :param update: Telegram update object containing the message
+        :param context: Telegram context object containing user data and bot instance
+        :returns: None
+        """
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Sorry, something went wrong. Please try again or use /help for assistance.",
+            )
+        except Exception as final_error:
+            logger.error(
+                f"Failed to send error message to user: {final_error}",
+                exc_info=True,
+            )
 
     def _register_unknown_handler(self) -> None:
         """Register the unknown handler for handling unknown messages and commands.

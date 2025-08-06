@@ -31,11 +31,21 @@ logger = get_logger(BOT_NAME)
 
 
 class CancelHandler(BaseHandler):
-    """Handler for /cancel command - delete user profile and data.
+    """Handler for /cancel command - cancel conversation and delete user data.
 
-    This handler allows users to completely remove their profile and all
-    associated data from the system. It's useful for users who want to
-    start over or completely opt out of the service.
+    This handler allows users to cancel the current conversation state, clear
+    user input context, return to the main menu, reset the bot state, and
+    completely remove their profile and all associated data from the system.
+    It's useful for users who want to start over or completely opt out of
+    the service.
+
+    The cancel functionality includes:
+    - Cancel current conversation state
+    - Clear user input context
+    - Return to main menu
+    - Reset bot state
+    - Remove user from notification scheduler
+    - Delete user profile and all associated data
 
     Attributes:
         command_name: Name of the command this handler processes
@@ -55,17 +65,21 @@ class CancelHandler(BaseHandler):
     async def handle(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> Optional[int]:
-        """Handle /cancel command - delete user profile and data.
+        """Handle /cancel command - cancel conversation and delete user data.
 
-        This command allows users to completely remove their profile and all
-        associated data from the system. It's useful for users who want to
-        start over or completely opt out of the service.
+        This command allows users to cancel the current conversation state,
+        clear user input context, return to the main menu, reset the bot state,
+        and completely remove their profile and all associated data from the system.
+        It's useful for users who want to start over or completely opt out of
+        the service.
 
-        The deletion process:
+        The cancellation process:
         1. Validates that user is registered (via decorator)
-        2. Attempts to delete user profile and settings from database
-        3. Provides feedback on success or failure
-        4. Logs the operation for audit purposes
+        2. Removes user from notification scheduler
+        3. Attempts to delete user profile and settings from database
+        4. Provides feedback on success or failure
+        5. Logs the operation for audit purposes
+        6. Ends conversation state
 
         Error handling:
         - UserDeletionError: Specific deletion failures
@@ -81,7 +95,7 @@ class CancelHandler(BaseHandler):
         :rtype: Optional[int]
 
         Example:
-            User sends /cancel → Bot deletes profile → Shows confirmation message
+            User sends /cancel → Bot cancels conversation and deletes profile → Shows confirmation message
         """
         return await self._wrap_with_registration(self._handle_cancel)(
             update=update,

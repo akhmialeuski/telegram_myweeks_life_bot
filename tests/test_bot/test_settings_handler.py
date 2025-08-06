@@ -3,6 +3,7 @@
 Tests the SettingsHandler class which handles /settings command.
 """
 
+import time
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +18,6 @@ from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.utils.config import MAX_LIFE_EXPECTANCY, MIN_BIRTH_YEAR, MIN_LIFE_EXPECTANCY
 from src.utils.localization import SupportedLanguage
 from tests.conftest import TEST_USER_ID
-import time
 
 # Test constants
 TEST_BIRTH_DATE = "15.03.1990"
@@ -46,7 +46,9 @@ class TestSettingsHandler:
         """
         assert handler.command_name == f"/{COMMAND_SETTINGS}"
 
-    def test_set_waiting_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_set_waiting_state(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _set_waiting_state method.
 
         :param handler: SettingsHandler instance
@@ -63,7 +65,9 @@ class TestSettingsHandler:
         assert isinstance(mock_context.user_data["waiting_timestamp"], float)
         assert isinstance(mock_context.user_data["waiting_state_id"], str)
 
-    def test_is_valid_waiting_state_valid(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_is_valid_waiting_state_valid(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _is_valid_waiting_state method with valid state.
 
         :param handler: SettingsHandler instance
@@ -75,7 +79,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_timestamp": current_time,
-            "waiting_state_id": "test-id"
+            "waiting_state_id": "test-id",
         }
 
         # Execute
@@ -84,7 +88,9 @@ class TestSettingsHandler:
         # Assert
         assert result is True
 
-    def test_is_valid_waiting_state_invalid_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_is_valid_waiting_state_invalid_state(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _is_valid_waiting_state method with invalid state.
 
         :param handler: SettingsHandler instance
@@ -96,7 +102,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "wrong_state",
             "waiting_timestamp": current_time,
-            "waiting_state_id": "test-id"
+            "waiting_state_id": "test-id",
         }
 
         # Execute
@@ -105,7 +111,9 @@ class TestSettingsHandler:
         # Assert
         assert result is False
 
-    def test_is_valid_waiting_state_expired(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_is_valid_waiting_state_expired(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _is_valid_waiting_state method with expired state.
 
         :param handler: SettingsHandler instance
@@ -117,7 +125,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_timestamp": old_time,
-            "waiting_state_id": "test-id"
+            "waiting_state_id": "test-id",
         }
 
         # Execute
@@ -126,7 +134,9 @@ class TestSettingsHandler:
         # Assert
         assert result is False
 
-    def test_is_valid_waiting_state_missing_timestamp(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_is_valid_waiting_state_missing_timestamp(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _is_valid_waiting_state method with missing timestamp.
 
         :param handler: SettingsHandler instance
@@ -136,7 +146,7 @@ class TestSettingsHandler:
         # Setup
         mock_context.user_data = {
             "waiting_for": "test_state",
-            "waiting_state_id": "test-id"
+            "waiting_state_id": "test-id",
         }
 
         # Execute
@@ -145,7 +155,9 @@ class TestSettingsHandler:
         # Assert
         assert result is False
 
-    def test_is_valid_waiting_state_missing_state_id(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_is_valid_waiting_state_missing_state_id(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _is_valid_waiting_state method with missing state_id.
 
         :param handler: SettingsHandler instance
@@ -156,7 +168,7 @@ class TestSettingsHandler:
         current_time = time.time()
         mock_context.user_data = {
             "waiting_for": "test_state",
-            "waiting_timestamp": current_time
+            "waiting_timestamp": current_time,
         }
 
         # Execute
@@ -165,7 +177,9 @@ class TestSettingsHandler:
         # Assert
         assert result is False
 
-    def test_clear_waiting_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+    def test_clear_waiting_state(
+        self, handler: SettingsHandler, mock_context: MagicMock
+    ) -> None:
         """Test _clear_waiting_state method.
 
         :param handler: SettingsHandler instance
@@ -176,7 +190,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_timestamp": time.time(),
-            "waiting_state_id": "test-id"
+            "waiting_state_id": "test-id",
         }
 
         # Execute
@@ -658,7 +672,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
             "waiting_timestamp": time.time(),
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
@@ -688,7 +702,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "settings_life_expectancy",
             "waiting_timestamp": time.time(),
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
         with patch.object(
@@ -752,7 +766,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
             "waiting_timestamp": old_time,
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
@@ -784,10 +798,12 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "settings_life_expectancy",
             "waiting_timestamp": old_time,
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
-        with patch.object(handler, "handle_life_expectancy_input") as mock_handle_life_expectancy:
+        with patch.object(
+            handler, "handle_life_expectancy_input"
+        ) as mock_handle_life_expectancy:
             # Execute
             await handler.handle_settings_input(mock_update, mock_context)
 
@@ -814,7 +830,7 @@ class TestSettingsHandler:
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
@@ -844,7 +860,7 @@ class TestSettingsHandler:
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
-            "waiting_timestamp": time.time()
+            "waiting_timestamp": time.time(),
         }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
@@ -875,7 +891,7 @@ class TestSettingsHandler:
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
             "waiting_timestamp": time.time(),
-            "waiting_state_id": "test-state-id"
+            "waiting_state_id": "test-state-id",
         }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:

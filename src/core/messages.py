@@ -194,8 +194,10 @@ def generate_message_cancel_success(user_info: TelegramUser, language: str) -> s
     This function creates a localized success message when the user
     successfully cancels their account and deletes their data.
 
-    :param user_info: Telegram user object containing language preference
+    :param user_info: Telegram user object containing user information
     :type user_info: TelegramUser
+    :param language: Language code for message localization
+    :type language: str
     :returns: Localized cancel success message
     :rtype: str
     """
