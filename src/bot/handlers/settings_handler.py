@@ -14,6 +14,8 @@ The settings management includes:
 
 from datetime import date, datetime
 from typing import Literal, Optional, TypedDict
+import time
+import uuid
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -55,9 +57,11 @@ logger = get_logger(BOT_NAME)
 
 
 class SettingsWaitingState(TypedDict, total=False):
-    """Type definition for settings waiting state."""
+    """Type definition for settings waiting state with locking mechanism."""
 
     waiting_for: Optional[Literal["birth_date", "life_expectancy"]]
+    timestamp: Optional[float]
+    state_id: Optional[str]
 
 
 class SettingsHandler(BaseHandler):
@@ -81,6 +85,100 @@ class SettingsHandler(BaseHandler):
         """
         super().__init__(services)
         self.command_name = f"/{COMMAND_SETTINGS}"
+
+    def _set_waiting_state(
+        self, context: ContextTypes.DEFAULT_TYPE, waiting_for: str
+    ) -> None:
+        """Set waiting state with locking mechanism to prevent race conditions.
+
+        This method sets the waiting state with a timestamp and unique identifier
+        to ensure that concurrent updates do not overwrite each other and maintains
+        consistent user state.
+
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param waiting_for: The state to wait for
+        :type waiting_for: str
+        :returns: None
+        """
+        current_time = time.time()
+        state_id = str(uuid.uuid4())
+
+        context.user_data["waiting_for"] = waiting_for
+        context.user_data["waiting_timestamp"] = current_time
+        context.user_data["waiting_state_id"] = state_id
+
+        logger.debug(
+            f"{self.command_name}: Set waiting state '{waiting_for}' with timestamp {current_time} and state_id {state_id}"
+        )
+
+    def _is_valid_waiting_state(
+        self,
+        context: ContextTypes.DEFAULT_TYPE,
+        expected_state: str,
+        max_age_seconds: float = 300.0,
+    ) -> bool:
+        """Check if the current waiting state is valid and not expired.
+
+        This method validates that the waiting state matches the expected state,
+        is not expired, and has a valid state identifier.
+
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param expected_state: The expected waiting state
+        :type expected_state: str
+        :param max_age_seconds: Maximum age of the state in seconds (default: 5 minutes)
+        :type max_age_seconds: float
+        :returns: True if the state is valid, False otherwise
+        :rtype: bool
+        """
+        waiting_for = context.user_data.get("waiting_for")
+        timestamp = context.user_data.get("waiting_timestamp")
+        state_id = context.user_data.get("waiting_state_id")
+
+        # Check if state matches expected state
+        if waiting_for != expected_state:
+            logger.debug(
+                f"{self.command_name}: State mismatch - expected '{expected_state}', got '{waiting_for}'"
+            )
+            return False
+
+        # Check if timestamp exists and is not expired
+        if timestamp is None:
+            logger.debug(f"{self.command_name}: No timestamp found for waiting state")
+            return False
+
+        current_time = time.time()
+        age = current_time - timestamp
+
+        if age > max_age_seconds:
+            logger.debug(
+                f"{self.command_name}: Waiting state expired - age {age:.2f}s > {max_age_seconds}s"
+            )
+            return False
+
+        # Check if state_id exists
+        if state_id is None:
+            logger.debug(f"{self.command_name}: No state_id found for waiting state")
+            return False
+
+        logger.debug(
+            f"{self.command_name}: Valid waiting state '{waiting_for}' with age {age:.2f}s and state_id {state_id}"
+        )
+        return True
+
+    def _clear_waiting_state(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clear the waiting state and associated metadata.
+
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :returns: None
+        """
+        context.user_data.pop("waiting_for", None)
+        context.user_data.pop("waiting_timestamp", None)
+        context.user_data.pop("waiting_state_id", None)
+
+        logger.debug(f"{self.command_name}: Cleared waiting state")
 
     async def handle(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -194,7 +292,7 @@ class SettingsHandler(BaseHandler):
                         message_text=generate_message_change_birth_date(user_info=user),
                     )
                     # Store state in context for handling user input
-                    context.user_data["waiting_for"] = "settings_birth_date"
+                    self._set_waiting_state(context, "settings_birth_date")
 
                 case "settings_language":
                     # Show language selection keyboard
@@ -235,7 +333,7 @@ class SettingsHandler(BaseHandler):
                         ),
                     )
                     # Store state in context for handling user input
-                    context.user_data["waiting_for"] = "settings_life_expectancy"
+                    self._set_waiting_state(context, "settings_life_expectancy")
 
                 case _:
                     # Unknown setting type
@@ -331,7 +429,8 @@ class SettingsHandler(BaseHandler):
         """Handle text input for settings changes.
 
         This function processes text input when user is changing settings
-        like birth date or life expectancy.
+        like birth date or life expectancy. It uses a locking mechanism
+        to prevent race conditions and ensure only valid state changes are processed.
 
         :param update: The update object containing the text input
         :type update: Update
@@ -344,32 +443,50 @@ class SettingsHandler(BaseHandler):
         user_id = cmd_context.user_id
 
         try:
-            # Check what we're waiting for
+            # Check what we're waiting for using the locking mechanism
             waiting_for = context.user_data.get("waiting_for")
             logger.info(
                 f"{self.command_name}: [{user_id}]: Text input received: '{message_text[:20]}', waiting_for: '{waiting_for}'"
             )
 
-            # Use pattern matching for different waiting states
+            # Use pattern matching for different waiting states with validation
             match waiting_for:
                 case "settings_birth_date":
-                    logger.info(
-                        f"{self.command_name}: [{user_id}]: Processing birth date input"
-                    )
-                    await self.handle_birth_date_input(
-                        update=update,
-                        context=context,
-                        message_text=message_text,
-                    )
+                    if self._is_valid_waiting_state(context, "settings_birth_date"):
+                        logger.info(
+                            f"{self.command_name}: [{user_id}]: Processing birth date input"
+                        )
+                        await self.handle_birth_date_input(
+                            update=update,
+                            context=context,
+                            message_text=message_text,
+                        )
+                    else:
+                        logger.warning(
+                            f"{self.command_name}: [{user_id}]: Invalid or expired birth date waiting state, ignoring input"
+                        )
+                        # Clear invalid state
+                        self._clear_waiting_state(context)
+
                 case "settings_life_expectancy":
-                    logger.info(
-                        f"{self.command_name}: [{user_id}]: Processing life expectancy input"
-                    )
-                    await self.handle_life_expectancy_input(
-                        update=update,
-                        context=context,
-                        message_text=message_text,
-                    )
+                    if self._is_valid_waiting_state(
+                        context, "settings_life_expectancy"
+                    ):
+                        logger.info(
+                            f"{self.command_name}: [{user_id}]: Processing life expectancy input"
+                        )
+                        await self.handle_life_expectancy_input(
+                            update=update,
+                            context=context,
+                            message_text=message_text,
+                        )
+                    else:
+                        logger.warning(
+                            f"{self.command_name}: [{user_id}]: Invalid or expired life expectancy waiting state, ignoring input"
+                        )
+                        # Clear invalid state
+                        self._clear_waiting_state(context)
+
                 case _:
                     # Not waiting for settings input, ignore this message
                     logger.info(
@@ -457,7 +574,7 @@ class SettingsHandler(BaseHandler):
             )
 
             # Clear waiting state
-            context.user_data.pop("waiting_for", None)
+            self._clear_waiting_state(context)
             logger.info(
                 f"{self.command_name}: [{user_id}]: Updated birth date to {birth_date}"
             )
@@ -536,7 +653,7 @@ class SettingsHandler(BaseHandler):
             )
 
             # Clear waiting state
-            context.user_data.pop("waiting_for", None)
+            self._clear_waiting_state(context)
             logger.info(
                 f"{self.command_name}: [{user_id}]: Updated life expectancy to {life_expectancy}"
             )

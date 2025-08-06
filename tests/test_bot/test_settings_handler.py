@@ -17,6 +17,7 @@ from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.utils.config import MAX_LIFE_EXPECTANCY, MIN_BIRTH_YEAR, MIN_LIFE_EXPECTANCY
 from src.utils.localization import SupportedLanguage
 from tests.conftest import TEST_USER_ID
+import time
 
 # Test constants
 TEST_BIRTH_DATE = "15.03.1990"
@@ -44,6 +45,147 @@ class TestSettingsHandler:
         :returns: None
         """
         assert handler.command_name == f"/{COMMAND_SETTINGS}"
+
+    def test_set_waiting_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _set_waiting_state method.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Execute
+        handler._set_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert mock_context.user_data["waiting_for"] == "test_state"
+        assert "waiting_timestamp" in mock_context.user_data
+        assert "waiting_state_id" in mock_context.user_data
+        assert isinstance(mock_context.user_data["waiting_timestamp"], float)
+        assert isinstance(mock_context.user_data["waiting_state_id"], str)
+
+    def test_is_valid_waiting_state_valid(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _is_valid_waiting_state method with valid state.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        current_time = time.time()
+        mock_context.user_data = {
+            "waiting_for": "test_state",
+            "waiting_timestamp": current_time,
+            "waiting_state_id": "test-id"
+        }
+
+        # Execute
+        result = handler._is_valid_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert result is True
+
+    def test_is_valid_waiting_state_invalid_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _is_valid_waiting_state method with invalid state.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        current_time = time.time()
+        mock_context.user_data = {
+            "waiting_for": "wrong_state",
+            "waiting_timestamp": current_time,
+            "waiting_state_id": "test-id"
+        }
+
+        # Execute
+        result = handler._is_valid_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert result is False
+
+    def test_is_valid_waiting_state_expired(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _is_valid_waiting_state method with expired state.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup - timestamp from 10 minutes ago
+        old_time = time.time() - 600
+        mock_context.user_data = {
+            "waiting_for": "test_state",
+            "waiting_timestamp": old_time,
+            "waiting_state_id": "test-id"
+        }
+
+        # Execute
+        result = handler._is_valid_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert result is False
+
+    def test_is_valid_waiting_state_missing_timestamp(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _is_valid_waiting_state method with missing timestamp.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_context.user_data = {
+            "waiting_for": "test_state",
+            "waiting_state_id": "test-id"
+        }
+
+        # Execute
+        result = handler._is_valid_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert result is False
+
+    def test_is_valid_waiting_state_missing_state_id(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _is_valid_waiting_state method with missing state_id.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        current_time = time.time()
+        mock_context.user_data = {
+            "waiting_for": "test_state",
+            "waiting_timestamp": current_time
+        }
+
+        # Execute
+        result = handler._is_valid_waiting_state(mock_context, "test_state")
+
+        # Assert
+        assert result is False
+
+    def test_clear_waiting_state(self, handler: SettingsHandler, mock_context: MagicMock) -> None:
+        """Test _clear_waiting_state method.
+
+        :param handler: SettingsHandler instance
+        :param mock_context: Mock ContextTypes object
+        :returns: None
+        """
+        # Setup
+        mock_context.user_data = {
+            "waiting_for": "test_state",
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test-id"
+        }
+
+        # Execute
+        handler._clear_waiting_state(mock_context)
+
+        # Assert
+        assert "waiting_for" not in mock_context.user_data
+        assert "waiting_timestamp" not in mock_context.user_data
+        assert "waiting_state_id" not in mock_context.user_data
 
     @pytest.mark.asyncio
     async def test_handle_premium_success(
@@ -73,7 +215,6 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
             # Setup mocks
-            handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.get_user_profile.return_value = (
                 mock_premium_user_profile
@@ -126,7 +267,6 @@ class TestSettingsHandler:
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
             # Setup mocks
-            handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.get_user_profile.return_value = (
                 mock_basic_user_profile
@@ -204,7 +344,7 @@ class TestSettingsHandler:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
-            handler.services.user_service.is_valid_user_profile.return_value = True
+
             mock_generate_basic.side_effect = Exception("Test exception")
 
             # Execute
@@ -252,6 +392,8 @@ class TestSettingsHandler:
                 user_info=mock_update_with_callback.effective_user
             )
             assert mock_context.user_data["waiting_for"] == "settings_birth_date"
+            assert "waiting_timestamp" in mock_context.user_data
+            assert "waiting_state_id" in mock_context.user_data
 
     @pytest.mark.asyncio
     async def test_handle_settings_callback_language(
@@ -323,6 +465,8 @@ class TestSettingsHandler:
                 user_info=mock_update_with_callback.effective_user
             )
             assert mock_context.user_data["waiting_for"] == "settings_life_expectancy"
+            assert "waiting_timestamp" in mock_context.user_data
+            assert "waiting_state_id" in mock_context.user_data
 
     @pytest.mark.asyncio
     async def test_handle_settings_callback_unknown(
@@ -511,7 +655,11 @@ class TestSettingsHandler:
         """
         # Setup
         mock_update.message.text = TEST_BIRTH_DATE
-        mock_context.user_data = {"waiting_for": "settings_birth_date"}
+        mock_context.user_data = {
+            "waiting_for": "settings_birth_date",
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test-state-id"
+        }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
             # Execute
@@ -537,7 +685,11 @@ class TestSettingsHandler:
         """
         # Setup
         mock_update.message.text = str(DEFAULT_LIFE_EXPECTANCY)
-        mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
+        mock_context.user_data = {
+            "waiting_for": "settings_life_expectancy",
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test-state-id"
+        }
 
         with patch.object(
             handler, "handle_life_expectancy_input"
@@ -582,6 +734,130 @@ class TestSettingsHandler:
             mock_handle_life_expectancy.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_handle_settings_input_expired_birth_date_state(
+        self,
+        handler: SettingsHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handle_settings_input method with expired birth date state.
+
+        :param handler: SettingsHandler instance
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        """
+        # Setup - expired timestamp (10 minutes ago)
+        mock_update.message.text = TEST_BIRTH_DATE
+        old_time = time.time() - 600
+        mock_context.user_data = {
+            "waiting_for": "settings_birth_date",
+            "waiting_timestamp": old_time,
+            "waiting_state_id": "test-state-id"
+        }
+
+        with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
+            # Execute
+            await handler.handle_settings_input(mock_update, mock_context)
+
+            # Assert - method should not be called and state should be cleared
+            mock_handle_birth_date.assert_not_called()
+            assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_expired_life_expectancy_state(
+        self,
+        handler: SettingsHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handle_settings_input method with expired life expectancy state.
+
+        :param handler: SettingsHandler instance
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        """
+        # Setup - expired timestamp (10 minutes ago)
+        mock_update.message.text = str(DEFAULT_LIFE_EXPECTANCY)
+        old_time = time.time() - 600
+        mock_context.user_data = {
+            "waiting_for": "settings_life_expectancy",
+            "waiting_timestamp": old_time,
+            "waiting_state_id": "test-state-id"
+        }
+
+        with patch.object(handler, "handle_life_expectancy_input") as mock_handle_life_expectancy:
+            # Execute
+            await handler.handle_settings_input(mock_update, mock_context)
+
+            # Assert - method should not be called and state should be cleared
+            mock_handle_life_expectancy.assert_not_called()
+            assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_invalid_state_missing_timestamp(
+        self,
+        handler: SettingsHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handle_settings_input method with invalid state missing timestamp.
+
+        :param handler: SettingsHandler instance
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        """
+        # Setup - missing timestamp
+        mock_update.message.text = TEST_BIRTH_DATE
+        mock_context.user_data = {
+            "waiting_for": "settings_birth_date",
+            "waiting_state_id": "test-state-id"
+        }
+
+        with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
+            # Execute
+            await handler.handle_settings_input(mock_update, mock_context)
+
+            # Assert - method should not be called and state should be cleared
+            mock_handle_birth_date.assert_not_called()
+            assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_input_invalid_state_missing_state_id(
+        self,
+        handler: SettingsHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handle_settings_input method with invalid state missing state_id.
+
+        :param handler: SettingsHandler instance
+        :param mock_update: Mock Update object
+        :param mock_context: Mock ContextTypes object
+        """
+        # Setup - missing state_id
+        mock_update.message.text = TEST_BIRTH_DATE
+        mock_context.user_data = {
+            "waiting_for": "settings_birth_date",
+            "waiting_timestamp": time.time()
+        }
+
+        with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
+            # Execute
+            await handler.handle_settings_input(mock_update, mock_context)
+
+            # Assert - method should not be called and state should be cleared
+            mock_handle_birth_date.assert_not_called()
+            assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
+
+    @pytest.mark.asyncio
     async def test_handle_settings_input_exception(
         self,
         handler: SettingsHandler,
@@ -594,9 +870,13 @@ class TestSettingsHandler:
         :param mock_update: Mock Update object
         :param mock_context: Mock ContextTypes object
         """
-        # Setup
+        # Setup - need valid waiting state for the exception to be triggered
         mock_update.message.text = TEST_BIRTH_DATE
-        mock_context.user_data = {"waiting_for": "settings_birth_date"}
+        mock_context.user_data = {
+            "waiting_for": "settings_birth_date",
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test-state-id"
+        }
 
         with patch.object(handler, "handle_birth_date_input") as mock_handle_birth_date:
             mock_handle_birth_date.side_effect = Exception("Test error")
@@ -653,6 +933,8 @@ class TestSettingsHandler:
             )
             mock_update.message.reply_text.assert_called_once()
             assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
 
     @pytest.mark.asyncio
     async def test_handle_birth_date_input_future_date(
@@ -826,6 +1108,8 @@ class TestSettingsHandler:
             )
             mock_update.message.reply_text.assert_called_once()
             assert "waiting_for" not in mock_context.user_data
+            assert "waiting_timestamp" not in mock_context.user_data
+            assert "waiting_state_id" not in mock_context.user_data
 
     @pytest.mark.asyncio
     async def test_handle_life_expectancy_input_invalid_range(
