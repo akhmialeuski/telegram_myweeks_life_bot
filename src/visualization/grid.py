@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from ..core.life_calculator import LifeCalculatorEngine
 from ..database.models.user import User
 from ..database.service import user_service
+from ..services.container import ServiceContainer
 from ..utils.config import (
     CELL_SIZE,
     COLORS,
@@ -17,7 +18,6 @@ from ..utils.config import (
     PADDING,
     WEEKS_PER_YEAR,
 )
-from ..utils.localization import get_message
 
 
 def calculate_grid_dimensions() -> Tuple[int, int]:
@@ -105,7 +105,9 @@ def generate_visualization(user_info: User) -> BytesIO:
 
     # Add legend
     legend_y = height - 30
-    legend_text = get_message("command_visualize", "legend", user_lang)
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+    legend_text = builder._("🟩 Lived weeks | ⬜ Future weeks")
     draw.text((PADDING, legend_y), legend_text, fill=COLORS["text"], font=font)
 
     # Convert to BytesIO

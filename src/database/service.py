@@ -32,6 +32,33 @@ from .repositories.sqlite.user_subscription_repository import (
 logger = get_logger(f"{BOT_NAME}.DatabaseService")
 
 
+class DatabaseManager:
+    """Manager for database repositories (repositories are already singletons)."""
+
+    def __init__(self):
+        self.user_repository = SQLiteUserRepository()
+        self.settings_repository = SQLiteUserSettingsRepository()
+        self.subscription_repository = SQLiteUserSubscriptionRepository()
+
+        # Initialize all repositories (they are singletons, so this only happens once)
+        self.user_repository.initialize()
+        self.settings_repository.initialize()
+        self.subscription_repository.initialize()
+
+    def close(self):
+        """Close all database connections."""
+        self.user_repository.close()
+        self.settings_repository.close()
+        self.subscription_repository.close()
+
+    @classmethod
+    def reset_instance(cls):
+        """Reset repository instances (for testing)."""
+        SQLiteUserRepository.reset_instances()
+        SQLiteUserSettingsRepository.reset_instances()
+        SQLiteUserSubscriptionRepository.reset_instances()
+
+
 class UserServiceError(Exception):
     """Base exception for user service operations.
 
@@ -127,23 +154,23 @@ class UserService:
         :param settings_repository: User settings repository instance
         :param subscription_repository: User subscription repository instance
         """
-        self.user_repository = user_repository or SQLiteUserRepository()
-        self.settings_repository = settings_repository or SQLiteUserSettingsRepository()
+        # Use DatabaseManager to get singleton repositories
+        db_manager = DatabaseManager()
+        self.user_repository = user_repository or db_manager.user_repository
+        self.settings_repository = settings_repository or db_manager.settings_repository
         self.subscription_repository = (
-            subscription_repository or SQLiteUserSubscriptionRepository()
+            subscription_repository or db_manager.subscription_repository
         )
 
     def initialize(self) -> None:
         """Initialize database connections."""
-        self.user_repository.initialize()
-        self.settings_repository.initialize()
-        self.subscription_repository.initialize()
+        # DatabaseManager already initializes repositories
+        pass
 
     def close(self) -> None:
         """Close database connections."""
-        self.user_repository.close()
-        self.settings_repository.close()
-        self.subscription_repository.close()
+        # DatabaseManager handles closing
+        pass
 
     def create_user_profile(
         self,
@@ -243,16 +270,7 @@ class UserService:
                 logger.warning(f"User {telegram_id} not found")
                 return None
 
-            settings = self.settings_repository.get_user_settings(telegram_id)
-            if not settings:
-                logger.warning(f"Settings not found for user {telegram_id}")
-                return None
-
-            subscription = self.subscription_repository.get_subscription(telegram_id)
-            if not subscription:
-                logger.warning(f"Subscription not found for user {telegram_id}")
-                return None
-
+            # Create user object
             new_user = User(
                 telegram_id=user.telegram_id,
                 username=user.username,
@@ -260,8 +278,27 @@ class UserService:
                 last_name=user.last_name,
                 created_at=user.created_at,
             )
-            new_user.settings = settings
-            new_user.subscription = subscription
+
+            # Try to get settings (optional)
+            try:
+                settings = self.settings_repository.get_user_settings(telegram_id)
+                new_user.settings = settings
+            except Exception as e:
+                logger.warning(f"Failed to get settings for user {telegram_id}: {e}")
+                new_user.settings = None
+
+            # Try to get subscription (optional)
+            try:
+                subscription = self.subscription_repository.get_subscription(
+                    telegram_id
+                )
+                new_user.subscription = subscription
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get subscription for user {telegram_id}: {e}"
+                )
+                new_user.subscription = None
+
             return new_user
 
         except Exception as e:

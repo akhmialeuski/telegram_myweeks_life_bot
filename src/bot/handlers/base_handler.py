@@ -161,13 +161,9 @@ class BaseHandler(ABC):
                 try:
                     # Validate that user has completed registration with birth date
                     if not self.services.user_service.is_valid_user_profile(user_id):
-                        await update.message.reply_text(
-                            self.services.get_message(
-                                message_key="common",
-                                sub_key="not_registered",
-                                language=user_lang,
-                            )
-                        )
+                        # Use MessageBuilder for generating the message
+                        builder = self.services.get_message_builder(user_lang)
+                        await update.message.reply_text(builder.not_registered())
                         return None
 
                     # Execute the original command handler

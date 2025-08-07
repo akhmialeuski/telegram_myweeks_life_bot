@@ -13,11 +13,7 @@ from telegram import User as TelegramUser
 from ..constants import DEFAULT_LIFE_EXPECTANCY
 from ..core.enums import SubscriptionType
 from ..utils.config import DEFAULT_LANGUAGE
-from ..utils.localization import (
-    get_localized_language_name,
-    get_message,
-    get_subscription_description,
-)
+from ..utils.localization import get_localized_language_name
 from .life_calculator import LifeCalculatorEngine
 from .subscription_messages import get_subscription_addition_message
 
@@ -92,11 +88,13 @@ def generate_message_week(user_info: TelegramUser) -> str:
     life_percentage = f"{stats['life_percentage']:.1%}"
     days_until_birthday = stats["days_until_birthday"]
 
-    # Generate base localized message with statistics
-    base_message = get_message(
-        message_key="command_weeks",
-        sub_key="statistics",
-        language=user_lang,
+    # Use MessageBuilder for generating the base message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    base_message = builder.weeks_statistics(
         age=age,
         weeks_lived=weeks_lived,
         remaining_weeks=remaining_weeks,
@@ -154,14 +152,14 @@ def generate_message_visualize(user_info: TelegramUser) -> str:
     weeks_lived = stats["weeks_lived"]
     life_percentage = f"{stats['life_percentage']:.1%}"
 
-    # Generate localized visualization message
-    return get_message(
-        message_key="command_visualize",
-        sub_key="visualization_info",
-        language=user_lang,
-        age=age,
-        weeks_lived=weeks_lived,
-        life_percentage=life_percentage,
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.visualize_info(
+        age=age, weeks_lived=weeks_lived, life_percentage=life_percentage
     )
 
 
@@ -180,12 +178,13 @@ def generate_message_help(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized help message
-    return get_message(
-        message_key="command_help",
-        sub_key="help_text",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.help()
 
 
 def generate_message_cancel_success(user_info: TelegramUser, language: str) -> str:
@@ -201,12 +200,13 @@ def generate_message_cancel_success(user_info: TelegramUser, language: str) -> s
     :returns: Localized cancel success message
     :rtype: str
     """
-    return get_message(
-        message_key="command_cancel",
-        sub_key="success",
-        language=language,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(language)
+
+    return builder.cancel_success(user_info.first_name)
 
 
 def generate_message_cancel_error(user_info: TelegramUser) -> str:
@@ -223,13 +223,13 @@ def generate_message_cancel_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized cancel error message
-    return get_message(
-        message_key="command_cancel",
-        sub_key="error",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.cancel_error(user_info.first_name)
 
 
 def generate_message_start_welcome_existing(user_info: TelegramUser) -> str:
@@ -246,13 +246,13 @@ def generate_message_start_welcome_existing(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized welcome message
-    return get_message(
-        message_key="command_start",
-        sub_key="welcome_existing",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.start_welcome_existing(user_info.first_name)
 
 
 def generate_message_start_welcome_new(user_info: TelegramUser) -> str:
@@ -269,13 +269,13 @@ def generate_message_start_welcome_new(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized welcome message
-    return get_message(
-        message_key="command_start",
-        sub_key="welcome_new",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.start_welcome_new(user_info.first_name)
 
 
 def generate_message_registration_success(
@@ -317,11 +317,13 @@ def generate_message_registration_success(
     remaining_weeks = stats["remaining_weeks"]
     life_percentage = f"{stats['life_percentage']:.1%}"
 
-    # Generate localized registration success message
-    return get_message(
-        message_key="command_start",
-        sub_key="registration_success",
-        language=user_lang,
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.registration_success(
         first_name=user_info.first_name,
         birth_date=birth_date,
         age=age,
@@ -345,13 +347,13 @@ def generate_message_registration_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized registration error message
-    return get_message(
-        message_key="command_start",
-        sub_key="registration_error",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.registration_error()
 
 
 def generate_message_birth_date_future_error(user_info: TelegramUser) -> str:
@@ -368,20 +370,20 @@ def generate_message_birth_date_future_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized birth date future error message
-    return get_message(
-        message_key="command_start",
-        sub_key="birth_date_future_error",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.birth_date_future_error()
 
 
 def generate_message_birth_date_old_error(user_info: TelegramUser) -> str:
     """Generate birth date old error message for the user.
 
     This function creates a localized error message when the user
-    enters a birth date that is too old (before 1900).
+    enters a birth date that is too old.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
@@ -391,20 +393,20 @@ def generate_message_birth_date_old_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized birth date old error message
-    return get_message(
-        message_key="command_start",
-        sub_key="birth_date_old_error",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.birth_date_old_error()
 
 
 def generate_message_birth_date_format_error(user_info: TelegramUser) -> str:
     """Generate birth date format error message for the user.
 
     This function creates a localized error message when the user
-    enters a birth date in an invalid format.
+    enters a birth date in an incorrect format.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
@@ -414,87 +416,85 @@ def generate_message_birth_date_format_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized birth date format error message
-    return get_message(
-        message_key="command_start",
-        sub_key="birth_date_format_error",
-        language=user_lang,
-        first_name=user_info.first_name,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.birth_date_format_error()
 
 
 def generate_message_subscription_current(user_info: TelegramUser) -> str:
     """Generate current subscription message for the user.
 
     This function creates a localized message showing the user's current
-    subscription type with description and options to change it.
+    subscription type and options to change it.
 
     :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
-    :returns: Localized subscription management message
+    :returns: Localized current subscription message
     :rtype: str
-    :raises ValueError: If user profile is not found or has no subscription
+    :raises ValueError: If user profile is not found
     """
     # Extract user ID and get user profile from database
     user_id = user_info.id
     from ..database.service import user_service
 
     user_profile = user_service.get_user_profile(telegram_id=user_id)
+    if not user_profile:
+        raise ValueError(f"User profile not found for telegram_id: {user_id}")
 
     # Get user's language preference
     user_lang = get_user_language(user_info, user_profile)
 
-    if not user_profile or not user_profile.subscription:
-        raise ValueError(
-            f"User profile or subscription not found for telegram_id: {user_id}"
-        )
+    # Get subscription type and description
+    subscription_type = "basic"  # Default
+    if user_profile.subscription:
+        subscription_type = user_profile.subscription.subscription_type.value
 
-    current_subscription = user_profile.subscription.subscription_type
-    subscription_type_title = current_subscription.value.title()
-
-    # Get subscription description
-    subscription_description = get_subscription_description(
-        subscription_type=current_subscription.value,
-        language=user_lang,
+    subscription_description = get_subscription_addition_message(
+        user_info=user_info,
+        subscription_type=subscription_type,
     )
 
-    # Generate localized message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="current_subscription",
-        language=user_lang,
-        subscription_type=subscription_type_title,
-        subscription_description=subscription_description,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_current(subscription_type, subscription_description)
 
 
 def generate_message_subscription_invalid_type(user_info: TelegramUser) -> str:
-    """Generate invalid subscription type error message for the user.
+    """Generate invalid subscription type message for the user.
 
     This function creates a localized error message when the user
     selects an invalid subscription type.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
-    :returns: Localized invalid subscription type error message
+    :returns: Localized invalid subscription type message
     :rtype: str
     """
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized invalid subscription type error message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="invalid_type",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_invalid_type()
 
 
 def generate_message_subscription_profile_error(user_info: TelegramUser) -> str:
     """Generate subscription profile error message for the user.
 
-    This function creates a localized error message when the user's
-    profile or subscription is not found.
+    This function creates a localized error message when there's an issue
+    retrieving the user's profile for subscription management.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
@@ -504,12 +504,13 @@ def generate_message_subscription_profile_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized subscription profile error message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="profile_error",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_profile_error()
 
 
 def generate_message_subscription_already_active(
@@ -517,12 +518,12 @@ def generate_message_subscription_already_active(
 ) -> str:
     """Generate subscription already active message for the user.
 
-    This function creates a localized message when the user tries
-    to activate a subscription that is already active.
+    This function creates a localized message when the user tries to
+    activate a subscription that is already active.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
-    :param subscription_type: Current subscription type
+    :param subscription_type: The subscription type that is already active
     :type subscription_type: str
     :returns: Localized subscription already active message
     :rtype: str
@@ -530,13 +531,13 @@ def generate_message_subscription_already_active(
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized subscription already active message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="already_active",
-        language=user_lang,
-        subscription_type=subscription_type,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_already_active(subscription_type)
 
 
 def generate_message_subscription_change_success(
@@ -549,7 +550,7 @@ def generate_message_subscription_change_success(
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
-    :param subscription_type: New subscription type
+    :param subscription_type: The new subscription type
     :type subscription_type: str
     :returns: Localized subscription change success message
     :rtype: str
@@ -558,18 +559,19 @@ def generate_message_subscription_change_success(
     user_lang = get_user_language(user_info)
 
     # Get subscription description
-    subscription_description = get_subscription_description(
+    subscription_description = get_subscription_addition_message(
+        user_info=user_info,
         subscription_type=subscription_type,
-        language=user_lang,
     )
 
-    # Generate localized subscription change success message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="change_success",
-        language=user_lang,
-        subscription_type=subscription_type,
-        subscription_description=subscription_description,
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_change_success(
+        subscription_type, subscription_description
     )
 
 
@@ -587,19 +589,20 @@ def generate_message_subscription_change_failed(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized subscription change failed message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="change_failed",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_change_failed()
 
 
 def generate_message_subscription_change_error(user_info: TelegramUser) -> str:
     """Generate subscription change error message for the user.
 
-    This function creates a localized error message when an error
-    occurs during subscription change.
+    This function creates a localized error message when there's an error
+    during subscription change process.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
@@ -609,12 +612,13 @@ def generate_message_subscription_change_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized subscription change error message
-    return get_message(
-        message_key="command_subscription",
-        sub_key="change_error",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.subscription_change_error()
 
 
 def generate_message_unknown_command(user_info: TelegramUser) -> str:
@@ -630,11 +634,13 @@ def generate_message_unknown_command(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    return get_message(
-        message_key="common",
-        sub_key="unknown_command",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.unknown_command()
 
 
 def generate_message_settings_basic(user_info: TelegramUser) -> str:
@@ -649,11 +655,8 @@ def generate_message_settings_basic(user_info: TelegramUser) -> str:
     :rtype: str
     :raises ValueError: If user profile is not found
     """
-    # Extract user ID and language preference
+    # Extract user ID and get user profile from database
     user_id = user_info.id
-    user_lang = user_info.language_code or DEFAULT_LANGUAGE
-
-    # Get user profile from database
     from ..database.service import user_service
 
     user_profile = user_service.get_user_profile(telegram_id=user_id)
@@ -663,34 +666,17 @@ def generate_message_settings_basic(user_info: TelegramUser) -> str:
         )
 
     # Get language from database or use Telegram language as fallback
-    db_language = user_profile.settings.language or user_lang
-
-    # Format birth date (localized 'not set')
-    birth_date = user_profile.settings.birth_date
-    if birth_date:
-        birth_date_str = birth_date.strftime("%d.%m.%Y")
-    else:
-        birth_date_str = get_message(
-            message_key="common",
-            sub_key="not_set",
-            language=db_language,
-        )
-
-    # Localized language name
-    language_name = get_localized_language_name(db_language, db_language)
-
-    # Get life expectancy
-    life_expectancy = user_profile.settings.life_expectancy or DEFAULT_LIFE_EXPECTANCY
-
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="basic_settings",
-        language=db_language,
-        birth_date=birth_date_str,
-        language_name=language_name,
-        life_expectancy=life_expectancy,
+    db_language = (
+        user_profile.settings.language or user_info.language_code or DEFAULT_LANGUAGE
     )
+
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(db_language)
+
+    return builder.settings_basic(user_profile)
 
 
 def generate_message_settings_premium(user_info: TelegramUser) -> str:
@@ -705,11 +691,8 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
     :rtype: str
     :raises ValueError: If user profile is not found
     """
-    # Extract user ID and language preference
+    # Extract user ID and get user profile from database
     user_id = user_info.id
-    user_lang = user_info.language_code or DEFAULT_LANGUAGE
-
-    # Get user profile from database
     from ..database.service import user_service
 
     user_profile = user_service.get_user_profile(telegram_id=user_id)
@@ -719,34 +702,17 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
         )
 
     # Get language from database or use Telegram language as fallback
-    db_language = user_profile.settings.language or user_lang
-
-    # Format birth date (localized 'not set')
-    birth_date = user_profile.settings.birth_date
-    if birth_date:
-        birth_date_str = birth_date.strftime("%d.%m.%Y")
-    else:
-        birth_date_str = get_message(
-            message_key="common",
-            sub_key="not_set",
-            language=db_language,
-        )
-
-    # Localized language name
-    language_name = get_localized_language_name(db_language, db_language)
-
-    # Get life expectancy
-    life_expectancy = user_profile.settings.life_expectancy or DEFAULT_LIFE_EXPECTANCY
-
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="premium_settings",
-        language=db_language,
-        birth_date=birth_date_str,
-        language_name=language_name,
-        life_expectancy=life_expectancy,
+    db_language = (
+        user_profile.settings.language or user_info.language_code or DEFAULT_LANGUAGE
     )
+
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(db_language)
+
+    return builder.settings_premium(user_profile)
 
 
 def generate_message_change_birth_date(user_info: TelegramUser) -> str:
@@ -765,33 +731,28 @@ def generate_message_change_birth_date(user_info: TelegramUser) -> str:
     from ..database.service import user_service
 
     user_profile = user_service.get_user_profile(telegram_id=user_id)
-
-    # Get user's language preference
-    user_lang = get_user_language(user_info, user_profile)
-
     if not user_profile or not user_profile.settings:
         raise ValueError(
             f"User profile or settings not found for telegram_id: {user_id}"
         )
 
-    # Format current birth date (localized 'not set')
-    birth_date = user_profile.settings.birth_date
-    if birth_date:
-        current_birth_date = birth_date.strftime("%d.%m.%Y")
-    else:
-        current_birth_date = get_message(
-            message_key="common",
-            sub_key="not_set",
-            language=user_lang,
-        )
+    # Get user's language preference
+    user_lang = get_user_language(user_info, user_profile)
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="change_birth_date",
-        language=user_lang,
-        current_birth_date=current_birth_date,
-    )
+    # Format current birth date
+    current_birth_date = user_profile.settings.birth_date
+    if current_birth_date:
+        current_birth_date_str = current_birth_date.strftime("%d.%m.%Y")
+    else:
+        current_birth_date_str = "Not set"
+
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.change_birth_date(current_birth_date_str)
 
 
 def generate_message_change_language(user_info: TelegramUser) -> str:
@@ -799,24 +760,38 @@ def generate_message_change_language(user_info: TelegramUser) -> str:
 
     This function creates a localized message for changing language.
 
-    :param user_info: Telegram user object containing language preference
+    :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
     :returns: Localized language change message
     :rtype: str
+    :raises ValueError: If user profile is not found
     """
+    # Extract user ID and get user profile from database
+    user_id = user_info.id
+    from ..database.service import user_service
+
+    user_profile = user_service.get_user_profile(telegram_id=user_id)
+    if not user_profile or not user_profile.settings:
+        raise ValueError(
+            f"User profile or settings not found for telegram_id: {user_id}"
+        )
+
     # Get user's language preference
-    user_lang = get_user_language(user_info)
+    user_lang = get_user_language(user_info, user_profile)
 
-    # Локализованное название языка
-    current_language = get_localized_language_name(user_lang, user_lang)
-
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="change_language",
-        language=user_lang,
-        current_language=current_language,
+    # Get current language name
+    current_language = user_profile.settings.language or user_lang
+    current_language_name = get_localized_language_name(
+        current_language, current_language
     )
+
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.change_language(current_language_name)
 
 
 def generate_message_change_life_expectancy(user_info: TelegramUser) -> str:
@@ -835,43 +810,43 @@ def generate_message_change_life_expectancy(user_info: TelegramUser) -> str:
     from ..database.service import user_service
 
     user_profile = user_service.get_user_profile(telegram_id=user_id)
-
-    # Get user's language preference
-    user_lang = get_user_language(user_info, user_profile)
-
     if not user_profile or not user_profile.settings:
         raise ValueError(
             f"User profile or settings not found for telegram_id: {user_id}"
         )
+
+    # Get user's language preference
+    user_lang = get_user_language(user_info, user_profile)
 
     # Get current life expectancy
     current_life_expectancy = (
         user_profile.settings.life_expectancy or DEFAULT_LIFE_EXPECTANCY
     )
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="change_life_expectancy",
-        language=user_lang,
-        current_life_expectancy=current_life_expectancy,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.change_life_expectancy(current_life_expectancy)
 
 
 def generate_message_birth_date_updated(
     user_info: TelegramUser, new_birth_date: date, new_age: int
 ) -> str:
-    """Generate birth date update success message for the user.
+    """Generate birth date updated message for the user.
 
-    This function creates a localized success message when birth date is updated.
+    This function creates a localized success message when the user
+    successfully updates their birth date.
 
-    :param user_info: Telegram user object containing language preference
+    :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
     :param new_birth_date: New birth date
     :type new_birth_date: date
-    :param new_age: New calculated age
+    :param new_age: New age calculated from birth date
     :type new_age: int
-    :returns: Localized birth date update success message
+    :returns: Localized birth date updated message
     :rtype: str
     """
     # Get user's language preference
@@ -880,93 +855,100 @@ def generate_message_birth_date_updated(
     # Format new birth date
     new_birth_date_str = new_birth_date.strftime("%d.%m.%Y")
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="birth_date_updated",
-        language=user_lang,
-        new_birth_date=new_birth_date_str,
-        new_age=new_age,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.birth_date_updated(new_birth_date_str, new_age)
 
 
 def generate_message_language_updated(
     user_info: TelegramUser, new_language: str
 ) -> str:
-    """Generate language update success message for the user.
+    """Generate language updated message for the user.
 
-    This function creates a localized success message when language is updated.
+    This function creates a localized success message when the user
+    successfully changes their language preference.
 
-    :param user_info: Telegram user object containing language preference
+    :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
-    :param new_language: New language name
+    :param new_language: New language code
     :type new_language: str
-    :returns: Localized language update success message
+    :returns: Localized language updated message
     :rtype: str
     """
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="language_updated",
-        language=user_lang,
-        new_language=new_language,
-    )
+    # Get localized language name
+    new_language_name = get_localized_language_name(new_language, new_language)
+
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.language_updated(new_language_name)
 
 
 def generate_message_life_expectancy_updated(
     user_info: TelegramUser, new_life_expectancy: int
 ) -> str:
-    """Generate life expectancy update success message for the user.
+    """Generate life expectancy updated message for the user.
 
-    This function creates a localized success message when life expectancy is updated.
+    This function creates a localized success message when the user
+    successfully updates their life expectancy.
 
-    :param user_info: Telegram user object containing language preference
+    :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
     :param new_life_expectancy: New life expectancy value
     :type new_life_expectancy: int
-    :returns: Localized life expectancy update success message
+    :returns: Localized life expectancy updated message
     :rtype: str
     """
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="life_expectancy_updated",
-        language=user_lang,
-        new_life_expectancy=new_life_expectancy,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.life_expectancy_updated(new_life_expectancy)
 
 
 def generate_message_invalid_life_expectancy(user_info: TelegramUser) -> str:
-    """Generate invalid life expectancy error message for the user.
+    """Generate invalid life expectancy message for the user.
 
-    This function creates a localized error message for invalid life expectancy input.
+    This function creates a localized error message when the user
+    enters an invalid life expectancy value.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
-    :returns: Localized invalid life expectancy error message
+    :returns: Localized invalid life expectancy message
     :rtype: str
     """
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="invalid_life_expectancy",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.invalid_life_expectancy()
 
 
 def generate_message_settings_error(user_info: TelegramUser) -> str:
     """Generate settings error message for the user.
 
-    This function creates a localized error message for settings operations.
+    This function creates a localized error message when there's an error
+    updating user settings.
 
     :param user_info: Telegram user object containing language preference
     :type user_info: TelegramUser
@@ -976,12 +958,13 @@ def generate_message_settings_error(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
-    # Generate localized message
-    return get_message(
-        message_key="command_settings",
-        sub_key="settings_error",
-        language=user_lang,
-    )
+    # Use MessageBuilder for generating the message
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
+    return builder.settings_error()
 
 
 def generate_settings_buttons(user_info: TelegramUser) -> list[list[dict[str, str]]]:
@@ -998,24 +981,16 @@ def generate_settings_buttons(user_info: TelegramUser) -> list[list[dict[str, st
     # Get user's language preference
     user_lang = get_user_language(user_info)
 
+    # Use MessageBuilder for generating button texts
+    from ..services.container import ServiceContainer
+
+    container = ServiceContainer()
+    builder = container.get_message_builder(user_lang)
+
     # Generate localized button texts
-    birth_date_text = get_message(
-        message_key="command_settings",
-        sub_key="button_change_birth_date",
-        language=user_lang,
-    )
-
-    language_text = get_message(
-        message_key="command_settings",
-        sub_key="button_change_language",
-        language=user_lang,
-    )
-
-    life_expectancy_text = get_message(
-        message_key="command_settings",
-        sub_key="button_change_life_expectancy",
-        language=user_lang,
-    )
+    birth_date_text = builder.button_change_birth_date()
+    language_text = builder.button_change_language()
+    life_expectancy_text = builder.button_change_life_expectancy()
 
     # Return button configurations
     return [

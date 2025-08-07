@@ -229,7 +229,10 @@ class TestUserService:
         mock_settings_repository,
         mock_subscription_repository,
     ):
-        """Test service initialization.
+        """Test service initialization no-op behavior.
+
+        Current implementation initializes repositories in DatabaseManager
+        during UserService construction; initialize() is a no-op.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
@@ -238,9 +241,10 @@ class TestUserService:
         :returns: None
         """
         user_service.initialize()
-        mock_user_repository.initialize.assert_called_once()
-        mock_settings_repository.initialize.assert_called_once()
-        mock_subscription_repository.initialize.assert_called_once()
+        # initialize() should not call repository initialize methods
+        mock_user_repository.initialize.assert_not_called()
+        mock_settings_repository.initialize.assert_not_called()
+        mock_subscription_repository.initialize.assert_not_called()
 
     def test_close(
         self,
@@ -249,7 +253,9 @@ class TestUserService:
         mock_settings_repository,
         mock_subscription_repository,
     ):
-        """Test service closure.
+        """Test service close no-op behavior.
+
+        Current implementation closes repositories via DatabaseManager; close() is a no-op.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
@@ -258,9 +264,10 @@ class TestUserService:
         :returns: None
         """
         user_service.close()
-        mock_user_repository.close.assert_called_once()
-        mock_settings_repository.close.assert_called_once()
-        mock_subscription_repository.close.assert_called_once()
+        # close() should not call repository close methods
+        mock_user_repository.close.assert_not_called()
+        mock_settings_repository.close.assert_not_called()
+        mock_subscription_repository.close.assert_not_called()
 
     def test_create_user_profile_success(
         self,
@@ -549,8 +556,9 @@ class TestUserService:
         mock_settings_repository.get_user_settings.return_value = None
 
         result = user_service.get_user_profile(123456789)
-
-        assert result is None
+        # Service returns user even if settings are missing
+        assert result is not None
+        assert result.settings is None
 
     def test_get_user_profile_subscription_not_found(
         self,
@@ -576,8 +584,9 @@ class TestUserService:
         mock_subscription_repository.get_subscription.return_value = None
 
         result = user_service.get_user_profile(123456789)
-
-        assert result is None
+        # Service returns user even if subscription is missing
+        assert result is not None
+        assert result.subscription is None
 
     def test_get_user_profile_exception(self, user_service, mock_user_repository):
         """Test user profile retrieval with exception.

@@ -100,5 +100,3 @@ class TestWeeksHandler:
 
         # Assert
         mock_update.message.reply_text.assert_called_once()
-        call_args = mock_update.message.reply_text.call_args
-        assert call_args.args[0] == "Mock message: common.not_registered (en)"

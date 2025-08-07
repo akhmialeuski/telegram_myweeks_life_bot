@@ -58,31 +58,23 @@ class TestServiceContainer:
         assert life_calculator is container.life_calculator
         assert life_calculator.__name__ == "LifeCalculatorEngine"
 
-    def test_get_message(self) -> None:
-        """Test get_message method.
+    def test_get_message_via_builder(self) -> None:
+        """Test retrieving messages via MessageBuilder from container.
 
-        This test verifies that the get_message method
-        properly delegates to the localization service.
-
-        :returns: None
+        This test verifies that the container provides a MessageBuilder
+        and it can generate a localized message string.
         """
         container = ServiceContainer()
 
-        # Test with default language
-        message = container.get_message(
-            message_key="command_start", sub_key="welcome_new"
-        )
+        # Default language
+        builder_default = container.get_message_builder()
+        text_default = builder_default.help()
+        assert isinstance(text_default, str) and len(text_default) > 0
 
-        assert isinstance(message, str)
-        assert len(message) > 0
-
-        # Test with specific language
-        message_en = container.get_message(
-            message_key="command_start", sub_key="welcome_new", language="en"
-        )
-
-        assert isinstance(message_en, str)
-        assert len(message_en) > 0
+        # Specific language
+        builder_en = container.get_message_builder("en")
+        text_en = builder_en.help()
+        assert isinstance(text_en, str) and len(text_en) > 0
 
     def test_get_supported_languages(self) -> None:
         """Test get_supported_languages method.

@@ -87,6 +87,7 @@ class TestVisualizeHandler:
         # Setup - user not registered
         handler.services.user_service.is_valid_user_profile.return_value = False
         mock_get_user_language.return_value = SupportedLanguage.EN.value
+        # MessageBuilder is used inside BaseHandler now; keep stub in case
         mock_get_message.return_value = "You need to register first!"
 
         # Execute

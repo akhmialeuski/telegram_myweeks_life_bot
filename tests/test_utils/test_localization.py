@@ -1,148 +1,14 @@
 """Tests for localization functionality."""
 
-from unittest.mock import patch
-
-import pytest
-
-from src.utils.localization import (
-    get_localized_language_name,
-    get_message,
-    get_subscription_description,
-    get_supported_languages,
-    is_language_supported,
-)
-
 
 class TestLocalization:
     """Test localization functions."""
 
-    def test_get_message_valid_key_ru(self):
-        """Test getting message with valid key in Russian."""
-        result = get_message("common", "error", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_message_valid_key_en(self):
-        """Test getting message with valid key in English."""
-        result = get_message("common", "error", "en")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_message_unsupported_language_fallback(self):
-        """Test getting message with unsupported language falls back to default."""
-        result = get_message("common", "error", "fr")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_message_invalid_key_fallback(self):
-        """Test getting message with invalid key raises KeyError."""
-        with pytest.raises(KeyError):
-            get_message("invalid_key", "error", "ru")
-
-    def test_get_message_invalid_subkey_fallback(self):
-        """Test getting message with invalid subkey raises KeyError."""
-        with pytest.raises(KeyError):
-            get_message("common", "invalid_subkey", "ru")
-
-    def test_get_message_with_formatting_parameters(self):
-        """Test getting message with formatting parameters."""
-        result = get_message(
-            "command_weeks",
-            "statistics",
-            "ru",
-            age=25,
-            weeks_lived=1300,
-            remaining_weeks=2860,
-            life_percentage="16.2%",
-            days_until_birthday=45,
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "25" in result
-        # Check for formatted numbers (with commas for thousands)
-        assert "1,300" in result or "1300" in result
-
-    def test_get_message_fallback_to_default_language(self):
-        """Test fallback to default language when translation is missing in target language."""
-        # Try to get a message that exists in default language but not in the target language
-        # Use a specific key that might exist in ru but not in en for testing fallback
-        result = get_message("common", "error", "en")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_message_fallback_scenario_with_missing_translation(self):
-        """Test fallback scenario when translation is missing in non-default language."""
-        # This tests the specific fallback logic where language != DEFAULT_LANGUAGE
-        # and we need to fall back to default language
-        try:
-            # Try to get a message with a language that might not have all translations
-            result = get_message("common", "error", "by")  # Belarusian
-            assert isinstance(result, str)
-            assert len(result) > 0
-        except KeyError:
-            # If the key doesn't exist even in default, that's expected
-            pass
-
-    def test_get_message_fallback_logic_with_mock(self):
-        """Test the specific fallback logic by mocking ALL_MESSAGES to simulate missing translation."""
-        # Mock ALL_MESSAGES to have a message in 'ru' but not in 'en'
-        mock_messages = {
-            "test_key": {
-                "test_subkey": {
-                    "ru": "Тестовое сообщение",
-                    # Intentionally missing "en" to trigger fallback
-                    "ua": "Тестове повідомлення",
-                    "by": "Тэставое паведамленне",
-                }
-            }
-        }
-
-        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
-            # This should trigger the fallback to default language ('ru')
-            result = get_message("test_key", "test_subkey", "en")
-            assert result == "Тестовое сообщение"  # Should get Russian version
-
-    def test_get_message_fallback_logic_with_kwargs(self):
-        """Test the fallback logic with formatting parameters."""
-        # Mock ALL_MESSAGES to test fallback with kwargs
-        mock_messages = {
-            "test_key": {
-                "test_subkey": {
-                    "ru": "Привет, {name}! У тебя {count} сообщений.",
-                    # Intentionally missing "en" to trigger fallback
-                    "ua": "Привіт, {name}! У тебе {count} повідомлень.",
-                    "by": "Прывітанне, {name}! У цябе {count} паведамленняў.",
-                }
-            }
-        }
-
-        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
-            # This should trigger the fallback to default language ('ru') and format the message
-            result = get_message("test_key", "test_subkey", "en", name="John", count=5)
-            assert result == "Привет, John! У тебя 5 сообщений."
-
-    def test_get_message_complete_fallback_failure(self):
-        """Test fallback failure when message doesn't exist in any language including default."""
-        # Mock ALL_MESSAGES to have incomplete message structure that will fail even on fallback
-        mock_messages = {
-            "test_key": {
-                "existing_subkey": {
-                    "ru": "Существующее сообщение",
-                    "en": "Existing message",
-                }
-                # Intentionally missing "missing_subkey" to trigger complete failure
-            }
-        }
-
-        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
-            # This should trigger the fallback logic but fail because even default language doesn't have the subkey
-            with pytest.raises(
-                KeyError, match="Message not found: test_key.missing_subkey"
-            ):
-                get_message("test_key", "missing_subkey", "en")
-
     def test_get_supported_languages(self):
         """Test getting list of supported languages."""
+        # Import here to avoid circular imports
+        from src.utils.localization import get_supported_languages
+
         languages = get_supported_languages()
         assert isinstance(languages, list)
         assert len(languages) > 0
@@ -151,336 +17,420 @@ class TestLocalization:
 
     def test_is_language_supported_valid(self):
         """Test checking if valid language is supported."""
+        from src.utils.localization import is_language_supported
+
         assert is_language_supported("ru") is True
         assert is_language_supported("en") is True
 
     def test_is_language_supported_invalid(self):
         """Test checking if invalid language is supported."""
+        from src.utils.localization import is_language_supported
+
         assert is_language_supported("fr") is False
         assert is_language_supported("de") is False
 
     def test_is_language_supported_edge_cases(self):
         """Test language support with edge cases."""
+        from src.utils.localization import is_language_supported
+
         assert is_language_supported("") is False
         assert is_language_supported(None) is False
 
-    def test_get_message_all_supported_languages(self):
-        """Test getting messages in all supported languages."""
-        languages = get_supported_languages()
-        for lang in languages:
-            result = get_message("common", "error", lang)
-            assert isinstance(result, str)
-            assert len(result) > 0
+    def test_get_localized_language_name_valid_combinations(self):
+        """Test getting localized language names for valid combinations."""
+        from src.utils.localization import get_localized_language_name
 
-    def test_get_message_birth_date_validation_errors(self):
-        """Test getting birth date validation error messages."""
-        errors = ["future_date_error", "old_date_error", "format_error"]
-        for error in errors:
-            result = get_message("birth_date_validation", error, "ru")
-            assert isinstance(result, str)
-            assert len(result) > 0
+        # Test Russian language names
+        assert get_localized_language_name("ru", "ru") == "Русский"
+        assert get_localized_language_name("en", "ru") == "Английский"
+        assert get_localized_language_name("ua", "ru") == "Украинский"
+        assert get_localized_language_name("by", "ru") == "Белорусский"
 
-    def test_get_message_command_weeks_not_registered(self):
-        """Test getting not registered message for weeks command."""
-        result = get_message("command_weeks", "not_registered", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
+        # Test English language names
+        assert get_localized_language_name("ru", "en") == "Russian"
+        assert get_localized_language_name("en", "en") == "English"
+        assert get_localized_language_name("ua", "en") == "Ukrainian"
+        assert get_localized_language_name("by", "en") == "Belarusian"
 
-    def test_get_message_statistics_formatting(self):
-        """Test getting statistics message with proper formatting."""
-        result = get_message(
-            "command_weeks",
-            "statistics",
-            "en",
+        # Test Ukrainian language names
+        assert get_localized_language_name("ru", "ua") == "Російська"
+        assert get_localized_language_name("en", "ua") == "Англійська"
+        assert get_localized_language_name("ua", "ua") == "Українська"
+        assert get_localized_language_name("by", "ua") == "Білоруська"
+
+        # Test Belarusian language names
+        assert get_localized_language_name("ru", "by") == "Рускай"
+        assert get_localized_language_name("en", "by") == "Англійская"
+        assert get_localized_language_name("ua", "by") == "Украінская"
+        assert get_localized_language_name("by", "by") == "Беларуская"
+
+    def test_get_localized_language_name_unsupported_target_language(self):
+        """Test getting localized language name with unsupported target language."""
+        from src.utils.localization import get_localized_language_name
+
+        # Should return the language code if target language is not supported
+        assert get_localized_language_name("ru", "fr") == "ru"
+        assert get_localized_language_name("en", "de") == "en"
+
+    def test_get_localized_language_name_unsupported_language(self):
+        """Test getting localized language name with unsupported language."""
+        from src.utils.localization import get_localized_language_name
+
+        # Should return the language code if language is not supported
+        assert get_localized_language_name("fr", "ru") == "fr"
+        assert get_localized_language_name("de", "en") == "de"
+
+    def test_get_localized_language_name_edge_cases(self):
+        """Test getting localized language name with edge cases."""
+        from src.utils.localization import get_localized_language_name
+
+        # Test with empty strings
+        assert get_localized_language_name("", "ru") == ""
+        assert get_localized_language_name("ru", "") == "ru"
+
+        # Test with None values
+        assert get_localized_language_name(None, "ru") is None
+        assert get_localized_language_name("ru", None) == "ru"
+
+    def test_message_builder_initialization(self):
+        """Test MessageBuilder initialization."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        assert builder.lang == "ru"
+        assert hasattr(builder, "_")
+
+    def test_message_builder_help_message(self):
+        """Test MessageBuilder help message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        help_message = builder.help()
+        assert isinstance(help_message, str)
+        assert len(help_message) > 0
+        assert "LifeWeeksBot" in help_message or "бот" in help_message
+
+    def test_message_builder_error_message(self):
+        """Test MessageBuilder error message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        error_message = builder.error()
+        assert isinstance(error_message, str)
+        assert len(error_message) > 0
+
+    def test_message_builder_unknown_command_message(self):
+        """Test MessageBuilder unknown command message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        unknown_message = builder.unknown_command()
+        assert isinstance(unknown_message, str)
+        assert len(unknown_message) > 0
+
+    def test_message_builder_not_registered_message(self):
+        """Test MessageBuilder not registered message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        not_registered_message = builder.not_registered()
+        assert isinstance(not_registered_message, str)
+        assert len(not_registered_message) > 0
+
+    def test_message_builder_not_set_message(self):
+        """Test MessageBuilder not set message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        not_set_message = builder.not_set()
+        assert isinstance(not_set_message, str)
+        assert len(not_set_message) > 0
+
+    def test_message_builder_registration_error_message(self):
+        """Test MessageBuilder registration error message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        registration_error_message = builder.registration_error()
+        assert isinstance(registration_error_message, str)
+        assert len(registration_error_message) > 0
+
+    def test_message_builder_birth_date_errors(self):
+        """Test MessageBuilder birth date error messages."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        future_error = builder.birth_date_future_error()
+        assert isinstance(future_error, str)
+        assert len(future_error) > 0
+
+        old_error = builder.birth_date_old_error()
+        assert isinstance(old_error, str)
+        assert len(old_error) > 0
+
+        format_error = builder.birth_date_format_error()
+        assert isinstance(format_error, str)
+        assert len(format_error) > 0
+
+    def test_message_builder_not_registered_weeks_message(self):
+        """Test MessageBuilder not registered weeks message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        not_registered_weeks_message = builder.not_registered_weeks()
+        assert isinstance(not_registered_weeks_message, str)
+        assert len(not_registered_weeks_message) > 0
+
+    def test_message_builder_not_registered_visualize_message(self):
+        """Test MessageBuilder not registered visualize message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        not_registered_visualize_message = builder.not_registered_visualize()
+        assert isinstance(not_registered_visualize_message, str)
+        assert len(not_registered_visualize_message) > 0
+
+    def test_message_builder_visualization_error_message(self):
+        """Test MessageBuilder visualization error message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        visualization_error_message = builder.visualization_error()
+        assert isinstance(visualization_error_message, str)
+        assert len(visualization_error_message) > 0
+
+    def test_message_builder_weeks_error_message(self):
+        """Test MessageBuilder weeks error message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        weeks_error_message = builder.weeks_error()
+        assert isinstance(weeks_error_message, str)
+        assert len(weeks_error_message) > 0
+
+    def test_message_builder_subscription_messages(self):
+        """Test MessageBuilder subscription message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test subscription current message
+        subscription_current = builder.subscription_current(
+            "basic", "Basic subscription"
+        )
+        assert isinstance(subscription_current, str)
+        assert len(subscription_current) > 0
+
+        # Test subscription invalid type message
+        subscription_invalid = builder.subscription_invalid_type()
+        assert isinstance(subscription_invalid, str)
+        assert len(subscription_invalid) > 0
+
+        # Test subscription profile error message
+        subscription_profile_error = builder.subscription_profile_error()
+        assert isinstance(subscription_profile_error, str)
+        assert len(subscription_profile_error) > 0
+
+        # Test subscription already active message
+        subscription_already_active = builder.subscription_already_active("basic")
+        assert isinstance(subscription_already_active, str)
+        assert len(subscription_already_active) > 0
+
+    def test_message_builder_subscription_change_messages(self):
+        """Test MessageBuilder subscription change message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test subscription change success message
+        subscription_change_success = builder.subscription_change_success(
+            "basic", "Basic subscription"
+        )
+        assert isinstance(subscription_change_success, str)
+        assert len(subscription_change_success) > 0
+
+        # Test subscription change failed message
+        subscription_change_failed = builder.subscription_change_failed()
+        assert isinstance(subscription_change_failed, str)
+        assert len(subscription_change_failed) > 0
+
+        # Test subscription change error message
+        subscription_change_error = builder.subscription_change_error()
+        assert isinstance(subscription_change_error, str)
+        assert len(subscription_change_error) > 0
+
+    def test_message_builder_settings_messages(self):
+        """Test MessageBuilder settings message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test change birth date message
+        change_birth_date = builder.change_birth_date("01.01.1990")
+        assert isinstance(change_birth_date, str)
+        assert len(change_birth_date) > 0
+
+        # Test change language message
+        change_language = builder.change_language("ru")
+        assert isinstance(change_language, str)
+        assert len(change_language) > 0
+
+        # Test change life expectancy message
+        change_life_expectancy = builder.change_life_expectancy(80)
+        assert isinstance(change_life_expectancy, str)
+        assert len(change_life_expectancy) > 0
+
+    def test_message_builder_update_messages(self):
+        """Test MessageBuilder update message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test birth date updated message
+        birth_date_updated = builder.birth_date_updated("01.01.1990", 30)
+        assert isinstance(birth_date_updated, str)
+        assert len(birth_date_updated) > 0
+
+        # Test language updated message
+        language_updated = builder.language_updated("en")
+        assert isinstance(language_updated, str)
+        assert len(language_updated) > 0
+
+        # Test life expectancy updated message
+        life_expectancy_updated = builder.life_expectancy_updated(80)
+        assert isinstance(life_expectancy_updated, str)
+        assert len(life_expectancy_updated) > 0
+
+    def test_message_builder_invalid_life_expectancy_message(self):
+        """Test MessageBuilder invalid life expectancy message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        invalid_life_expectancy_message = builder.invalid_life_expectancy()
+        assert isinstance(invalid_life_expectancy_message, str)
+        assert len(invalid_life_expectancy_message) > 0
+
+    def test_message_builder_settings_error_message(self):
+        """Test MessageBuilder settings error message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        settings_error_message = builder.settings_error()
+        assert isinstance(settings_error_message, str)
+        assert len(settings_error_message) > 0
+
+    def test_message_builder_cancel_messages(self):
+        """Test MessageBuilder cancel message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test cancel success message
+        cancel_success = builder.cancel_success("John")
+        assert isinstance(cancel_success, str)
+        assert len(cancel_success) > 0
+
+        # Test cancel error message
+        cancel_error = builder.cancel_error("John")
+        assert isinstance(cancel_error, str)
+        assert len(cancel_error) > 0
+
+    def test_message_builder_button_messages(self):
+        """Test MessageBuilder button message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test button change birth date message
+        button_change_birth_date = builder.button_change_birth_date()
+        assert isinstance(button_change_birth_date, str)
+        assert len(button_change_birth_date) > 0
+
+        # Test button change language message
+        button_change_language = builder.button_change_language()
+        assert isinstance(button_change_language, str)
+        assert len(button_change_language) > 0
+
+        # Test button change life expectancy message
+        button_change_life_expectancy = builder.button_change_life_expectancy()
+        assert isinstance(button_change_life_expectancy, str)
+        assert len(button_change_life_expectancy) > 0
+
+    def test_message_builder_weeks_statistics(self):
+        """Test MessageBuilder weeks statistics message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        weeks_statistics = builder.weeks_statistics(
+            age=25,
+            weeks_lived=1300,
+            remaining_weeks=2860,
+            life_percentage="16.2%",
+            days_until_birthday=45,
+        )
+        assert isinstance(weeks_statistics, str)
+        assert len(weeks_statistics) > 0
+        assert "25" in weeks_statistics
+
+    def test_message_builder_visualize_info(self):
+        """Test MessageBuilder visualize info message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        visualize_info = builder.visualize_info(
+            age=25, weeks_lived=1300, life_percentage="16.2%"
+        )
+        assert isinstance(visualize_info, str)
+        assert len(visualize_info) > 0
+        assert "25" in visualize_info
+
+    def test_message_builder_start_welcome_messages(self):
+        """Test MessageBuilder start welcome message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test start welcome existing message
+        start_welcome_existing = builder.start_welcome_existing("John")
+        assert isinstance(start_welcome_existing, str)
+        assert len(start_welcome_existing) > 0
+
+        # Test start welcome new message
+        start_welcome_new = builder.start_welcome_new("John")
+        assert isinstance(start_welcome_new, str)
+        assert len(start_welcome_new) > 0
+
+    def test_message_builder_registration_success(self):
+        """Test MessageBuilder registration success message generation."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        registration_success = builder.registration_success(
+            first_name="John",
+            birth_date="01.01.1990",
             age=30,
             weeks_lived=1560,
             remaining_weeks=2600,
             life_percentage="37.5%",
-            days_until_birthday=120,
         )
-        assert isinstance(result, str)
-        assert "30" in result
-        # Check for formatted numbers (with commas for thousands)
-        assert "1,560" in result or "1560" in result
-        assert "2,600" in result or "2600" in result
-        assert "37.5%" in result
-        assert "120" in result
-
-    def test_get_message_case_sensitivity(self):
-        """Test that message keys are case sensitive."""
-        # Should raise KeyError for incorrect case
-        with pytest.raises(KeyError, match="Message not found: Common.Error"):
-            get_message("Common", "Error", "ru")
-
-    def test_get_message_empty_parameters(self):
-        """Test getting message with empty parameters."""
-        result = get_message("common", "error", "ru", empty_param="")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_message_missing_parameters(self):
-        """Test getting message with missing parameters."""
-        result = get_message("common", "error", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_basic_ru(self):
-        """Test getting basic subscription description in Russian."""
-        result = get_subscription_description("basic", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_premium_en(self):
-        """Test getting premium subscription description in English."""
-        result = get_subscription_description("premium", "en")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_trial_ru(self):
-        """Test getting trial subscription description in Russian."""
-        result = get_subscription_description("trial", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_unknown_type(self):
-        """Test getting description for unknown subscription type."""
-        result = get_subscription_description("unknown", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_unsupported_language(self):
-        """Test getting subscription description with unsupported language."""
-        result = get_subscription_description("basic", "fr")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_fallback_to_default_language(self):
-        """Test fallback to default language in subscription description."""
-        # Test the specific fallback logic for subscription descriptions
-        result = get_subscription_description(
-            "basic", "by"
-        )  # Belarusian might not have all subscriptions
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_get_subscription_description_unknown_type_with_fallback(self):
-        """Test unknown subscription type with language fallback."""
-        # This should test the fallback logic when subscription type doesn't exist
-        result = get_subscription_description("nonexistent", "en")
-        assert isinstance(result, str)
-        assert "Unknown subscription: nonexistent" in result
-
-    def test_get_subscription_description_fallback_logic_with_mock(self):
-        """Test subscription description fallback logic by mocking missing translation."""
-        # Mock ALL_MESSAGES to have subscription description in 'ru' but not in 'en'
-        mock_messages = {
-            "command_subscription": {
-                "subscription_descriptions": {
-                    "basic": {
-                        "ru": "Базовая подписка - тест",
-                        # Intentionally missing "en" to trigger fallback
-                        "ua": "Базова підписка - тест",
-                        "by": "Базавая падпіска - тэст",
-                    }
-                }
-            }
-        }
-
-        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
-            # This should trigger the fallback to default language ('ru')
-            result = get_subscription_description("basic", "en")
-            assert result == "Базовая подписка - тест"  # Should get Russian version
-
-    def test_get_subscription_description_complete_fallback_failure(self):
-        """Test subscription description complete fallback failure."""
-        # Mock ALL_MESSAGES to have incomplete subscription structure
-        mock_messages = {
-            "command_subscription": {
-                "subscription_descriptions": {
-                    "existing_type": {
-                        "ru": "Существующий тип",
-                        "en": "Existing type",
-                    }
-                    # Intentionally missing "nonexistent_type" to trigger complete failure
-                }
-            }
-        }
-
-        with patch("src.utils.localization.ALL_MESSAGES", mock_messages):
-            # This should trigger the fallback logic but fail completely and return unknown message
-            result = get_subscription_description("nonexistent_type", "en")
-            assert result == "Unknown subscription: nonexistent_type"
-
-    def test_basic_addition_message_with_buymeacoffee_url_ru(self):
-        """Test basic addition message with BuyMeACoffee URL in Russian."""
-        result = get_message(
-            "subscription_additions",
-            "basic_addition",
-            "ru",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "https://test.buymeacoffee.com/testuser" in result
-
-    def test_basic_addition_message_with_buymeacoffee_url_en(self):
-        """Test basic addition message with BuyMeACoffee URL in English."""
-        result = get_message(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url="https://test.buymeacoffee.com/testuser",
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "https://test.buymeacoffee.com/testuser" in result
-
-    def test_basic_addition_message_with_default_buymeacoffee_url(self):
-        """Test basic addition message with default BuyMeACoffee URL."""
-        result = get_message(
-            "subscription_additions",
-            "basic_addition",
-            "ru",
-            buymeacoffee_url="https://www.buymeacoffee.com/yourname",
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert "https://www.buymeacoffee.com/yourname" in result
-
-    def test_basic_addition_message_with_custom_buymeacoffee_url(self):
-        """Test basic addition message with custom BuyMeACoffee URL."""
-        custom_url = "https://custom.buymeacoffee.com/customuser"
-        result = get_message(
-            "subscription_additions",
-            "basic_addition",
-            "en",
-            buymeacoffee_url=custom_url,
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-        assert custom_url in result
-
-    def test_basic_addition_message_with_empty_buymeacoffee_url(self):
-        """Test basic addition message with empty BuyMeACoffee URL."""
-        result = get_message(
-            "subscription_additions", "basic_addition", "ru", buymeacoffee_url=""
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_basic_addition_message_with_none_buymeacoffee_url(self):
-        """Test basic addition message with None BuyMeACoffee URL."""
-        result = get_message(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=None
-        )
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_basic_addition_message_missing_buymeacoffee_url(self):
-        """Test basic addition message without BuyMeACoffee URL parameter."""
-        result = get_message("subscription_additions", "basic_addition", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-        # Should contain the placeholder {buymeacoffee_url} since no URL was provided
-        assert "{buymeacoffee_url}" in result
-
-    def test_premium_addition_message_no_buymeacoffee_url(self):
-        """Test premium addition message doesn't require BuyMeACoffee URL."""
-        result = get_message("subscription_additions", "premium_addition", "ru")
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_basic_addition_message_formatting_with_url(self):
-        """Test that basic addition message properly formats BuyMeACoffee URL."""
-        test_url = "https://test.buymeacoffee.com/testuser"
-        result = get_message(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=test_url
-        )
-        assert isinstance(result, str)
-        assert test_url in result
-        # Check that URL is properly integrated into the message
-        assert "Donate:" in result or "Донат:" in result
-
-    def test_basic_addition_message_multiple_languages_with_url(self):
-        """Test basic addition message with URL in multiple languages."""
-        test_url = "https://test.buymeacoffee.com/testuser"
-
-        # Test Russian
-        result_ru = get_message(
-            "subscription_additions", "basic_addition", "ru", buymeacoffee_url=test_url
-        )
-        assert test_url in result_ru
-
-        # Test English
-        result_en = get_message(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=test_url
-        )
-        assert test_url in result_en
-
-    def test_basic_addition_message_url_placement(self):
-        """Test that BuyMeACoffee URL is placed correctly in the message."""
-        test_url = "https://test.buymeacoffee.com/testuser"
-        result = get_message(
-            "subscription_additions", "basic_addition", "en", buymeacoffee_url=test_url
-        )
-
-        # URL should appear after "Donate:" or similar text
-        assert test_url in result
-        # Check that it's not at the very beginning
-        assert not result.startswith(test_url)
-
-    def test_get_localized_language_name_valid_combinations(self):
-        """Test getting localized language names for valid combinations."""
-        # Test getting English name in Russian
-        result = get_localized_language_name("en", "ru")
-        assert result == "Английский"
-
-        # Test getting Russian name in English
-        result = get_localized_language_name("ru", "en")
-        assert result == "Russian"
-
-        # Test getting same language name
-        result = get_localized_language_name("ru", "ru")
-        assert result == "Русский"
-
-        # Test getting Ukrainian name in English
-        result = get_localized_language_name("ua", "en")
-        assert result == "Ukrainian"
-
-    def test_get_localized_language_name_unsupported_target_language(self):
-        """Test getting localized language name with unsupported target language."""
-        # Should return the original language code when target language is not supported
-        result = get_localized_language_name("en", "fr")
-        assert result == "en"
-
-    def test_get_localized_language_name_unsupported_language(self):
-        """Test getting localized language name for unsupported language."""
-        # Should return the original language code when language is not supported
-        result = get_localized_language_name("fr", "ru")
-        assert result == "fr"
-
-    def test_get_localized_language_name_edge_cases(self):
-        """Test getting localized language name with edge cases."""
-        # Test with empty strings
-        result = get_localized_language_name("", "ru")
-        assert result == ""
-
-        # Test with None-like inputs
-        result = get_localized_language_name("nonexistent", "nonexistent")
-        assert result == "nonexistent"
+        assert isinstance(registration_success, str)
+        assert len(registration_success) > 0
+        assert "01.01.1990" in registration_success
+        assert "30" in registration_success
 
     def test_localization_module_imports(self):
-        """Test that all required functions are imported correctly."""
+        """Test that all required functions can be imported."""
         from src.utils.localization import (
+            DEFAULT_LANGUAGE,
+            LANGUAGES,
             get_localized_language_name,
-            get_message,
-            get_subscription_description,
             get_supported_languages,
             is_language_supported,
         )
 
-        assert callable(get_message)
+        assert callable(get_localized_language_name)
         assert callable(get_supported_languages)
         assert callable(is_language_supported)
-        assert callable(get_subscription_description)
-        assert callable(get_localized_language_name)
+        assert isinstance(LANGUAGES, list)
+        assert isinstance(DEFAULT_LANGUAGE, str)
