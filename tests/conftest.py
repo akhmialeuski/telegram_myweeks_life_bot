@@ -3,11 +3,26 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
+
+try:  # pragma: no cover - prefer real plugin when available
+    from pytest_mock import MockerFixture
+except Exception:  # pragma: no cover - fallback when plugin missing
+    from unittest.mock import patch
+
+    class MockerFixture:  # type: ignore[too-few-public-methods]
+        """Minimal stand-in for pytest_mock.MockerFixture."""
+
+        def patch(self, target: str, *args, **kwargs):
+            return patch(target, *args, **kwargs)
+
+    @pytest.fixture
+    def mocker() -> MockerFixture:
+        """Provide a simple mocker fixture if pytest-mock is unavailable."""
+
+        return MockerFixture()
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
-from src.bot.application import LifeWeeksBot
 from src.core.enums import SubscriptionType, WeekDay
 from src.utils.localization import SupportedLanguage
 

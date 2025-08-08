@@ -243,6 +243,63 @@ class MessageBuilder:
             text = self._default_trans.ngettext(singular, plural, n)
         return text.format(**kwargs) if kwargs else text
 
+    def pget(self, context: str, message: str, **kwargs: Any) -> str:
+        """Get contextualized message with automatic fallback.
+
+        :param context: Context identifier for the message
+        :type context: str
+        :param message: Message identifier within the context
+        :type message: str
+        :returns: Localized message string
+        :rtype: str
+        """
+
+        text: str = self._trans.pgettext(context, message)
+        if text == message:
+            text = self._default_trans.pgettext(context, message)
+            if text == message:
+                LOGGER.warning(
+                    "Missing contextual translation for '%s' in '%s' with fallback '%s'",
+                    f"{context}:{message}",
+                    self.lang,
+                    self.default_lang,
+                )
+        return text.format(**kwargs) if kwargs else text
+
+    def npget(
+        self,
+        context: str,
+        singular: str,
+        plural: str,
+        n: int,
+        **kwargs: Any,
+    ) -> str:
+        """Get contextualized pluralized message with automatic fallback.
+
+        :param context: Context identifier for the message
+        :type context: str
+        :param singular: Singular form message identifier
+        :type singular: str
+        :param plural: Plural form message identifier
+        :type plural: str
+        :param n: Quantity used to determine singular or plural form
+        :type n: int
+        :returns: Localized singular or plural message
+        :rtype: str
+        """
+
+        text: str = self._trans.npgettext(context, singular, plural, n)
+        if text in {singular, plural}:
+            text = self._default_trans.npgettext(context, singular, plural, n)
+            if text in {singular, plural}:
+                LOGGER.warning(
+                    "Missing contextual plural translation for '%s' in '%s' with fallback '%s'",
+                    context,
+                    self.lang,
+                    self.default_lang,
+                )
+        return text.format(**kwargs) if kwargs else text
+
     def __getattr__(self, name: str) -> Callable[..., str]:
         """Dynamically resolve unknown message methods to keys.
 
