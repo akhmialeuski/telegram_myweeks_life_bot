@@ -243,6 +243,12 @@ class MessageBuilder:
             return resolved_fallback
 
         # Final fallback: return the key itself, safely formatted if kwargs provided
+        LOGGER.warning(
+            "Missing translation for key '%s' in '%s' with fallback '%s'",
+            key,
+            self.lang,
+            self.default_lang,
+        )
         return self._safe_format(key, kwargs)
 
     def ngettext(
@@ -267,6 +273,7 @@ class MessageBuilder:
         :param kwargs: Additional keyword arguments for formatting
         :return: Localized pluralized message
         """
+
         def _lookup(translations: gettext.NullTranslations) -> str:
             if context:
                 try:
@@ -283,7 +290,9 @@ class MessageBuilder:
 
         if not text or text in {singular_key, plural_key}:
             LOGGER.warning(
-                "Missing plural translation for keys '%s'/'%s'", singular_key, plural_key
+                "Missing plural translation for keys '%s'/'%s'",
+                singular_key,
+                plural_key,
             )
             text = singular_key if n == 1 else plural_key
 

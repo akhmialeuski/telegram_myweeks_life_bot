@@ -176,3 +176,8 @@ msgstr "✅ <b>Expected life expectancy updated!</b>\n\nNew value: <b>{new_life_
 msgctxt "common.not_registered"
 msgid ""
 msgstr "❌ Please register using /start"
+
+#: dynamic key: not.set
+msgctxt "not.set"
+msgid ""
+msgstr "Not set"

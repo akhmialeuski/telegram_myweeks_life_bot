@@ -351,6 +351,7 @@ class TestLocalization:
     def test_message_builder_ngettext(self):
         """Test pluralization support in MessageBuilder."""
         from types import SimpleNamespace
+
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
@@ -364,7 +365,4 @@ class TestLocalization:
 
         assert builder.ngettext("{n} week", "{n} weeks", 1) == "1 week"
         assert builder.ngettext("{n} week", "{n} weeks", 2) == "2 weeks"
-        assert (
-            builder.ngettext("{n} week", "{n} weeks", 2, context="demo")
-            == "2 ctx"
-        )
+        assert builder.ngettext("{n} week", "{n} weeks", 2, context="demo") == "2 ctx"

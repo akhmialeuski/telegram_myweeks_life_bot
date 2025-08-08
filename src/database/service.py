@@ -6,7 +6,6 @@ working with models and repositories to handle complex operations.
 
 import threading
 from datetime import UTC, date, datetime, time, timedelta
-import threading
 from typing import Optional
 
 from ..constants import (
@@ -59,6 +58,9 @@ class DatabaseManager:
         self.user_repository.initialize()
         self.settings_repository.initialize()
         self.subscription_repository.initialize()
+
+        # Mark as initialized to prevent re-initialization on subsequent __init__ calls
+        self._initialized = True
 
     def close(self):
         """Close all database connections."""

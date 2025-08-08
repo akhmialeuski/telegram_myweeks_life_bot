@@ -8,6 +8,8 @@ import pytest
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
+# Import from src directory
+from src.bot.application import LifeWeeksBot
 from src.core.enums import SubscriptionType, WeekDay
 from src.utils.localization import SupportedLanguage
 
@@ -37,6 +39,7 @@ def mocker() -> Iterator[MockerFixture]:
     yield fixture
     for p in fixture._patches:
         p.stop()
+
 
 # --- Test Constants ---
 TEST_USER_ID = 123456789
@@ -204,14 +207,12 @@ def mock_generate_message(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture
-def bot() -> "LifeWeeksBot":
+def bot() -> LifeWeeksBot:
     """Provides a fresh LifeWeeksBot instance for each test.
 
     :returns: LifeWeeksBot instance for testing
     :rtype: LifeWeeksBot
     """
-    from src.bot.application import LifeWeeksBot
-
     return LifeWeeksBot()
 
 

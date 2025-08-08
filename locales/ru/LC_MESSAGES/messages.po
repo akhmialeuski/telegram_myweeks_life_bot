@@ -176,3 +176,8 @@ msgstr "✅ <b>Ожидаемая продолжительность жизни 
 msgctxt "common.not_registered"
 msgid ""
 msgstr "❌ Пожалуйста, зарегистрируйтесь с помощью /start"
+
+#: dynamic key: not.set
+msgctxt "not.set"
+msgid ""
+msgstr "Не установлено"
