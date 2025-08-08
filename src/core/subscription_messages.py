@@ -40,11 +40,7 @@ def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    try:
-        return builder.get("subscription.basic_info")
-    except KeyError:
-        # Fallback to old method if key not found
-        return builder.get("subscription.basic_info", buymeacoffee_url=BUYMEACOFFEE_URL)
+    return builder.get("subscription.basic_info", buymeacoffee_url=BUYMEACOFFEE_URL)
 
 
 def generate_message_week_addition_premium(user_info: TelegramUser) -> str:

@@ -94,28 +94,15 @@ def generate_message_week(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    # Prefer dynamic key lookup to reduce duplication in MessageBuilder
-    try:
-        base_message = builder.get(
-            key="weeks.statistics",
-            age=age,
-            weeks_lived=weeks_lived,
-            remaining_weeks=remaining_weeks,
-            life_percentage=life_percentage,
-            days_until_birthday=days_until_birthday,
-        )
-        if not isinstance(base_message, str):
-            raise TypeError("weeks.statistics resolved to non-string")
-    except Exception:
-        # Fallback to existing explicit method for compatibility
-        base_message = builder.get(
-            key="weeks.statistics",
-            age=age,
-            weeks_lived=weeks_lived,
-            remaining_weeks=remaining_weeks,
-            life_percentage=life_percentage,
-            days_until_birthday=days_until_birthday,
-        )
+    # Generate the base message using MessageBuilder (which has built-in fallbacks)
+    base_message = builder.get(
+        key="weeks.statistics",
+        age=age,
+        weeks_lived=weeks_lived,
+        remaining_weeks=remaining_weeks,
+        life_percentage=life_percentage,
+        days_until_birthday=days_until_birthday,
+    )
 
     # Add subscription-specific content based on user's subscription type
     if user_profile.subscription:
@@ -751,29 +738,21 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(db_language)
 
-    try:
-        birth_date = user_profile.settings.birth_date
-        birth_date_str = (
-            birth_date.strftime("%d.%m.%Y") if birth_date else builder.not_set()
-        )
-        language_name = get_localized_language_name(db_language, db_language)
-        life_expectancy = user_profile.settings.life_expectancy
-        text = builder.get(
-            key="settings.premium",
-            birth_date=birth_date_str,
-            language_name=language_name,
-            life_expectancy=life_expectancy,
-        )
-        if not isinstance(text, str):
-            raise TypeError("settings.premium resolved to non-string")
-        return text
-    except Exception:
-        return builder.get(
-            key="settings.premium",
-            birth_date=birth_date_str,
-            language_name=language_name,
-            life_expectancy=life_expectancy,
-        )
+    # Prepare the data for the message
+    birth_date = user_profile.settings.birth_date
+    birth_date_str = (
+        birth_date.strftime("%d.%m.%Y") if birth_date else builder.not_set()
+    )
+    language_name = get_localized_language_name(db_language, db_language)
+    life_expectancy = user_profile.settings.life_expectancy
+
+    # Generate the message using MessageBuilder (which has built-in fallbacks)
+    return builder.get(
+        key="settings.premium",
+        birth_date=birth_date_str,
+        language_name=language_name,
+        life_expectancy=life_expectancy,
+    )
 
 
 def generate_message_change_birth_date(user_info: TelegramUser) -> str:

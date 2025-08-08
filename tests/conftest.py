@@ -1,30 +1,42 @@
 """Common test fixtures and configuration for all tests."""
 
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import Iterator
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-try:  # pragma: no cover - prefer real plugin when available
-    from pytest_mock import MockerFixture
-except Exception:  # pragma: no cover - fallback when plugin missing
-    from unittest.mock import patch
-
-    class MockerFixture:  # type: ignore[too-few-public-methods]
-        """Minimal stand-in for pytest_mock.MockerFixture."""
-
-        def patch(self, target: str, *args, **kwargs):
-            return patch(target, *args, **kwargs)
-
-    @pytest.fixture
-    def mocker() -> MockerFixture:
-        """Provide a simple mocker fixture if pytest-mock is unavailable."""
-
-        return MockerFixture()
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
 from src.core.enums import SubscriptionType, WeekDay
 from src.utils.localization import SupportedLanguage
+
+
+class MockerFixture:
+    """Lightweight substitute for the pytest-mock fixture."""
+
+    MagicMock = MagicMock
+    AsyncMock = AsyncMock
+
+    def __init__(self) -> None:
+        """Initialize patch tracking list."""
+        self._patches: list[Any] = []
+
+    def patch(self, target: str, *args, **kwargs):
+        """Patch target and register cleanup."""
+        p = patch(target, *args, **kwargs)
+        mocked = p.start()
+        self._patches.append(p)
+        return mocked
+
+
+@pytest.fixture
+def mocker() -> Iterator[MockerFixture]:
+    """Provide a minimal mocker fixture compatible with pytest-mock."""
+    fixture = MockerFixture()
+    yield fixture
+    for p in fixture._patches:
+        p.stop()
 
 # --- Test Constants ---
 TEST_USER_ID = 123456789

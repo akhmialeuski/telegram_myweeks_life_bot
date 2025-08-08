@@ -4,6 +4,8 @@ This module contains all user-facing messages in multiple languages.
 Supports Russian (ru), English (en), Ukrainian (ua), and Belarusian (by).
 """
 
+from __future__ import annotations
+
 import gettext
 import logging
 from enum import StrEnum, auto
@@ -11,11 +13,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
-# Define locale directory
-LOCALE_DIR = Path(__file__).resolve().parent.parent.parent / "locales"
-
-
 LOGGER = logging.getLogger(__name__)
+
+# Define locale directory and domain name constants
+LOCALE_DIR = Path(__file__).resolve().parent.parent.parent / "locales"
+DOMAIN = "messages"
 
 
 @lru_cache(maxsize=None)
@@ -30,7 +32,7 @@ def get_translator(lang_code: str) -> Callable[[str], str]:
     :rtype: Callable[[str], str]
     """
     return gettext.translation(
-        "messages", localedir=LOCALE_DIR, languages=[lang_code], fallback=True
+        DOMAIN, localedir=LOCALE_DIR, languages=[lang_code], fallback=True
     ).gettext
 
 
@@ -48,7 +50,7 @@ def get_translation(lang_code: str) -> gettext.NullTranslations:
     :rtype: gettext.NullTranslations
     """
     return gettext.translation(
-        "messages", localedir=LOCALE_DIR, languages=[lang_code], fallback=True
+        DOMAIN, localedir=LOCALE_DIR, languages=[lang_code], fallback=True
     )
 
 
@@ -180,6 +182,29 @@ class MessageBuilder:
         self._default: Callable[[str], str] = get_translator(default_lang)
         self._default_trans: gettext.NullTranslations = get_translation(default_lang)
 
+    def _safe_format(self, template: str, kwargs: dict[str, Any] | None) -> str:
+        """Safely format a template string with kwargs, falling back to the template if formatting fails.
+
+        This method attempts to format the template with the provided kwargs, but if the template
+        contains format placeholders that are not present in kwargs, it returns the template as-is
+        instead of raising a KeyError or ValueError.
+
+        :param template: Template string to format
+        :type template: str
+        :param kwargs: Formatting parameters
+        :type kwargs: dict[str, Any] | None
+        :returns: Formatted string or original template if formatting fails
+        :rtype: str
+        """
+        if not kwargs:
+            return template
+
+        try:
+            return template.format(**kwargs)
+        except (KeyError, ValueError):
+            # If formatting fails due to missing placeholders, return the template as-is
+            return template
+
     def get(self, key: str, **kwargs: Any) -> str:
         """Get localized message by logical key with automatic fallback.
 
@@ -217,14 +242,52 @@ class MessageBuilder:
         if resolved_fallback is not None:
             return resolved_fallback
 
-        # Last resort: return key itself and log missing translation
-        LOGGER.warning(
-            "Missing translation for key '%s' in '%s' with fallback '%s'",
-            key,
-            self.lang,
-            self.default_lang,
-        )
-        return key.format(**kwargs) if kwargs else key
+        # Final fallback: return the key itself, safely formatted if kwargs provided
+        return self._safe_format(key, kwargs)
+
+    def ngettext(
+        self,
+        singular_key: str,
+        plural_key: str,
+        n: int,
+        *,
+        context: str | None = None,
+        **kwargs: Any,
+    ) -> str:
+        """Return a pluralized message.
+
+        Attempts to resolve the pluralized form in the current language and
+        falls back to ``default_lang``. Contextual plural forms are supported
+        via ``npgettext``.
+
+        :param singular_key: Message key for singular form
+        :param plural_key: Message key for plural form
+        :param n: Count used to determine the plural form
+        :param context: Optional context used for lookup
+        :param kwargs: Additional keyword arguments for formatting
+        :return: Localized pluralized message
+        """
+        def _lookup(translations: gettext.NullTranslations) -> str:
+            if context:
+                try:
+                    return translations.npgettext(
+                        context, singular_key, plural_key, n
+                    )  # type: ignore[attr-defined]
+                except Exception:
+                    return ""
+            return translations.ngettext(singular_key, plural_key, n)
+
+        text = _lookup(self._trans)
+        if not text or text in {singular_key, plural_key}:
+            text = _lookup(self._default_trans)
+
+        if not text or text in {singular_key, plural_key}:
+            LOGGER.warning(
+                "Missing plural translation for keys '%s'/'%s'", singular_key, plural_key
+            )
+            text = singular_key if n == 1 else plural_key
+
+        return text.format(n=n, **kwargs)
 
     def nget(self, singular: str, plural: str, n: int, **kwargs: Any) -> str:
         """Get localized pluralized message with automatic fallback.
@@ -340,7 +403,7 @@ class MessageBuilder:
         # Strategy 1: gettext id-as-key
         template: str = gettext_fn(key)
         if template and template != key:
-            return template.format(**kwargs) if kwargs else template
+            return self._safe_format(template, kwargs)
 
         # Strategy 2: pgettext with context=key and empty id
         try:
@@ -348,7 +411,7 @@ class MessageBuilder:
         except Exception:
             ctx_text_empty = ""
         if ctx_text_empty:
-            return ctx_text_empty.format(**kwargs) if kwargs else ctx_text_empty
+            return self._safe_format(ctx_text_empty, kwargs)
 
         # Strategy 3: pgettext with context=key and id=key
         try:
@@ -356,6 +419,6 @@ class MessageBuilder:
         except Exception:
             ctx_text_same = ""
         if ctx_text_same and ctx_text_same != key:
-            return ctx_text_same.format(**kwargs) if kwargs else ctx_text_same
+            return self._safe_format(ctx_text_same, kwargs)
 
         return None

@@ -154,6 +154,25 @@ class TestLocalization:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    def test_message_builder_get_with_missing_format_placeholders(self):
+        """Test MessageBuilder.get method handles keys with format placeholders not in kwargs gracefully."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test with a key that contains format placeholders but kwargs doesn't have them
+        # This should not raise KeyError or ValueError, but return the key as-is
+        result = builder.get("key.with.{missing}.placeholders", existing_param="value")
+        assert result == "key.with.{missing}.placeholders"
+
+        # Test with no kwargs at all
+        result = builder.get("key.with.{missing}.placeholders")
+        assert result == "key.with.{missing}.placeholders"
+
+        # Test with empty kwargs
+        result = builder.get("key.with.{missing}.placeholders", **{})
+        assert result == "key.with.{missing}.placeholders"
+
     def test_localization_module_imports(self):
         """Test that all required functions can be imported."""
         from src.utils.localization import (
@@ -328,3 +347,24 @@ class TestLocalization:
             result = builder.get("missing.key")
         assert "missing.key" in result
         assert any("missing.key" in record.message for record in caplog.records)
+
+    def test_message_builder_ngettext(self):
+        """Test pluralization support in MessageBuilder."""
+        from types import SimpleNamespace
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        fake = SimpleNamespace(
+            ngettext=lambda s, p, n: f"{n} week" if n == 1 else f"{n} weeks",
+            npgettext=lambda ctx, s, p, n: f"{n} ctx" if n != 1 else f"{n} ctx",
+        )
+        builder._trans = fake  # type: ignore[assignment]
+        builder._default_trans = fake  # type: ignore[assignment]
+
+        assert builder.ngettext("{n} week", "{n} weeks", 1) == "1 week"
+        assert builder.ngettext("{n} week", "{n} weeks", 2) == "2 weeks"
+        assert (
+            builder.ngettext("{n} week", "{n} weeks", 2, context="demo")
+            == "2 ctx"
+        )

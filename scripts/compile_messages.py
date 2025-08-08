@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 def compile_po_files():
-    """Compile all .po files to .mo files."""
+    """Compile all .po files to .mo files using msgfmt."""
     # Get the project root directory
     project_root = Path(__file__).resolve().parent.parent
     locales_dir = project_root / "locales"
@@ -48,10 +48,21 @@ def compile_po_files():
                 f"✓ Compiled {po_file.relative_to(project_root)} -> {mo_file.relative_to(project_root)}"
             )
             success_count += 1
-        except subprocess.CalledProcessError as exc:
+        except subprocess.CalledProcessError as e:
+            print(f"✗ Failed to compile {po_file.relative_to(project_root)}: {e}")
+            if e.stderr:
+                print(f"  Error: {e.stderr.strip()}")
+            error_count += 1
+        except FileNotFoundError:
+            print("✗ msgfmt command not found. Please install gettext tools:")
+            print("  - Ubuntu/Debian: sudo apt-get install gettext")
+            print("  - macOS: brew install gettext")
             print(
-                f"✗ Failed to compile {po_file.relative_to(project_root)}: {exc.stderr.strip()}"
+                "  - Windows: Download from https://mlocati.github.io/articles/gettext-iconv-windows.html"
             )
+            return False
+        except Exception as e:
+            print(f"✗ Failed to compile {po_file.relative_to(project_root)}: {e}")
             error_count += 1
 
     print(f"\nCompilation complete: {success_count} successful, {error_count} failed")
