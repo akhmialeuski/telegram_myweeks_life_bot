@@ -31,6 +31,7 @@ class ServiceContainer:
 
     _instance = None
     _initialized = False
+    _lock = threading.Lock()
 
     def __new__(cls):
         """Create singleton instance of ServiceContainer.
