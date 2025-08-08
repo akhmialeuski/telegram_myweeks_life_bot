@@ -4,33 +4,46 @@ This module contains all user-facing messages in multiple languages.
 Supports Russian (ru), English (en), Ukrainian (ua), and Belarusian (by).
 """
 
+from __future__ import annotations
+
 import gettext
+import logging
+from functools import lru_cache
 from enum import StrEnum, auto
 from pathlib import Path
 from typing import Any, Callable
 
-# Define locale directory
+LOGGER = logging.getLogger(__name__)
+
+# Define locale directory and domain name constants
 LOCALE_DIR = Path(__file__).resolve().parent.parent.parent / "locales"
+DOMAIN = "messages"
 
 
-def get_translator(lang_code: str):
+@lru_cache(maxsize=None)
+def get_translator(lang_code: str) -> Callable[[str], str]:
     """Get gettext translator for the specified language.
+
+    Returned translator functions are cached to avoid reloading translation
+    files on every request.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
     :returns: gettext translator function
-    :rtype: function
+    :rtype: Callable[[str], str]
     """
     return gettext.translation(
-        "messages", localedir=LOCALE_DIR, languages=[lang_code], fallback=True
+        DOMAIN, localedir=LOCALE_DIR, languages=[lang_code], fallback=True
     ).gettext
 
 
+@lru_cache(maxsize=None)
 def get_translation(lang_code: str) -> gettext.NullTranslations:
     """Get gettext translations object for the specified language.
 
-    This returns the translations object itself (not just ``gettext`` function),
-    which allows advanced lookups like ``pgettext`` for contextual messages.
+    The translation objects are cached to reuse ``gettext`` catalogs across
+    calls. The returned object provides access to ``pgettext`` and
+    ``ngettext``/``npgettext`` for plural and contextual lookups.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
@@ -38,7 +51,7 @@ def get_translation(lang_code: str) -> gettext.NullTranslations:
     :rtype: gettext.NullTranslations
     """
     return gettext.translation(
-        "messages", localedir=LOCALE_DIR, languages=[lang_code], fallback=True
+        DOMAIN, localedir=LOCALE_DIR, languages=[lang_code], fallback=True
     )
 
 
@@ -207,8 +220,54 @@ class MessageBuilder:
         if resolved_fallback is not None:
             return resolved_fallback
 
-        # Last resort: return key itself (developer-visible), formatted if possible
+        # Last resort: return key itself (developer-visible) and log the miss
+        LOGGER.warning("Missing translation for key '%s'", key)
         return key.format(**kwargs) if kwargs else key
+
+    def ngettext(
+        self,
+        singular_key: str,
+        plural_key: str,
+        n: int,
+        *,
+        context: str | None = None,
+        **kwargs: Any,
+    ) -> str:
+        """Return a pluralized message.
+
+        Attempts to resolve the pluralized form in the current language and
+        falls back to ``default_lang``. Contextual plural forms are supported
+        via ``npgettext``.
+
+        :param singular_key: Message key for singular form
+        :param plural_key: Message key for plural form
+        :param n: Count used to determine the plural form
+        :param context: Optional context used for lookup
+        :param kwargs: Additional keyword arguments for formatting
+        :return: Localized pluralized message
+        """
+
+        def _lookup(translations: gettext.NullTranslations) -> str:
+            if context:
+                try:
+                    return translations.npgettext(
+                        context, singular_key, plural_key, n
+                    )  # type: ignore[attr-defined]
+                except Exception:
+                    return ""
+            return translations.ngettext(singular_key, plural_key, n)
+
+        text = _lookup(self._trans)
+        if not text or text in {singular_key, plural_key}:
+            text = _lookup(self._default_trans)
+
+        if not text or text in {singular_key, plural_key}:
+            LOGGER.warning(
+                "Missing plural translation for keys '%s'/'%s'", singular_key, plural_key
+            )
+            text = singular_key if n == 1 else plural_key
+
+        return text.format(n=n, **kwargs)
 
     def __getattr__(self, name: str) -> Callable[..., str]:
         """Dynamically resolve unknown message methods to keys.

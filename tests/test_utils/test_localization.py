@@ -256,3 +256,32 @@ class TestLocalization:
         assert result == "OK"
         assert captured["key"] == "some.new.message"
         assert captured["age"] == 25
+
+    def test_get_translation_cached(self):
+        """Translations are cached and reused."""
+        from src.utils.localization import get_translation
+
+        first = get_translation("ru")
+        second = get_translation("ru")
+        assert first is second
+
+    def test_message_builder_ngettext(self):
+        """Test pluralization support in MessageBuilder."""
+        from types import SimpleNamespace
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        fake = SimpleNamespace(
+            ngettext=lambda s, p, n: f"{n} week" if n == 1 else f"{n} weeks",
+            npgettext=lambda ctx, s, p, n: f"{n} ctx" if n != 1 else f"{n} ctx",
+        )
+        builder._trans = fake  # type: ignore[assignment]
+        builder._default_trans = fake  # type: ignore[assignment]
+
+        assert builder.ngettext("{n} week", "{n} weeks", 1) == "1 week"
+        assert builder.ngettext("{n} week", "{n} weeks", 2) == "2 weeks"
+        assert (
+            builder.ngettext("{n} week", "{n} weeks", 2, context="demo")
+            == "2 ctx"
+        )
