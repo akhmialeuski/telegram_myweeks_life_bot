@@ -35,7 +35,20 @@ logger = get_logger(f"{BOT_NAME}.DatabaseService")
 class DatabaseManager:
     """Manager for database repositories (repositories are already singletons)."""
 
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        # Prevent re-initialization in singleton
+        if hasattr(self, "_initialized") and self._initialized:
+            return
         self.user_repository = SQLiteUserRepository()
         self.settings_repository = SQLiteUserSettingsRepository()
         self.subscription_repository = SQLiteUserSubscriptionRepository()
