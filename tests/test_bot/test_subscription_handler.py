@@ -111,7 +111,7 @@ class TestSubscriptionHandler:
         mock_context: MagicMock,
         mock_get_user_language: MagicMock,
     ) -> None:
-        """Test handle method with no user profile.
+        """Test handle method when user profile not found.
 
         :param handler: SubscriptionHandler instance
         :param mock_update: Mock Update object
@@ -119,10 +119,13 @@ class TestSubscriptionHandler:
         :param mock_get_user_language: Mocked get_user_language function
         """
         handler.services.user_service.is_valid_user_profile.return_value = False
-        with patch.object(
-            handler.services, "get_message", return_value="You need to register first!"
-        ):
-            await handler.handle(mock_update, mock_context)
+
+        # Mock the message builder
+        mock_builder = MagicMock()
+        mock_builder.get.return_value = "You need to register first!"
+        handler.services.get_message_builder = MagicMock(return_value=mock_builder)
+
+        await handler.handle(mock_update, mock_context)
 
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args

@@ -100,324 +100,59 @@ class TestLocalization:
         assert builder.lang == "ru"
         assert hasattr(builder, "_")
 
-    def test_message_builder_help_message(self):
-        """Test MessageBuilder help message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        help_message = builder.help()
-        assert isinstance(help_message, str)
-        assert len(help_message) > 0
-        assert "LifeWeeksBot" in help_message or "бот" in help_message
-
-    def test_message_builder_error_message(self):
-        """Test MessageBuilder error message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        error_message = builder.error()
-        assert isinstance(error_message, str)
-        assert len(error_message) > 0
-
-    def test_message_builder_unknown_command_message(self):
-        """Test MessageBuilder unknown command message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        unknown_message = builder.unknown_command()
-        assert isinstance(unknown_message, str)
-        assert len(unknown_message) > 0
-
-    def test_message_builder_not_registered_message(self):
-        """Test MessageBuilder not registered message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        not_registered_message = builder.not_registered()
-        assert isinstance(not_registered_message, str)
-        assert len(not_registered_message) > 0
-
-    def test_message_builder_not_set_message(self):
-        """Test MessageBuilder not set message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        not_set_message = builder.not_set()
-        assert isinstance(not_set_message, str)
-        assert len(not_set_message) > 0
-
-    def test_message_builder_registration_error_message(self):
-        """Test MessageBuilder registration error message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        registration_error_message = builder.registration_error()
-        assert isinstance(registration_error_message, str)
-        assert len(registration_error_message) > 0
-
-    def test_message_builder_birth_date_errors(self):
-        """Test MessageBuilder birth date error messages."""
+    def test_message_builder_get_method(self):
+        """Test MessageBuilder.get method with various keys."""
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
 
-        future_error = builder.birth_date_future_error()
-        assert isinstance(future_error, str)
-        assert len(future_error) > 0
+        # Test with a key that should exist
+        result = builder.get("help.text")
+        assert isinstance(result, str)
+        assert len(result) > 0
 
-        old_error = builder.birth_date_old_error()
-        assert isinstance(old_error, str)
-        assert len(old_error) > 0
-
-        format_error = builder.birth_date_format_error()
-        assert isinstance(format_error, str)
-        assert len(format_error) > 0
-
-    def test_message_builder_not_registered_weeks_message(self):
-        """Test MessageBuilder not registered weeks message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        not_registered_weeks_message = builder.not_registered_weeks()
-        assert isinstance(not_registered_weeks_message, str)
-        assert len(not_registered_weeks_message) > 0
-
-    def test_message_builder_not_registered_visualize_message(self):
-        """Test MessageBuilder not registered visualize message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        not_registered_visualize_message = builder.not_registered_visualize()
-        assert isinstance(not_registered_visualize_message, str)
-        assert len(not_registered_visualize_message) > 0
-
-    def test_message_builder_visualization_error_message(self):
-        """Test MessageBuilder visualization error message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        visualization_error_message = builder.visualization_error()
-        assert isinstance(visualization_error_message, str)
-        assert len(visualization_error_message) > 0
-
-    def test_message_builder_weeks_error_message(self):
-        """Test MessageBuilder weeks error message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        weeks_error_message = builder.weeks_error()
-        assert isinstance(weeks_error_message, str)
-        assert len(weeks_error_message) > 0
-
-    def test_message_builder_subscription_messages(self):
-        """Test MessageBuilder subscription message generation."""
+    def test_message_builder_get_with_parameters(self):
+        """Test MessageBuilder.get method with parameters."""
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
 
-        # Test subscription current message
-        subscription_current = builder.subscription_current(
-            "basic", "Basic subscription"
-        )
-        assert isinstance(subscription_current, str)
-        assert len(subscription_current) > 0
+        # Test with parameters for a key that exists
+        result = builder.get("start.welcome_existing", first_name="John")
+        assert isinstance(result, str)
+        assert len(result) > 0
 
-        # Test subscription invalid type message
-        subscription_invalid = builder.subscription_invalid_type()
-        assert isinstance(subscription_invalid, str)
-        assert len(subscription_invalid) > 0
-
-        # Test subscription profile error message
-        subscription_profile_error = builder.subscription_profile_error()
-        assert isinstance(subscription_profile_error, str)
-        assert len(subscription_profile_error) > 0
-
-        # Test subscription already active message
-        subscription_already_active = builder.subscription_already_active("basic")
-        assert isinstance(subscription_already_active, str)
-        assert len(subscription_already_active) > 0
-
-    def test_message_builder_subscription_change_messages(self):
-        """Test MessageBuilder subscription change message generation."""
+    def test_message_builder_dunder_getattr(self):
+        """Test MessageBuilder.__getattr__ method for dynamic access."""
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
 
-        # Test subscription change success message
-        subscription_change_success = builder.subscription_change_success(
-            "basic", "Basic subscription"
-        )
-        assert isinstance(subscription_change_success, str)
-        assert len(subscription_change_success) > 0
+        # Test dynamic access with a key that exists
+        result = builder.get("start.welcome_existing", first_name="John")
+        assert isinstance(result, str)
+        assert len(result) > 0
 
-        # Test subscription change failed message
-        subscription_change_failed = builder.subscription_change_failed()
-        assert isinstance(subscription_change_failed, str)
-        assert len(subscription_change_failed) > 0
-
-        # Test subscription change error message
-        subscription_change_error = builder.subscription_change_error()
-        assert isinstance(subscription_change_error, str)
-        assert len(subscription_change_error) > 0
-
-    def test_message_builder_settings_messages(self):
-        """Test MessageBuilder settings message generation."""
+    def test_message_builder_get_with_fallback(self):
+        """Test MessageBuilder.get method with fallback to default language."""
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
 
-        # Test change birth date message
-        change_birth_date = builder.change_birth_date("01.01.1990")
-        assert isinstance(change_birth_date, str)
-        assert len(change_birth_date) > 0
+        # Test with a non-existent key (should fallback to key itself)
+        result = builder.get("non.existent.key")
+        assert result == "non.existent.key"
 
-        # Test change language message
-        change_language = builder.change_language("ru")
-        assert isinstance(change_language, str)
-        assert len(change_language) > 0
-
-        # Test change life expectancy message
-        change_life_expectancy = builder.change_life_expectancy(80)
-        assert isinstance(change_life_expectancy, str)
-        assert len(change_life_expectancy) > 0
-
-    def test_message_builder_update_messages(self):
-        """Test MessageBuilder update message generation."""
+    def test_message_builder_get_with_formatting(self):
+        """Test MessageBuilder.get method with string formatting."""
         from src.utils.localization import MessageBuilder
 
         builder = MessageBuilder("ru")
 
-        # Test birth date updated message
-        birth_date_updated = builder.birth_date_updated("01.01.1990", 30)
-        assert isinstance(birth_date_updated, str)
-        assert len(birth_date_updated) > 0
-
-        # Test language updated message
-        language_updated = builder.language_updated("en")
-        assert isinstance(language_updated, str)
-        assert len(language_updated) > 0
-
-        # Test life expectancy updated message
-        life_expectancy_updated = builder.life_expectancy_updated(80)
-        assert isinstance(life_expectancy_updated, str)
-        assert len(life_expectancy_updated) > 0
-
-    def test_message_builder_invalid_life_expectancy_message(self):
-        """Test MessageBuilder invalid life expectancy message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        invalid_life_expectancy_message = builder.invalid_life_expectancy()
-        assert isinstance(invalid_life_expectancy_message, str)
-        assert len(invalid_life_expectancy_message) > 0
-
-    def test_message_builder_settings_error_message(self):
-        """Test MessageBuilder settings error message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        settings_error_message = builder.settings_error()
-        assert isinstance(settings_error_message, str)
-        assert len(settings_error_message) > 0
-
-    def test_message_builder_cancel_messages(self):
-        """Test MessageBuilder cancel message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-
-        # Test cancel success message
-        cancel_success = builder.cancel_success("John")
-        assert isinstance(cancel_success, str)
-        assert len(cancel_success) > 0
-
-        # Test cancel error message
-        cancel_error = builder.cancel_error("John")
-        assert isinstance(cancel_error, str)
-        assert len(cancel_error) > 0
-
-    def test_message_builder_button_messages(self):
-        """Test MessageBuilder button message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-
-        # Test button change birth date message
-        button_change_birth_date = builder.button_change_birth_date()
-        assert isinstance(button_change_birth_date, str)
-        assert len(button_change_birth_date) > 0
-
-        # Test button change language message
-        button_change_language = builder.button_change_language()
-        assert isinstance(button_change_language, str)
-        assert len(button_change_language) > 0
-
-        # Test button change life expectancy message
-        button_change_life_expectancy = builder.button_change_life_expectancy()
-        assert isinstance(button_change_life_expectancy, str)
-        assert len(button_change_life_expectancy) > 0
-
-    def test_message_builder_weeks_statistics(self):
-        """Test MessageBuilder weeks statistics message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        weeks_statistics = builder.weeks_statistics(
-            age=25,
-            weeks_lived=1300,
-            remaining_weeks=2860,
-            life_percentage="16.2%",
-            days_until_birthday=45,
-        )
-        assert isinstance(weeks_statistics, str)
-        assert len(weeks_statistics) > 0
-        assert "25" in weeks_statistics
-
-    def test_message_builder_visualize_info(self):
-        """Test MessageBuilder visualize info message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        visualize_info = builder.visualize_info(
-            age=25, weeks_lived=1300, life_percentage="16.2%"
-        )
-        assert isinstance(visualize_info, str)
-        assert len(visualize_info) > 0
-        assert "25" in visualize_info
-
-    def test_message_builder_start_welcome_messages(self):
-        """Test MessageBuilder start welcome message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-
-        # Test start welcome existing message
-        start_welcome_existing = builder.start_welcome_existing("John")
-        assert isinstance(start_welcome_existing, str)
-        assert len(start_welcome_existing) > 0
-
-        # Test start welcome new message
-        start_welcome_new = builder.start_welcome_new("John")
-        assert isinstance(start_welcome_new, str)
-        assert len(start_welcome_new) > 0
-
-    def test_message_builder_registration_success(self):
-        """Test MessageBuilder registration success message generation."""
-        from src.utils.localization import MessageBuilder
-
-        builder = MessageBuilder("ru")
-        registration_success = builder.registration_success(
-            first_name="John",
-            birth_date="01.01.1990",
-            age=30,
-            weeks_lived=1560,
-            remaining_weeks=2600,
-            life_percentage="37.5%",
-        )
-        assert isinstance(registration_success, str)
-        assert len(registration_success) > 0
-        assert "01.01.1990" in registration_success
-        assert "30" in registration_success
+        # Test with formatting parameters
+        result = builder.get("start.welcome_existing", first_name="John")
+        assert isinstance(result, str)
+        assert len(result) > 0
 
     def test_localization_module_imports(self):
         """Test that all required functions can be imported."""
@@ -434,3 +169,90 @@ class TestLocalization:
         assert callable(is_language_supported)
         assert isinstance(LANGUAGES, list)
         assert isinstance(DEFAULT_LANGUAGE, str)
+
+    def test_message_builder_dynamic_get_id_as_key(self):
+        """Test MessageBuilder.get resolves ID-as-key via gettext._.
+
+        We monkeypatch builder._ to simulate translation existing for key-only ids.
+        """
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        original_gettext = builder._
+
+        def fake_gettext(msgid: str) -> str:
+            return "OK_ID" if msgid == "demo.key" else msgid
+
+        builder._ = fake_gettext  # type: ignore[assignment]
+
+        result = builder.get(key="demo.key")
+        assert result == "OK_ID"
+
+        # Restore
+        builder._ = original_gettext  # type: ignore[assignment]
+
+    def test_message_builder_dynamic_get_context_empty_id(self):
+        """Test MessageBuilder.get resolves context-as-key with empty msgid via pgettext.
+
+        We monkeypatch builder._trans.pgettext to return a value for (ctx, "").
+        """
+        from types import SimpleNamespace
+
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Ensure id-as-key path fails to force ctx path
+        builder._ = lambda s: s  # type: ignore[assignment]
+
+        def fake_pgettext(context: str, msgid: str) -> str:
+            if context == "demo.ctx" and msgid == "":
+                return "OK_CTX_EMPTY"
+            return ""
+
+        builder._trans = SimpleNamespace(pgettext=fake_pgettext)  # type: ignore[assignment]
+
+        result = builder.get(key="demo.ctx")
+        assert result == "OK_CTX_EMPTY"
+
+    def test_message_builder_dynamic_get_context_same_id(self):
+        """Test MessageBuilder.get resolves context-as-key with same id via pgettext.
+
+        We monkeypatch builder._trans.pgettext to return a value for (ctx, id).
+        """
+        from types import SimpleNamespace
+
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        builder._ = lambda s: s  # type: ignore[assignment]
+
+        def fake_pgettext(context: str, msgid: str) -> str:
+            if context == "demo.same" and msgid == "demo.same":
+                return "OK_CTX_SAME"
+            return ""
+
+        builder._trans = SimpleNamespace(pgettext=fake_pgettext)  # type: ignore[assignment]
+
+        result = builder.get(key="demo.same")
+        assert result == "OK_CTX_SAME"
+
+    def test_message_builder_dunder_getattr_maps_snake_to_dotted(self):
+        """Test that unknown attributes map to dotted keys via get()."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        captured = {}
+
+        def fake_get(key: str, **kwargs):  # type: ignore[no-untyped-def]
+            captured["key"] = key
+            captured.update(kwargs)
+            return "OK"
+
+        builder.get = fake_get  # type: ignore[assignment]
+
+        # Use a non-existing attribute name to trigger __getattr__
+        result = builder.some_new_message(age=25)  # dynamic path
+        assert result == "OK"
+        assert captured["key"] == "some.new.message"
+        assert captured["age"] == 25

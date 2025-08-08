@@ -22,9 +22,7 @@ logger = logging.getLogger(BOT_NAME)
 # Type variable for SQLAlchemy models
 ModelType = TypeVar("ModelType", bound=Base)
 
-# Global engine and session factory for all repositories
-_global_engine = None
-_global_session_factory = None
+# Engines and sessions are maintained per-instance. No global shared engine/session.
 
 
 class BaseSQLiteRepository:
@@ -40,7 +38,7 @@ class BaseSQLiteRepository:
     _instances = {}
     _initialized = {}
 
-    def __new__(cls, db_path: str = DEFAULT_DATABASE_PATH):
+    def __new__(cls, db_path: str = DEFAULT_DATABASE_PATH) -> "BaseSQLiteRepository":
         """Create singleton instance for each db_path.
 
         :param db_path: Path to SQLite database file
@@ -76,42 +74,43 @@ class BaseSQLiteRepository:
         :returns: None
         :raises SQLAlchemyError: If database initialization fails
         """
-        global _global_engine, _global_session_factory
+        # Idempotent: if already initialized, do nothing
+        if self.engine is not None and self.SessionLocal is not None:
+            return
 
-        if not _global_engine:
-            try:
-                _global_engine = create_engine(
-                    f"sqlite:///{self.db_path}",
-                    echo=SQLITE_ECHO,
-                    pool_pre_ping=SQLITE_POOL_PRE_PING,
-                )
-                Base.metadata.create_all(bind=_global_engine)
-                _global_session_factory = sessionmaker(
-                    bind=_global_engine,
-                    autocommit=False,
-                    autoflush=False,
-                    expire_on_commit=False,
-                )
-                logger.info(f"SQLite database initialized at {self.db_path}")
-            except SQLAlchemyError as e:
-                logger.error(f"Failed to initialize SQLite database: {e}")
-                raise
-
-        # Use global engine and session factory
-        self.engine = _global_engine
-        self.SessionLocal = _global_session_factory
+        try:
+            self.engine = create_engine(
+                url=f"sqlite:///{self.db_path}",
+                echo=SQLITE_ECHO,
+                pool_pre_ping=SQLITE_POOL_PRE_PING,
+            )
+            Base.metadata.create_all(bind=self.engine)
+            self.SessionLocal = sessionmaker(
+                bind=self.engine,
+                autocommit=False,
+                autoflush=False,
+                expire_on_commit=False,
+            )
+            logger.info(f"SQLite database initialized at {self.db_path}")
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to initialize SQLite database: {e}")
+            # Ensure partial initialization does not leave invalid state
+            self.engine = None
+            self.SessionLocal = None
+            raise
 
     def close(self) -> None:
         """Close database connection and cleanup resources.
 
         :returns: None
         """
-        global _global_engine, _global_session_factory
-        if _global_engine:
-            _global_engine.dispose()
-            _global_engine = None
-            _global_session_factory = None
-            logger.info("SQLite database connection closed")
+        if getattr(self, "engine", None):
+            try:
+                self.engine.dispose()
+            finally:
+                self.engine = None
+                self.SessionLocal = None
+                logger.info("SQLite database connection closed")
 
     @classmethod
     def reset_instances(cls) -> None:
@@ -119,14 +118,11 @@ class BaseSQLiteRepository:
 
         :returns: None
         """
-        global _global_engine, _global_session_factory
         for instance in cls._instances.values():
             if hasattr(instance, "close"):
                 instance.close()
         cls._instances.clear()
         cls._initialized.clear()
-        _global_engine = None
-        _global_session_factory = None
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:

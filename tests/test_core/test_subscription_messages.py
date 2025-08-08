@@ -68,7 +68,7 @@ class TestSubscriptionMessages:
         # Patch builder so gettext passthrough returns template string
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -85,7 +85,7 @@ class TestSubscriptionMessages:
 
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "💡 <b>Базовая подписка</b>\n\nВы используете базовую версию бота с основной функциональностью.\n\n🔗 <b>Поддержать проект:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Донат: https://coff.ee/akhmelevskiy\n\nВаша поддержка помогает развивать бота! 🙏"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user_ru)
@@ -102,7 +102,7 @@ class TestSubscriptionMessages:
 
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user_no_lang)
@@ -119,7 +119,7 @@ class TestSubscriptionMessages:
 
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -136,7 +136,7 @@ class TestSubscriptionMessages:
 
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -164,7 +164,7 @@ class TestSubscriptionMessages:
         mock_randint.return_value = 20  # Exactly 20% probability, message is shown
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Test message"
+        builder.get.return_value = "Test message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -181,7 +181,7 @@ class TestSubscriptionMessages:
         )
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Test message"
+        builder.get.return_value = "Test message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -201,7 +201,7 @@ class TestSubscriptionMessages:
         )
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Custom probability message"
+        builder.get.return_value = "Custom probability message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -231,7 +231,7 @@ class TestSubscriptionMessages:
         """Test premium subscription message generation."""
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Premium subscription message"
+        builder.get.return_value = "Premium subscription message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_premium(mock_telegram_user)
@@ -243,7 +243,7 @@ class TestSubscriptionMessages:
         """Test premium subscription message generation with Russian language."""
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Сообщение премиум подписки"
+        builder.get.return_value = "Сообщение премиум подписки"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_premium(mock_telegram_user_ru)
@@ -346,7 +346,7 @@ class TestSubscriptionMessages:
         )
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Integrated basic message with donation"
+        builder.get.return_value = "Integrated basic message with donation"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -356,7 +356,7 @@ class TestSubscriptionMessages:
         """Test integration of premium message generation."""
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Integrated premium message"
+        builder.get.return_value = "Integrated premium message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_premium(mock_telegram_user)
@@ -399,7 +399,7 @@ class TestSubscriptionMessages:
         mock_randint.return_value = 15
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: s
+        builder.get.return_value = "https://coff.ee/akhmelevskiy"
         svc.return_value.get_message_builder.return_value = builder
 
         message = generate_message_week_addition_basic(mock_telegram_user)
@@ -411,7 +411,7 @@ class TestSubscriptionMessages:
         mock_randint.return_value = 15
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Empty URL message"
+        builder.get.return_value = "Empty URL message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -423,7 +423,7 @@ class TestSubscriptionMessages:
         mock_randint.return_value = 15
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "None URL message"
+        builder.get.return_value = "None URL message"
         svc.return_value.get_message_builder.return_value = builder
 
         result = generate_message_week_addition_basic(mock_telegram_user)
@@ -460,7 +460,7 @@ class TestSubscriptionMessages:
         )
         svc = mocker.patch("src.services.container.ServiceContainer")
         builder = mocker.MagicMock()
-        builder._ = lambda s: "Multi-language message"
+        builder.get.return_value = "Multi-language message"
         svc.return_value.get_message_builder.return_value = builder
 
         # Test English

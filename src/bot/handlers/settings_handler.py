@@ -401,7 +401,7 @@ class SettingsHandler(BaseHandler):
             else:
                 logger.warning(f"No scheduler available for user {user_id}")
 
-            # Show success message
+            # Show success message (function will use the updated language from DB)
             success_message = generate_message_language_updated(
                 user_info=user, new_language=language_name
             )

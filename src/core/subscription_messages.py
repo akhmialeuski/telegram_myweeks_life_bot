@@ -40,14 +40,11 @@ def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder._(
-        "💡 <b>Basic Subscription</b>\n\n"
-        "You are using the basic version of the bot with core functionality.\n\n"
-        "🔗 <b>Support the project:</b>\n"
-        "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-        "• Donate: {buymeacoffee_url}\n\n"
-        "Your support helps develop the bot! 🙏"
-    ).format(buymeacoffee_url=BUYMEACOFFEE_URL)
+    try:
+        return builder.get("subscription.basic_info")
+    except KeyError:
+        # Fallback to old method if key not found
+        return builder.get("subscription.basic_info", buymeacoffee_url=BUYMEACOFFEE_URL)
 
 
 def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
@@ -72,18 +69,7 @@ def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder._(
-        "✨ <b>Premium Content</b>\n\n"
-        "🧠 <b>Psychology of Time:</b>\n"
-        "Research shows that time visualization helps make more conscious decisions. "
-        "When we see the limitation of our weeks, we begin to value each one.\n\n"
-        "📊 <b>Interesting Facts:</b>\n"
-        "• Average person spends 26 years sleeping (about 1,352 weeks)\n"
-        "• 11 years working (572 weeks)\n"
-        "• 5 years eating and cooking (260 weeks)\n"
-        "• 4 years commuting (208 weeks)\n\n"
-        "🎯 <b>Daily Tip:</b> Try doing something new every week - it will help make life more fulfilling and memorable!"
-    )
+    return builder.get("subscription.premium_content")
 
 
 def get_subscription_addition_message(

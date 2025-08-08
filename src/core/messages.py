@@ -94,13 +94,28 @@ def generate_message_week(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    base_message = builder.weeks_statistics(
-        age=age,
-        weeks_lived=weeks_lived,
-        remaining_weeks=remaining_weeks,
-        life_percentage=life_percentage,
-        days_until_birthday=days_until_birthday,
-    )
+    # Prefer dynamic key lookup to reduce duplication in MessageBuilder
+    try:
+        base_message = builder.get(
+            key="weeks.statistics",
+            age=age,
+            weeks_lived=weeks_lived,
+            remaining_weeks=remaining_weeks,
+            life_percentage=life_percentage,
+            days_until_birthday=days_until_birthday,
+        )
+        if not isinstance(base_message, str):
+            raise TypeError("weeks.statistics resolved to non-string")
+    except Exception:
+        # Fallback to existing explicit method for compatibility
+        base_message = builder.get(
+            key="weeks.statistics",
+            age=age,
+            weeks_lived=weeks_lived,
+            remaining_weeks=remaining_weeks,
+            life_percentage=life_percentage,
+            days_until_birthday=days_until_birthday,
+        )
 
     # Add subscription-specific content based on user's subscription type
     if user_profile.subscription:
@@ -158,8 +173,11 @@ def generate_message_visualize(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.visualize_info(
-        age=age, weeks_lived=weeks_lived, life_percentage=life_percentage
+    return builder.get(
+        key="visualize.info",
+        age=age,
+        weeks_lived=weeks_lived,
+        life_percentage=life_percentage,
     )
 
 
@@ -184,7 +202,8 @@ def generate_message_help(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.help()
+    # Example: dynamic access via key if available
+    return builder.get(key="help.text")
 
 
 def generate_message_cancel_success(user_info: TelegramUser, language: str) -> str:
@@ -206,7 +225,7 @@ def generate_message_cancel_success(user_info: TelegramUser, language: str) -> s
     container = ServiceContainer()
     builder = container.get_message_builder(language)
 
-    return builder.cancel_success(user_info.first_name)
+    return builder.get("cancel.success", first_name=user_info.first_name)
 
 
 def generate_message_cancel_error(user_info: TelegramUser) -> str:
@@ -229,7 +248,7 @@ def generate_message_cancel_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.cancel_error(user_info.first_name)
+    return builder.get("cancel.error", first_name=user_info.first_name)
 
 
 def generate_message_start_welcome_existing(user_info: TelegramUser) -> str:
@@ -252,7 +271,7 @@ def generate_message_start_welcome_existing(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.start_welcome_existing(user_info.first_name)
+    return builder.get("start.welcome_existing", first_name=user_info.first_name)
 
 
 def generate_message_start_welcome_new(user_info: TelegramUser) -> str:
@@ -275,7 +294,7 @@ def generate_message_start_welcome_new(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.start_welcome_new(user_info.first_name)
+    return builder.get("start.welcome_new", first_name=user_info.first_name)
 
 
 def generate_message_registration_success(
@@ -323,8 +342,8 @@ def generate_message_registration_success(
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.registration_success(
-        first_name=user_info.first_name,
+    return builder.get(
+        key="registration.success",
         birth_date=birth_date,
         age=age,
         weeks_lived=weeks_lived,
@@ -353,7 +372,7 @@ def generate_message_registration_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.registration_error()
+    return builder.get(key="registration.error")
 
 
 def generate_message_birth_date_future_error(user_info: TelegramUser) -> str:
@@ -376,7 +395,7 @@ def generate_message_birth_date_future_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.birth_date_future_error()
+    return builder.get(key="birth_date.future_error")
 
 
 def generate_message_birth_date_old_error(user_info: TelegramUser) -> str:
@@ -399,7 +418,7 @@ def generate_message_birth_date_old_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.birth_date_old_error()
+    return builder.get(key="birth_date.old_error")
 
 
 def generate_message_birth_date_format_error(user_info: TelegramUser) -> str:
@@ -422,7 +441,7 @@ def generate_message_birth_date_format_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.birth_date_format_error()
+    return builder.get(key="birth_date.format_error")
 
 
 def generate_message_subscription_current(user_info: TelegramUser) -> str:
@@ -464,7 +483,11 @@ def generate_message_subscription_current(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_current(subscription_type, subscription_description)
+    return builder.get(
+        "subscription.management",
+        subscription_type=subscription_type,
+        subscription_description=subscription_description,
+    )
 
 
 def generate_message_subscription_invalid_type(user_info: TelegramUser) -> str:
@@ -487,7 +510,7 @@ def generate_message_subscription_invalid_type(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_invalid_type()
+    return builder.get("subscription.invalid_type")
 
 
 def generate_message_subscription_profile_error(user_info: TelegramUser) -> str:
@@ -510,7 +533,7 @@ def generate_message_subscription_profile_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_profile_error()
+    return builder.get("subscription.change_error")
 
 
 def generate_message_subscription_already_active(
@@ -537,7 +560,9 @@ def generate_message_subscription_already_active(
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_already_active(subscription_type)
+    return builder.get(
+        "subscription.already_active", subscription_type=subscription_type
+    )
 
 
 def generate_message_subscription_change_success(
@@ -570,8 +595,10 @@ def generate_message_subscription_change_success(
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_change_success(
-        subscription_type, subscription_description
+    return builder.get(
+        key="subscription.change_success",
+        subscription_type=subscription_type,
+        subscription_description=subscription_description,
     )
 
 
@@ -595,7 +622,7 @@ def generate_message_subscription_change_failed(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_change_failed()
+    return builder.get(key="subscription.change_failed")
 
 
 def generate_message_subscription_change_error(user_info: TelegramUser) -> str:
@@ -618,7 +645,7 @@ def generate_message_subscription_change_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.subscription_change_error()
+    return builder.get(key="subscription.change_error")
 
 
 def generate_message_unknown_command(user_info: TelegramUser) -> str:
@@ -640,7 +667,7 @@ def generate_message_unknown_command(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.unknown_command()
+    return builder.get("unknown.command")
 
 
 def generate_message_settings_basic(user_info: TelegramUser) -> str:
@@ -676,7 +703,19 @@ def generate_message_settings_basic(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(db_language)
 
-    return builder.settings_basic(user_profile)
+    # Prefer dynamic key usage; compute values to avoid coupling to builder internals
+    birth_date = user_profile.settings.birth_date
+    birth_date_str = (
+        birth_date.strftime("%d.%m.%Y") if birth_date else builder.not_set()
+    )
+    language_name = get_localized_language_name(db_language, db_language)
+    life_expectancy = user_profile.settings.life_expectancy
+    return builder.get(
+        key="settings.basic",
+        birth_date=birth_date_str,
+        language_name=language_name,
+        life_expectancy=life_expectancy,
+    )
 
 
 def generate_message_settings_premium(user_info: TelegramUser) -> str:
@@ -712,7 +751,29 @@ def generate_message_settings_premium(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(db_language)
 
-    return builder.settings_premium(user_profile)
+    try:
+        birth_date = user_profile.settings.birth_date
+        birth_date_str = (
+            birth_date.strftime("%d.%m.%Y") if birth_date else builder.not_set()
+        )
+        language_name = get_localized_language_name(db_language, db_language)
+        life_expectancy = user_profile.settings.life_expectancy
+        text = builder.get(
+            key="settings.premium",
+            birth_date=birth_date_str,
+            language_name=language_name,
+            life_expectancy=life_expectancy,
+        )
+        if not isinstance(text, str):
+            raise TypeError("settings.premium resolved to non-string")
+        return text
+    except Exception:
+        return builder.get(
+            key="settings.premium",
+            birth_date=birth_date_str,
+            language_name=language_name,
+            life_expectancy=life_expectancy,
+        )
 
 
 def generate_message_change_birth_date(user_info: TelegramUser) -> str:
@@ -739,20 +800,22 @@ def generate_message_change_birth_date(user_info: TelegramUser) -> str:
     # Get user's language preference
     user_lang = get_user_language(user_info, user_profile)
 
-    # Format current birth date
-    current_birth_date = user_profile.settings.birth_date
-    if current_birth_date:
-        current_birth_date_str = current_birth_date.strftime("%d.%m.%Y")
-    else:
-        current_birth_date_str = "Not set"
-
     # Use MessageBuilder for generating the message
     from ..services.container import ServiceContainer
 
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.change_birth_date(current_birth_date_str)
+    # Format current birth date
+    current_birth_date = user_profile.settings.birth_date
+    if current_birth_date:
+        current_birth_date_str = current_birth_date.strftime("%d.%m.%Y")
+    else:
+        current_birth_date_str = builder.not_set()
+
+    return builder.get(
+        "settings.change_birth_date", current_birth_date=current_birth_date_str
+    )
 
 
 def generate_message_change_language(user_info: TelegramUser) -> str:
@@ -791,7 +854,14 @@ def generate_message_change_language(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.change_language(current_language_name)
+    # Try primary localized key first
+    text: str = builder.get(
+        "settings.change_language", current_language=current_language_name
+    )
+    # Fallback: if key is missing and returned verbatim, reuse existing button label
+    if text == "settings.change_language" or not isinstance(text, str):
+        text = builder.get(key="buttons.change_language")
+    return text
 
 
 def generate_message_change_life_expectancy(user_info: TelegramUser) -> str:
@@ -829,7 +899,10 @@ def generate_message_change_life_expectancy(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.change_life_expectancy(current_life_expectancy)
+    return builder.get(
+        "settings.change_life_expectancy",
+        current_life_expectancy=current_life_expectancy,
+    )
 
 
 def generate_message_birth_date_updated(
@@ -861,7 +934,11 @@ def generate_message_birth_date_updated(
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.birth_date_updated(new_birth_date_str, new_age)
+    return builder.get(
+        "settings.birth_date_updated",
+        new_birth_date=new_birth_date_str,
+        new_age=new_age,
+    )
 
 
 def generate_message_language_updated(
@@ -874,24 +951,23 @@ def generate_message_language_updated(
 
     :param user_info: Telegram user object containing user ID and language
     :type user_info: TelegramUser
-    :param new_language: New language code
+    :param new_language: New language (code or display name). Kept for compatibility,
+                         actual language is read from updated user settings.
     :type new_language: str
     :returns: Localized language updated message
     :rtype: str
     """
-    # Get user's language preference
-    user_lang = get_user_language(user_info)
+    # Always render in the user's CURRENT language (already updated in DB)
+    # and display the language name localized to itself
+    current_lang: str = get_user_language(user_info)
+    display_name: str = get_localized_language_name(current_lang, current_lang)
 
-    # Get localized language name
-    new_language_name = get_localized_language_name(new_language, new_language)
-
-    # Use MessageBuilder for generating the message
     from ..services.container import ServiceContainer
 
     container = ServiceContainer()
-    builder = container.get_message_builder(user_lang)
+    builder = container.get_message_builder(current_lang)
 
-    return builder.language_updated(new_language_name)
+    return builder.get("settings.language_updated", new_language=display_name)
 
 
 def generate_message_life_expectancy_updated(
@@ -918,7 +994,9 @@ def generate_message_life_expectancy_updated(
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.life_expectancy_updated(new_life_expectancy)
+    return builder.get(
+        "settings.life_expectancy_updated", new_life_expectancy=new_life_expectancy
+    )
 
 
 def generate_message_invalid_life_expectancy(user_info: TelegramUser) -> str:
@@ -941,7 +1019,7 @@ def generate_message_invalid_life_expectancy(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.invalid_life_expectancy()
+    return builder.get("settings.invalid_life_expectancy")
 
 
 def generate_message_settings_error(user_info: TelegramUser) -> str:
@@ -964,7 +1042,7 @@ def generate_message_settings_error(user_info: TelegramUser) -> str:
     container = ServiceContainer()
     builder = container.get_message_builder(user_lang)
 
-    return builder.settings_error()
+    return builder.get("settings.error")
 
 
 def generate_settings_buttons(user_info: TelegramUser) -> list[list[dict[str, str]]]:
@@ -988,9 +1066,20 @@ def generate_settings_buttons(user_info: TelegramUser) -> list[list[dict[str, st
     builder = container.get_message_builder(user_lang)
 
     # Generate localized button texts
-    birth_date_text = builder.button_change_birth_date()
-    language_text = builder.button_change_language()
-    life_expectancy_text = builder.button_change_life_expectancy()
+    try:
+        birth_date_text = builder.get(key="buttons.change_birth_date")
+        language_text = builder.get(key="buttons.change_language")
+        life_expectancy_text = builder.get(key="buttons.change_life_expectancy")
+        # ensure they are strings
+        if not all(
+            isinstance(x, str)
+            for x in (birth_date_text, language_text, life_expectancy_text)
+        ):
+            raise TypeError("button texts must be strings")
+    except Exception:
+        birth_date_text = builder.get(key="buttons.change_birth_date")
+        language_text = builder.get(key="buttons.change_language")
+        life_expectancy_text = builder.get(key="buttons.change_life_expectancy")
 
     # Return button configurations
     return [

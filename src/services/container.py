@@ -10,6 +10,7 @@ from ..core.life_calculator import LifeCalculatorEngine
 from ..database.service import DatabaseManager, UserService
 from ..utils.config import DEFAULT_LANGUAGE
 from ..utils.localization import MessageBuilder, get_supported_languages
+from .message_service import MessageService
 
 
 class ServiceContainer:
@@ -58,6 +59,9 @@ class ServiceContainer:
 
         # Initialize life calculator
         self.life_calculator = LifeCalculatorEngine
+
+        # Messaging service for caching builders
+        self.message_service: MessageService = MessageService()
 
         # Initialize services that depend on other services
         self._initialize_service_dependencies()
@@ -131,7 +135,7 @@ class ServiceContainer:
         except Exception:
             normalized_lang = DEFAULT_LANGUAGE
 
-        return MessageBuilder(normalized_lang)
+        return self.message_service.get_builder(normalized_lang)
 
     def get_localizer(self, user_id: int) -> MessageBuilder:
         """Get message builder for user based on their language preference.
@@ -148,7 +152,7 @@ class ServiceContainer:
         if user_profile and user_profile.settings and user_profile.settings.language:
             lang_code = user_profile.settings.language
 
-        return MessageBuilder(lang_code)
+        return self.get_message_builder(lang_code)
 
     def get_supported_languages(self) -> list[str]:
         """Get list of supported languages.
