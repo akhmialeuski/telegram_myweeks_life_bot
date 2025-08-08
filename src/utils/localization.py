@@ -5,7 +5,9 @@ Supports Russian (ru), English (en), Ukrainian (ua), and Belarusian (by).
 """
 
 import gettext
+import logging
 from enum import StrEnum, auto
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
@@ -13,24 +15,32 @@ from typing import Any, Callable
 LOCALE_DIR = Path(__file__).resolve().parent.parent.parent / "locales"
 
 
-def get_translator(lang_code: str):
+LOGGER = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=None)
+def get_translator(lang_code: str) -> Callable[[str], str]:
     """Get gettext translator for the specified language.
+
+    Translation objects are cached to avoid repeated disk access.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
     :returns: gettext translator function
-    :rtype: function
+    :rtype: Callable[[str], str]
     """
     return gettext.translation(
         "messages", localedir=LOCALE_DIR, languages=[lang_code], fallback=True
     ).gettext
 
 
+@lru_cache(maxsize=None)
 def get_translation(lang_code: str) -> gettext.NullTranslations:
     """Get gettext translations object for the specified language.
 
     This returns the translations object itself (not just ``gettext`` function),
     which allows advanced lookups like ``pgettext`` for contextual messages.
+    Translation objects are cached for efficiency.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
@@ -108,11 +118,11 @@ def get_supported_languages() -> list[str]:
     return LANGUAGES.copy()
 
 
-def is_language_supported(language: str) -> bool:
+def is_language_supported(language: str | None) -> bool:
     """Check if language is supported.
 
     :param language: Language code to check
-    :type language: str
+    :type language: str | None
     :returns: True if language is supported, False otherwise
     :rtype: bool
     """
@@ -207,8 +217,31 @@ class MessageBuilder:
         if resolved_fallback is not None:
             return resolved_fallback
 
-        # Last resort: return key itself (developer-visible), formatted if possible
+        # Last resort: return key itself and log missing translation
+        LOGGER.warning(
+            "Missing translation for key '%s' in '%s' with fallback '%s'",
+            key,
+            self.lang,
+            self.default_lang,
+        )
         return key.format(**kwargs) if kwargs else key
+
+    def nget(self, singular: str, plural: str, n: int, **kwargs: Any) -> str:
+        """Get localized pluralized message with automatic fallback.
+
+        :param singular: Singular message identifier
+        :type singular: str
+        :param plural: Plural message identifier
+        :type plural: str
+        :param n: Quantity used to determine singular or plural form
+        :type n: int
+        :returns: Localized singular or plural message
+        :rtype: str
+        """
+        text: str = self._trans.ngettext(singular, plural, n)
+        if text in {singular, plural}:
+            text = self._default_trans.ngettext(singular, plural, n)
+        return text.format(**kwargs) if kwargs else text
 
     def __getattr__(self, name: str) -> Callable[..., str]:
         """Dynamically resolve unknown message methods to keys.
