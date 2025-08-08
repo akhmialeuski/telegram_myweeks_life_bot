@@ -2,7 +2,8 @@
 """Script to compile .po files to .mo files for gettext localization.
 
 This script compiles all .po files in the locales directory to .mo files
-for use with the gettext system using the msgfmt command.
+for use with the gettext system. It relies on the standard ``msgfmt``
+utility available in GNU gettext.
 """
 
 import subprocess
@@ -37,19 +38,16 @@ def compile_po_files():
         mo_file = po_file.with_suffix(".mo")
 
         try:
-            # Use msgfmt to compile .po to .mo
-            _ = subprocess.run(
+            subprocess.run(
                 ["msgfmt", str(po_file), "-o", str(mo_file)],
+                check=True,
                 capture_output=True,
                 text=True,
-                check=True,
             )
-
             print(
                 f"✓ Compiled {po_file.relative_to(project_root)} -> {mo_file.relative_to(project_root)}"
             )
             success_count += 1
-
         except subprocess.CalledProcessError as e:
             print(f"✗ Failed to compile {po_file.relative_to(project_root)}: {e}")
             if e.stderr:

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import gettext
 import logging
-from functools import lru_cache
 from enum import StrEnum, auto
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
@@ -24,8 +24,7 @@ DOMAIN = "messages"
 def get_translator(lang_code: str) -> Callable[[str], str]:
     """Get gettext translator for the specified language.
 
-    Returned translator functions are cached to avoid reloading translation
-    files on every request.
+    Translation objects are cached to avoid repeated disk access.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
@@ -41,9 +40,9 @@ def get_translator(lang_code: str) -> Callable[[str], str]:
 def get_translation(lang_code: str) -> gettext.NullTranslations:
     """Get gettext translations object for the specified language.
 
-    The translation objects are cached to reuse ``gettext`` catalogs across
-    calls. The returned object provides access to ``pgettext`` and
-    ``ngettext``/``npgettext`` for plural and contextual lookups.
+    This returns the translations object itself (not just ``gettext`` function),
+    which allows advanced lookups like ``pgettext`` for contextual messages.
+    Translation objects are cached for efficiency.
 
     :param lang_code: Language code (ru, en, ua, by)
     :type lang_code: str
@@ -121,11 +120,11 @@ def get_supported_languages() -> list[str]:
     return LANGUAGES.copy()
 
 
-def is_language_supported(language: str) -> bool:
+def is_language_supported(language: str | None) -> bool:
     """Check if language is supported.
 
     :param language: Language code to check
-    :type language: str
+    :type language: str | None
     :returns: True if language is supported, False otherwise
     :rtype: bool
     """
@@ -268,7 +267,6 @@ class MessageBuilder:
         :param kwargs: Additional keyword arguments for formatting
         :return: Localized pluralized message
         """
-
         def _lookup(translations: gettext.NullTranslations) -> str:
             if context:
                 try:
@@ -290,6 +288,80 @@ class MessageBuilder:
             text = singular_key if n == 1 else plural_key
 
         return text.format(n=n, **kwargs)
+
+    def nget(self, singular: str, plural: str, n: int, **kwargs: Any) -> str:
+        """Get localized pluralized message with automatic fallback.
+
+        :param singular: Singular message identifier
+        :type singular: str
+        :param plural: Plural message identifier
+        :type plural: str
+        :param n: Quantity used to determine singular or plural form
+        :type n: int
+        :returns: Localized singular or plural message
+        :rtype: str
+        """
+        text: str = self._trans.ngettext(singular, plural, n)
+        if text in {singular, plural}:
+            text = self._default_trans.ngettext(singular, plural, n)
+        return text.format(**kwargs) if kwargs else text
+
+    def pget(self, context: str, message: str, **kwargs: Any) -> str:
+        """Get contextualized message with automatic fallback.
+
+        :param context: Context identifier for the message
+        :type context: str
+        :param message: Message identifier within the context
+        :type message: str
+        :returns: Localized message string
+        :rtype: str
+        """
+
+        text: str = self._trans.pgettext(context, message)
+        if text == message:
+            text = self._default_trans.pgettext(context, message)
+            if text == message:
+                LOGGER.warning(
+                    "Missing contextual translation for '%s' in '%s' with fallback '%s'",
+                    f"{context}:{message}",
+                    self.lang,
+                    self.default_lang,
+                )
+        return text.format(**kwargs) if kwargs else text
+
+    def npget(
+        self,
+        context: str,
+        singular: str,
+        plural: str,
+        n: int,
+        **kwargs: Any,
+    ) -> str:
+        """Get contextualized pluralized message with automatic fallback.
+
+        :param context: Context identifier for the message
+        :type context: str
+        :param singular: Singular form message identifier
+        :type singular: str
+        :param plural: Plural form message identifier
+        :type plural: str
+        :param n: Quantity used to determine singular or plural form
+        :type n: int
+        :returns: Localized singular or plural message
+        :rtype: str
+        """
+
+        text: str = self._trans.npgettext(context, singular, plural, n)
+        if text in {singular, plural}:
+            text = self._default_trans.npgettext(context, singular, plural, n)
+            if text in {singular, plural}:
+                LOGGER.warning(
+                    "Missing contextual plural translation for '%s' in '%s' with fallback '%s'",
+                    context,
+                    self.lang,
+                    self.default_lang,
+                )
+        return text.format(**kwargs) if kwargs else text
 
     def __getattr__(self, name: str) -> Callable[..., str]:
         """Dynamically resolve unknown message methods to keys.

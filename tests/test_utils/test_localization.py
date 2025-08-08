@@ -276,13 +276,77 @@ class TestLocalization:
         assert captured["key"] == "some.new.message"
         assert captured["age"] == 25
 
-    def test_get_translation_cached(self):
-        """Translations are cached and reused."""
+    def test_get_translator_is_cached(self):
+        """Ensure get_translator reuses translator objects for the same language."""
+        from src.utils.localization import get_translator
+
+        first = get_translator("ru")
+        second = get_translator("ru")
+        assert first is second
+
+    def test_get_translation_is_cached(self):
+        """Ensure get_translation caches translation instances."""
         from src.utils.localization import get_translation
 
         first = get_translation("ru")
         second = get_translation("ru")
         assert first is second
+
+    def test_message_builder_nget_method(self):
+        """Test MessageBuilder.nget returns correct plural forms."""
+        from types import SimpleNamespace
+
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        builder._trans = SimpleNamespace(
+            ngettext=lambda s, p, n: "one" if n == 1 else "many"
+        )  # type: ignore[assignment]
+        result_one = builder.nget("w", "ws", 1)
+        result_many = builder.nget("w", "ws", 2)
+        assert result_one == "one"
+        assert result_many == "many"
+
+    def test_message_builder_pget_method(self):
+        """Test MessageBuilder.pget returns context-based translations."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("en")
+        result = builder.pget("buttons.change_language", "")
+        assert "Change Language" in result
+
+    def test_message_builder_npget_method(self):
+        """Test MessageBuilder.npget handles context and pluralization."""
+        from types import SimpleNamespace
+
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        captured: dict[str, str] = {}
+
+        def fake_npgettext(ctx: str, s: str, p: str, n: int) -> str:
+            captured["ctx"] = ctx
+            return "one" if n == 1 else "many"
+
+        fake = SimpleNamespace(npgettext=fake_npgettext)
+        builder._trans = fake  # type: ignore[assignment]
+        builder._default_trans = fake  # type: ignore[assignment]
+
+        result_one = builder.npget("demo", "w", "ws", 1)
+        result_many = builder.npget("demo", "w", "ws", 2)
+        assert result_one == "one"
+        assert result_many == "many"
+        assert captured["ctx"] == "demo"
+
+    def test_message_builder_get_logs_missing_key(self, caplog):
+        """Test that missing translations are logged."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+        with caplog.at_level("WARNING"):
+            result = builder.get("missing.key")
+        assert "missing.key" in result
+        assert any("missing.key" in record.message for record in caplog.records)
 
     def test_message_builder_ngettext(self):
         """Test pluralization support in MessageBuilder."""

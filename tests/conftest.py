@@ -8,7 +8,6 @@ import pytest
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
-from src.bot.application import LifeWeeksBot
 from src.core.enums import SubscriptionType, WeekDay
 from src.utils.localization import SupportedLanguage
 
