@@ -170,6 +170,29 @@ class MessageBuilder:
         self._default: Callable[[str], str] = get_translator(default_lang)
         self._default_trans: gettext.NullTranslations = get_translation(default_lang)
 
+    def _safe_format(self, template: str, kwargs: dict[str, Any] | None) -> str:
+        """Safely format a template string with kwargs, falling back to the template if formatting fails.
+
+        This method attempts to format the template with the provided kwargs, but if the template
+        contains format placeholders that are not present in kwargs, it returns the template as-is
+        instead of raising a KeyError or ValueError.
+
+        :param template: Template string to format
+        :type template: str
+        :param kwargs: Formatting parameters
+        :type kwargs: dict[str, Any] | None
+        :returns: Formatted string or original template if formatting fails
+        :rtype: str
+        """
+        if not kwargs:
+            return template
+
+        try:
+            return template.format(**kwargs)
+        except (KeyError, ValueError):
+            # If formatting fails due to missing placeholders, return the template as-is
+            return template
+
     def get(self, key: str, **kwargs: Any) -> str:
         """Get localized message by logical key with automatic fallback.
 
@@ -207,8 +230,8 @@ class MessageBuilder:
         if resolved_fallback is not None:
             return resolved_fallback
 
-        # Last resort: return key itself (developer-visible), formatted if possible
-        return key.format(**kwargs) if kwargs else key
+        # Final fallback: return the key itself, safely formatted if kwargs provided
+        return self._safe_format(key, kwargs)
 
     def __getattr__(self, name: str) -> Callable[..., str]:
         """Dynamically resolve unknown message methods to keys.
@@ -250,7 +273,7 @@ class MessageBuilder:
         # Strategy 1: gettext id-as-key
         template: str = gettext_fn(key)
         if template and template != key:
-            return template.format(**kwargs) if kwargs else template
+            return self._safe_format(template, kwargs)
 
         # Strategy 2: pgettext with context=key and empty id
         try:
@@ -258,7 +281,7 @@ class MessageBuilder:
         except Exception:
             ctx_text_empty = ""
         if ctx_text_empty:
-            return ctx_text_empty.format(**kwargs) if kwargs else ctx_text_empty
+            return self._safe_format(ctx_text_empty, kwargs)
 
         # Strategy 3: pgettext with context=key and id=key
         try:
@@ -266,6 +289,6 @@ class MessageBuilder:
         except Exception:
             ctx_text_same = ""
         if ctx_text_same and ctx_text_same != key:
-            return ctx_text_same.format(**kwargs) if kwargs else ctx_text_same
+            return self._safe_format(ctx_text_same, kwargs)
 
         return None

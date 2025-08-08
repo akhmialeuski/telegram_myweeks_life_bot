@@ -154,6 +154,25 @@ class TestLocalization:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    def test_message_builder_get_with_missing_format_placeholders(self):
+        """Test MessageBuilder.get method handles keys with format placeholders not in kwargs gracefully."""
+        from src.utils.localization import MessageBuilder
+
+        builder = MessageBuilder("ru")
+
+        # Test with a key that contains format placeholders but kwargs doesn't have them
+        # This should not raise KeyError or ValueError, but return the key as-is
+        result = builder.get("key.with.{missing}.placeholders", existing_param="value")
+        assert result == "key.with.{missing}.placeholders"
+
+        # Test with no kwargs at all
+        result = builder.get("key.with.{missing}.placeholders")
+        assert result == "key.with.{missing}.placeholders"
+
+        # Test with empty kwargs
+        result = builder.get("key.with.{missing}.placeholders", **{})
+        assert result == "key.with.{missing}.placeholders"
+
     def test_localization_module_imports(self):
         """Test that all required functions can be imported."""
         from src.utils.localization import (

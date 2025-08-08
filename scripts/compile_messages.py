@@ -2,15 +2,16 @@
 """Script to compile .po files to .mo files for gettext localization.
 
 This script compiles all .po files in the locales directory to .mo files
-for use with the gettext system.
+for use with the gettext system using the msgfmt command.
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
 
 def compile_po_files():
-    """Compile all .po files to .mo files."""
+    """Compile all .po files to .mo files using msgfmt."""
     # Get the project root directory
     project_root = Path(__file__).resolve().parent.parent
     locales_dir = project_root / "locales"
@@ -36,20 +37,32 @@ def compile_po_files():
         mo_file = po_file.with_suffix(".mo")
 
         try:
-            # Read .po file content
-            with open(po_file, "r", encoding="utf-8") as f:
-                po_content = f.read()
-
-            # Simple compilation - just copy for now
-            # In a real implementation, you would use a proper .po to .mo compiler
-            with open(mo_file, "w", encoding="utf-8") as f:
-                f.write(po_content)
+            # Use msgfmt to compile .po to .mo
+            _ = subprocess.run(
+                ["msgfmt", str(po_file), "-o", str(mo_file)],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
 
             print(
                 f"✓ Compiled {po_file.relative_to(project_root)} -> {mo_file.relative_to(project_root)}"
             )
             success_count += 1
 
+        except subprocess.CalledProcessError as e:
+            print(f"✗ Failed to compile {po_file.relative_to(project_root)}: {e}")
+            if e.stderr:
+                print(f"  Error: {e.stderr.strip()}")
+            error_count += 1
+        except FileNotFoundError:
+            print("✗ msgfmt command not found. Please install gettext tools:")
+            print("  - Ubuntu/Debian: sudo apt-get install gettext")
+            print("  - macOS: brew install gettext")
+            print(
+                "  - Windows: Download from https://mlocati.github.io/articles/gettext-iconv-windows.html"
+            )
+            return False
         except Exception as e:
             print(f"✗ Failed to compile {po_file.relative_to(project_root)}: {e}")
             error_count += 1
