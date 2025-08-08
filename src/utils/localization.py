@@ -154,7 +154,7 @@ class MessageBuilder:
     message generation functions while providing a cleaner interface.
     """
 
-    def __init__(self, lang: str, default_lang: str = "en"):
+    def __init__(self, lang: str, default_lang: str = DEFAULT_LANGUAGE):
         """Initialize MessageBuilder with language and default fallback language.
 
         :param lang: Language code (ru, en, ua, by)
