@@ -52,7 +52,7 @@ from telegram.ext import Application
 
 from ..constants import DEFAULT_USER_FIRST_NAME
 from ..core.enums import WeekDay
-from ..core.messages import generate_message_week
+from ..core.messages import WeeksMessages
 from ..database.service import user_service
 from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
 from ..utils.logger import get_logger
@@ -209,9 +209,9 @@ class NotificationScheduler:
                 ),
             )
 
-            # Generate the same message as /weeks command using core message functions
+            # Generate the same message as /weeks command using core message classes
             # This ensures consistency between manual commands and scheduled notifications
-            message_text = generate_message_week(user_info=telegram_user)
+            message_text = WeeksMessages().generate(user_info=telegram_user)
 
             # Send message to user via Telegram Bot API
             await self.application.bot.send_message(

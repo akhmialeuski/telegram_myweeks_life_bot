@@ -5,6 +5,7 @@ common session management functionality following SQLAlchemy 2.0 best practices.
 """
 
 import logging
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generator, List, Optional, Type, TypeVar
@@ -35,8 +36,9 @@ class BaseSQLiteRepository:
     :param db_path: Path to SQLite database file
     """
 
-    _instances = {}
-    _initialized = {}
+    _instances: dict[str, "BaseSQLiteRepository"] = {}
+    _initialized: dict[str, bool] = {}
+    _lock: threading.Lock = threading.Lock()
 
     def __new__(cls, db_path: str = DEFAULT_DATABASE_PATH) -> "BaseSQLiteRepository":
         """Create singleton instance for each db_path.
@@ -47,9 +49,15 @@ class BaseSQLiteRepository:
         """
         # Create unique key for each class and db_path combination
         key = f"{cls.__name__}_{db_path}"
-        if key not in cls._instances:
-            cls._instances[key] = super().__new__(cls)
-        return cls._instances[key]
+        # Double-checked locking to ensure thread-safe singleton per key
+        instance = cls._instances.get(key)
+        if instance is None:
+            with cls._lock:
+                instance = cls._instances.get(key)
+                if instance is None:
+                    instance = super().__new__(cls)
+                    cls._instances[key] = instance
+        return instance
 
     def __init__(self, db_path: str = DEFAULT_DATABASE_PATH):
         """Initialize SQLite repository.
@@ -118,11 +126,12 @@ class BaseSQLiteRepository:
 
         :returns: None
         """
-        for instance in cls._instances.values():
-            if hasattr(instance, "close"):
-                instance.close()
-        cls._instances.clear()
-        cls._initialized.clear()
+        with cls._lock:
+            for instance in cls._instances.values():
+                if hasattr(instance, "close"):
+                    instance.close()
+            cls._instances.clear()
+            cls._initialized.clear()
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:

@@ -18,13 +18,7 @@ from telegram.ext import ContextTypes
 
 from ...core.enums import SubscriptionType
 from ...core.message_context import use_message_context
-from ...core.messages import (
-    generate_message_subscription_already_active,
-    generate_message_subscription_change_error,
-    generate_message_subscription_change_failed,
-    generate_message_subscription_change_success,
-    generate_message_subscription_current,
-)
+from ...core.messages import SubscriptionMessages
 from ...database.service import UserSubscriptionUpdateError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -118,7 +112,7 @@ class SubscriptionHandler(BaseHandler):
             with use_message_context(user_info=user, fetch_profile=True):
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_subscription_current(user_info=user),
+                    message_text=SubscriptionMessages().current(user_info=user),
                     reply_markup=InlineKeyboardMarkup(keyboard),
                 )
 
@@ -172,12 +166,11 @@ class SubscriptionHandler(BaseHandler):
                 with use_message_context(user_info=user, fetch_profile=True):
                     await self.edit_message(
                         query=query,
-                        message_text=generate_message_subscription_already_active(
-                            user_info=user,
+                        message_text=SubscriptionMessages().already_active(
                             subscription_type=new_subscription_type.value,
                         ),
                     )
-                    return
+                return
 
             # Update subscription in database
             self.services.user_service.update_user_subscription(
@@ -189,7 +182,7 @@ class SubscriptionHandler(BaseHandler):
             with use_message_context(user_info=user, fetch_profile=True):
                 await self.edit_message(
                     query=query,
-                    message_text=generate_message_subscription_change_success(
+                    message_text=SubscriptionMessages().change_success(
                         user_info=user, subscription_type=new_subscription_type.value
                     ),
                 )
@@ -203,9 +196,7 @@ class SubscriptionHandler(BaseHandler):
                 await self.send_error_message(
                     update=update,
                     cmd_context=cmd_context,
-                    error_message=generate_message_subscription_change_failed(
-                        user_info=user
-                    ),
+                    error_message=SubscriptionMessages().change_failed(),
                 )
 
         except Exception:
@@ -213,7 +204,5 @@ class SubscriptionHandler(BaseHandler):
                 await self.send_error_message(
                     update=update,
                     cmd_context=cmd_context,
-                    error_message=generate_message_subscription_change_error(
-                        user_info=user
-                    ),
+                    error_message=SubscriptionMessages().change_error(),
                 )

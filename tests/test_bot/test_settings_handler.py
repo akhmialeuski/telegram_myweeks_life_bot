@@ -220,10 +220,8 @@ class TestSettingsHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_premium"
-        ) as mock_generate_premium, patch(
-            "src.bot.handlers.settings_handler.generate_settings_buttons"
-        ) as mock_generate_buttons, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardButton"
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
@@ -233,9 +231,8 @@ class TestSettingsHandler:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_premium_user_profile
             )
-            mock_generate_premium.return_value = "Premium settings!"
-            # Return button configurations to cover keyboard creation lines
-            mock_generate_buttons.return_value = [
+            mock_cls.return_value.premium.return_value = "Premium settings!"
+            mock_cls.return_value.buttons.return_value = [
                 [{"text": "Change Birth Date", "callback_data": "settings_birth_date"}]
             ]
             mock_button.return_value = MagicMock()
@@ -245,7 +242,7 @@ class TestSettingsHandler:
             await handler.handle(mock_update, mock_context)
 
             # Assert
-            mock_generate_premium.assert_called_once_with(
+            mock_cls.return_value.premium.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -272,10 +269,8 @@ class TestSettingsHandler:
 
         # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_basic"
-        ) as mock_generate_basic, patch(
-            "src.bot.handlers.settings_handler.generate_settings_buttons"
-        ) as mock_generate_buttons, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardButton"
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
@@ -285,8 +280,8 @@ class TestSettingsHandler:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_basic_user_profile
             )
-            mock_generate_basic.return_value = "Basic settings!"
-            mock_generate_buttons.return_value = []
+            mock_cls.return_value.basic.return_value = "Basic settings!"
+            mock_cls.return_value.buttons.return_value = []
             mock_button.return_value = MagicMock()
             mock_markup.return_value = MagicMock()
 
@@ -294,7 +289,7 @@ class TestSettingsHandler:
             await handler.handle(mock_update, mock_context)
 
             # Assert
-            mock_generate_basic.assert_called_once_with(
+            mock_cls.return_value.basic.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -353,16 +348,14 @@ class TestSettingsHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         # Mock all required functions in the module where they're imported
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_basic"
-        ) as mock_generate_basic:
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
             # Setup mocks
             handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
 
-            mock_generate_basic.side_effect = Exception("Test exception")
+            mock_cls.return_value.basic.side_effect = Exception("Test exception")
 
             # Execute
             await handler.handle(mock_update, mock_context)
@@ -393,10 +386,10 @@ class TestSettingsHandler:
         # Setup
         mock_update_with_callback.callback_query.data = "settings_birth_date"
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_change_birth_date"
-        ) as mock_generate_msg:
-            mock_generate_msg.return_value = "Change birth date message"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.change_birth_date.return_value = (
+                "Change birth date message"
+            )
 
             # Execute
             await handler.handle_settings_callback(
@@ -405,7 +398,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_generate_msg.assert_called_once_with(
+            mock_cls.return_value.change_birth_date.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
             assert mock_context.user_data["waiting_for"] == "settings_birth_date"
@@ -429,13 +422,15 @@ class TestSettingsHandler:
         mock_update_with_callback.callback_query.data = "settings_language"
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_change_language"
-        ) as mock_generate_msg, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardButton"
         ) as mock_button, patch(
             "src.bot.handlers.settings_handler.InlineKeyboardMarkup"
         ) as mock_markup:
-            mock_generate_msg.return_value = "Change language message"
+            mock_cls.return_value.change_language.return_value = (
+                "Change language message"
+            )
             mock_button.return_value = MagicMock()
             mock_markup.return_value = MagicMock()
 
@@ -446,7 +441,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_generate_msg.assert_called_once_with(
+            mock_cls.return_value.change_language.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
 
@@ -466,10 +461,10 @@ class TestSettingsHandler:
         # Setup
         mock_update_with_callback.callback_query.data = "settings_life_expectancy"
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_change_life_expectancy"
-        ) as mock_generate_msg:
-            mock_generate_msg.return_value = "Change life expectancy message"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.change_life_expectancy.return_value = (
+                "Change life expectancy message"
+            )
 
             # Execute
             await handler.handle_settings_callback(
@@ -478,7 +473,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_generate_msg.assert_called_once_with(
+            mock_cls.return_value.change_life_expectancy.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
             assert mock_context.user_data["waiting_for"] == "settings_life_expectancy"
@@ -526,10 +521,8 @@ class TestSettingsHandler:
             "Test error"
         )
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_error"
-        ) as mock_generate_error:
-            mock_generate_error.return_value = "Settings error message"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.settings_error.return_value = "Settings error message"
 
             # Execute
             await handler.handle_settings_callback(
@@ -537,7 +530,7 @@ class TestSettingsHandler:
             )
 
             # Assert
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.settings_error.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
 
@@ -562,10 +555,10 @@ class TestSettingsHandler:
         ) as mock_get_lang_name, patch(
             "src.bot.handlers.settings_handler.update_user_schedule"
         ) as mock_update_schedule, patch(
-            "src.bot.handlers.settings_handler.generate_message_language_updated"
-        ) as mock_generate_msg:
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls:
             mock_get_lang_name.return_value = "Русский"
-            mock_generate_msg.return_value = "Language updated!"
+            mock_cls.return_value.language_updated.return_value = "Language updated!"
 
             # Execute
             await handler.handle_language_callback(
@@ -581,7 +574,7 @@ class TestSettingsHandler:
             mock_update_schedule.assert_called_once_with(
                 mock_context.bot_data.get.return_value, TEST_USER_ID
             )
-            mock_generate_msg.assert_called_once_with(
+            mock_cls.return_value.language_updated.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user,
                 new_language="Русский",
             )
@@ -602,10 +595,8 @@ class TestSettingsHandler:
         # Setup
         mock_update_with_callback.callback_query.data = "language_invalid"
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_error"
-        ) as mock_generate_error:
-            mock_generate_error.return_value = "Settings error message"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.settings_error.return_value = "Settings error message"
 
             # Execute
             await handler.handle_language_callback(
@@ -614,7 +605,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.settings_error.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
 
@@ -638,13 +629,13 @@ class TestSettingsHandler:
         with patch(
             "src.bot.handlers.settings_handler.get_localized_language_name"
         ) as mock_get_lang_name, patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_error"
-        ) as mock_generate_error:
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls:
             mock_get_lang_name.return_value = "English"
             handler.services.user_service.update_user_settings.side_effect = (
                 UserNotFoundError("User not found")
             )
-            mock_generate_error.return_value = "Settings error message"
+            mock_cls.return_value.settings_error.return_value = "Settings error message"
 
             # Execute
             await handler.handle_language_callback(
@@ -653,7 +644,7 @@ class TestSettingsHandler:
 
             # Assert
             mock_update_with_callback.callback_query.answer.assert_called_once()
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.settings_error.assert_called_once_with(
                 user_info=mock_update_with_callback.effective_user
             )
 
@@ -930,8 +921,8 @@ class TestSettingsHandler:
         with patch(
             "src.bot.handlers.settings_handler.LifeCalculatorEngine"
         ) as mock_calc_class, patch(
-            "src.bot.handlers.settings_handler.generate_message_birth_date_updated"
-        ) as mock_generate_msg, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
@@ -939,7 +930,9 @@ class TestSettingsHandler:
                 mock_updated_profile
             )
             mock_calc_class.return_value = mock_calculator
-            mock_generate_msg.return_value = "Birth date updated!"
+            mock_cls.return_value.birth_date_updated.return_value = (
+                "Birth date updated!"
+            )
 
             # Execute
             await handler.handle_birth_date_input(
@@ -972,15 +965,17 @@ class TestSettingsHandler:
         future_date = date(2025, 1, 1)
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_birth_date_future_error"
-        ) as mock_generate_error, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime, patch(
             "src.bot.handlers.settings_handler.date"
         ) as mock_date:
             mock_datetime.strptime.return_value.date.return_value = future_date
             mock_date.today.return_value = date(2024, 1, 1)
-            mock_generate_error.return_value = "Future date error!"
+            mock_cls.return_value.birth_date_future_error.return_value = (
+                "Future date error!"
+            )
 
             # Execute
             await handler.handle_birth_date_input(
@@ -988,7 +983,7 @@ class TestSettingsHandler:
             )
 
             # Assert
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.birth_date_future_error.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -1010,14 +1005,14 @@ class TestSettingsHandler:
         old_date = date(1800, 1, 1)
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_birth_date_old_error"
-        ) as mock_generate_error, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime, patch(
             "src.bot.handlers.settings_handler.MIN_BIRTH_YEAR", MIN_BIRTH_YEAR
         ):
             mock_datetime.strptime.return_value.date.return_value = old_date
-            mock_generate_error.return_value = "Old date error!"
+            mock_cls.return_value.birth_date_old_error.return_value = "Old date error!"
 
             # Execute
             await handler.handle_birth_date_input(
@@ -1025,7 +1020,7 @@ class TestSettingsHandler:
             )
 
             # Assert
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.birth_date_old_error.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -1047,15 +1042,15 @@ class TestSettingsHandler:
         test_birth_date = date(1990, 3, 15)
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_error"
-        ) as mock_generate_error, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
             mock_datetime.strptime.return_value.date.return_value = test_birth_date
             handler.services.user_service.update_user_settings.side_effect = (
                 UserNotFoundError("User not found")
             )
-            mock_generate_error.return_value = "Settings error!"
+            mock_cls.return_value.settings_error.return_value = "Settings error!"
 
             # Execute
             await handler.handle_birth_date_input(
@@ -1081,12 +1076,12 @@ class TestSettingsHandler:
         # Setup
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_birth_date_format_error"
-        ) as mock_generate_error, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime:
             mock_datetime.strptime.side_effect = ValueError("Invalid date format")
-            mock_generate_error.return_value = "Format error!"
+            mock_cls.return_value.birth_date_format_error.return_value = "Format error!"
 
             # Execute
             await handler.handle_birth_date_input(
@@ -1113,10 +1108,10 @@ class TestSettingsHandler:
         # Setup
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_life_expectancy_updated"
-        ) as mock_generate_msg:
-            mock_generate_msg.return_value = "Life expectancy updated!"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.life_expectancy_updated.return_value = (
+                "Life expectancy updated!"
+            )
 
             await handler.handle_life_expectancy_input(
                 mock_update, mock_context, str(DEFAULT_LIFE_EXPECTANCY)
@@ -1147,19 +1142,21 @@ class TestSettingsHandler:
         # Setup
 
         with patch(
-            "src.bot.handlers.settings_handler.generate_message_invalid_life_expectancy"
-        ) as mock_generate_error, patch(
+            "src.bot.handlers.settings_handler.SettingsMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.settings_handler.MIN_LIFE_EXPECTANCY", MIN_LIFE_EXPECTANCY
         ), patch(
             "src.bot.handlers.settings_handler.MAX_LIFE_EXPECTANCY", MAX_LIFE_EXPECTANCY
         ):
-            mock_generate_error.return_value = "Invalid life expectancy!"
+            mock_cls.return_value.invalid_life_expectancy.return_value = (
+                "Invalid life expectancy!"
+            )
 
             # Execute - test with too low value
             await handler.handle_life_expectancy_input(mock_update, mock_context, "30")
 
             # Assert
-            mock_generate_error.assert_called_once_with(
+            mock_cls.return_value.invalid_life_expectancy.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -1180,13 +1177,11 @@ class TestSettingsHandler:
         """
         # Setup
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_settings_error"
-        ) as mock_generate_error:
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
             handler.services.user_service.update_user_settings.side_effect = (
                 UserSettingsUpdateError("Update failed")
             )
-            mock_generate_error.return_value = "Settings error!"
+            mock_cls.return_value.settings_error.return_value = "Settings error!"
 
             await handler.handle_life_expectancy_input(
                 mock_update, mock_context, str(DEFAULT_LIFE_EXPECTANCY)
@@ -1210,10 +1205,10 @@ class TestSettingsHandler:
         """
         # Setup
 
-        with patch(
-            "src.bot.handlers.settings_handler.generate_message_invalid_life_expectancy"
-        ) as mock_generate_error:
-            mock_generate_error.return_value = "Invalid format!"
+        with patch("src.bot.handlers.settings_handler.SettingsMessages") as mock_cls:
+            mock_cls.return_value.invalid_life_expectancy.return_value = (
+                "Invalid format!"
+            )
 
             # Execute
             await handler.handle_life_expectancy_input(

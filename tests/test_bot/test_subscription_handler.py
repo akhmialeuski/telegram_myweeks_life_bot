@@ -79,8 +79,8 @@ class TestSubscriptionHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_current"
-        ) as mock_generate_current, patch(
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.subscription_handler.InlineKeyboardButton"
         ) as mock_button, patch(
             "src.bot.handlers.subscription_handler.InlineKeyboardMarkup"
@@ -89,13 +89,13 @@ class TestSubscriptionHandler:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
-            mock_generate_current.return_value = "Current subscription info!"
+            mock_cls.return_value.current.return_value = "Current subscription info!"
             mock_button.return_value = MagicMock()
             mock_markup.return_value = MagicMock()
 
             await handler.handle(mock_update, mock_context)
 
-            mock_generate_current.assert_called_once_with(
+            mock_cls.return_value.current.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()
@@ -154,13 +154,13 @@ class TestSubscriptionHandler:
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_current"
-        ) as mock_generate_current:
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls:
             handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
-            mock_generate_current.side_effect = Exception("Test exception")
+            mock_cls.return_value.current.side_effect = Exception("Test exception")
             handler.send_error_message = AsyncMock()
 
             await handler.handle(mock_update, mock_context)
@@ -192,19 +192,20 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("basic")
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_already_active"
-        ) as mock_generate_already_active:
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
-            mock_generate_already_active.return_value = "Subscription already active!"
+            mock_cls.return_value.already_active.return_value = (
+                "Subscription already active!"
+            )
             handler.edit_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
-            mock_generate_already_active.assert_called_once_with(
-                user_info=mock_update.effective_user,
+            mock_cls.return_value.already_active.assert_called_once_with(
                 subscription_type=SubscriptionType.BASIC.value,
             )
             handler.edit_message.assert_called_once()
@@ -232,15 +233,17 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_change_success"
-        ) as mock_generate_success, patch(
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls, patch(
             "src.bot.handlers.subscription_handler.logger"
         ) as mock_logger:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
             handler.services.user_service.update_user_subscription.return_value = None
-            mock_generate_success.return_value = "Subscription updated successfully!"
+            mock_cls.return_value.change_success.return_value = (
+                "Subscription updated successfully!"
+            )
             handler.edit_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)
@@ -249,7 +252,7 @@ class TestSubscriptionHandler:
             handler.services.user_service.update_user_subscription.assert_called_once_with(
                 mock_update.effective_user.id, SubscriptionType.PREMIUM
             )
-            mock_generate_success.assert_called_once_with(
+            mock_cls.return_value.change_success.assert_called_once_with(
                 user_info=mock_update.effective_user,
                 subscription_type=SubscriptionType.PREMIUM.value,
             )
@@ -285,23 +288,23 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_change_failed"
-        ) as mock_generate_failed:
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
             handler.services.user_service.update_user_subscription.side_effect = (
                 UserSubscriptionUpdateError("Update failed")
             )
-            mock_generate_failed.return_value = "Failed to update subscription!"
+            mock_cls.return_value.change_failed.return_value = (
+                "Failed to update subscription!"
+            )
             handler.send_error_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
-            mock_generate_failed.assert_called_once_with(
-                user_info=mock_update.effective_user
-            )
+            mock_cls.return_value.change_failed.assert_called_once_with()
             handler.send_error_message.assert_called_once()
 
     @pytest.mark.asyncio
@@ -327,23 +330,21 @@ class TestSubscriptionHandler:
         mock_callback_query = make_mock_callback_query("premium")
 
         with patch(
-            "src.bot.handlers.subscription_handler.generate_message_subscription_change_error"
-        ) as mock_generate_error:
+            "src.bot.handlers.subscription_handler.SubscriptionMessages"
+        ) as mock_cls:
             handler.services.user_service.get_user_profile.return_value = (
                 mock_user_profile
             )
             handler.services.user_service.update_user_subscription.side_effect = (
                 Exception("General error")
             )
-            mock_generate_error.return_value = "An error occurred!"
+            mock_cls.return_value.change_error.return_value = "An error occurred!"
             handler.send_error_message = AsyncMock()
 
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
-            mock_generate_error.assert_called_once_with(
-                user_info=mock_update.effective_user
-            )
+            mock_cls.return_value.change_error.assert_called_once_with()
             handler.send_error_message.assert_called_once()
 
     @pytest.mark.asyncio

@@ -17,14 +17,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.message_context import use_message_context
-from ...core.messages import (
-    generate_message_birth_date_format_error,
-    generate_message_birth_date_future_error,
-    generate_message_birth_date_old_error,
-    generate_message_registration_error,
-    generate_message_start_welcome_existing,
-    generate_message_start_welcome_new,
-)
+from ...core.messages import RegistrationMessages, SettingsMessages, SystemMessages
 from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
@@ -93,9 +86,7 @@ class StartHandler(BaseHandler):
             with use_message_context(user_info=user, fetch_profile=False):
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_start_welcome_existing(
-                        user_info=user
-                    ),
+                    message_text=SystemMessages().welcome_existing(user_info=user),
                 )
             return
 
@@ -103,7 +94,7 @@ class StartHandler(BaseHandler):
         with use_message_context(user_info=user, fetch_profile=False):
             await self.send_message(
                 update=update,
-                message_text=generate_message_start_welcome_new(user_info=user),
+                message_text=SystemMessages().welcome_new(user_info=user),
             )
 
         # Set waiting state for birth date input
@@ -156,7 +147,7 @@ class StartHandler(BaseHandler):
                 with use_message_context(user_info=user, fetch_profile=False):
                     await self.send_message(
                         update=update,
-                        message_text=generate_message_birth_date_future_error(
+                        message_text=SettingsMessages().birth_date_future_error(
                             user_info=user
                         ),
                     )
@@ -167,7 +158,7 @@ class StartHandler(BaseHandler):
                 with use_message_context(user_info=user, fetch_profile=False):
                     await self.send_message(
                         update=update,
-                        message_text=generate_message_birth_date_old_error(
+                        message_text=SettingsMessages().birth_date_old_error(
                             user_info=user
                         ),
                     )
@@ -199,9 +190,7 @@ class StartHandler(BaseHandler):
             with use_message_context(user_info=user, fetch_profile=False):
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_start_welcome_existing(
-                        user_info=user
-                    ),
+                    message_text=SystemMessages().welcome_existing(user_info=user),
                 )
 
             # Clear waiting state
@@ -216,7 +205,7 @@ class StartHandler(BaseHandler):
                 await self.send_error_message(
                     update=update,
                     cmd_context=cmd_context,
-                    error_message=generate_message_registration_error(user_info=user),
+                    error_message=RegistrationMessages().error(user_info=user),
                 )
             # Clear waiting state on error
             context.user_data.pop("waiting_for", None)
@@ -227,7 +216,7 @@ class StartHandler(BaseHandler):
                 await self.send_error_message(
                     update=update,
                     cmd_context=cmd_context,
-                    error_message=generate_message_birth_date_format_error(
+                    error_message=SettingsMessages().birth_date_format_error(
                         user_info=user
                     ),
                 )

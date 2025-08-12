@@ -117,8 +117,8 @@ class TestBaseSQLiteRepository:
         :returns: None
         """
         repository.close()
-        # Engine should be disposed; do not assert exact None to avoid implementation detail
-        assert getattr(repository, "engine", None) is None or True
+        # Engine should be disposed
+        assert getattr(repository, "engine", None) is None
 
     def test_close_when_not_initialized(self):
         """Test closing repository that was never initialized.

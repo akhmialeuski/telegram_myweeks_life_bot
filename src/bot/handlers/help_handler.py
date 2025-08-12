@@ -17,7 +17,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.message_context import use_message_context
-from ...core.messages import generate_message_help
+from ...core.messages import SystemMessages
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -82,5 +82,5 @@ class HelpHandler(BaseHandler):
         with use_message_context(user_info=cmd_context.user, fetch_profile=False):
             await self.send_message(
                 update=update,
-                message_text=generate_message_help(user_info=cmd_context.user),
+                message_text=SystemMessages().help(user_info=cmd_context.user),
             )

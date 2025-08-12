@@ -45,15 +45,15 @@ class TestVisualizeHandler:
         :returns: None
         """
         # Setup
-        with patch(
-            "src.bot.handlers.visualize_handler.generate_message_visualize"
-        ) as mock_generate_message:
+        with patch("src.bot.handlers.visualize_handler.VisualizeMessages") as mock_cls:
             with patch(
                 "src.bot.handlers.visualize_handler.generate_visualization"
             ) as mock_generate_visualization:
                 handler.services.user_service.is_valid_user_profile.return_value = True
                 handler.services.user_service.get_user_profile.return_value = Mock()
-                mock_generate_message.return_value = "Here's your life visualization!"
+                mock_cls.return_value.generate.return_value = (
+                    "Here's your life visualization!"
+                )
                 mock_generate_visualization.return_value = Mock()
 
                 # Execute
@@ -122,13 +122,13 @@ class TestVisualizeHandler:
         with patch(
             "src.bot.handlers.visualize_handler.generate_visualization"
         ) as mock_generate_viz, patch(
-            "src.bot.handlers.visualize_handler.generate_message_visualize"
-        ) as mock_generate_msg:
+            "src.bot.handlers.visualize_handler.VisualizeMessages"
+        ) as mock_cls:
             # Setup mocks
             handler.services.user_service.is_valid_user_profile.return_value = True
             handler.services.user_service.get_user_profile.return_value = MagicMock()
             mock_generate_viz.return_value = b"fake_image_data"
-            mock_generate_msg.return_value = "Visualization caption"
+            mock_cls.return_value.generate.return_value = "Visualization caption"
 
             # Mock reply_photo
             mock_update.message.reply_photo = AsyncMock(return_value=None)

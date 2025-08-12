@@ -75,10 +75,10 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
-            "src.bot.handlers.cancel_handler.generate_message_cancel_success"
-        ) as mock_generate_success:
+            "src.bot.handlers.cancel_handler.CancelMessages"
+        ) as mock_cls:
             mock_remove_scheduler.return_value = None
-            mock_generate_success.return_value = "Account deleted successfully!"
+            mock_cls.return_value.success.return_value = "Account deleted successfully!"
 
             # Configure mock_context.bot_data.get to return a scheduler mock
             mock_scheduler = MagicMock()
@@ -91,7 +91,7 @@ class TestCancelHandler:
             mock_remove_scheduler.assert_called_once_with(
                 mock_context.bot_data.get.return_value, mock_update.effective_user.id
             )
-            mock_generate_success.assert_called_once()
+            mock_cls.return_value.success.assert_called_once()
             handler.services.user_service.delete_user_profile.assert_called_once_with(
                 telegram_id=mock_update.effective_user.id
             )
@@ -138,10 +138,10 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
-            "src.bot.handlers.cancel_handler.generate_message_cancel_error"
-        ) as mock_generate_error:
+            "src.bot.handlers.cancel_handler.CancelMessages"
+        ) as mock_cls:
             mock_remove_scheduler.return_value = None
-            mock_generate_error.return_value = "Error deleting account!"
+            mock_cls.return_value.error.return_value = "Error deleting account!"
 
             # Configure mock_context.bot_data.get to return a scheduler mock
             mock_scheduler = MagicMock()
@@ -149,7 +149,7 @@ class TestCancelHandler:
 
             await handler.handle(mock_update, mock_context)
 
-            mock_generate_error.assert_called_once()
+            mock_cls.return_value.error.assert_called_once()
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
             assert call_args.kwargs["text"] == "Error deleting account!"
@@ -193,10 +193,10 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
-            "src.bot.handlers.cancel_handler.generate_message_cancel_error"
-        ) as mock_generate_error:
+            "src.bot.handlers.cancel_handler.CancelMessages"
+        ) as mock_cls:
             mock_remove_scheduler.return_value = None
-            mock_generate_error.return_value = "Service error occurred!"
+            mock_cls.return_value.error.return_value = "Service error occurred!"
 
             # Configure mock_context.bot_data.get to return a scheduler mock
             mock_scheduler = MagicMock()
@@ -204,7 +204,7 @@ class TestCancelHandler:
 
             await handler.handle(mock_update, mock_context)
 
-            mock_generate_error.assert_called_once()
+            mock_cls.return_value.error.assert_called_once()
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
             assert call_args.kwargs["text"] == "Service error occurred!"
@@ -246,9 +246,9 @@ class TestCancelHandler:
         with patch(
             "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
         ) as mock_remove_scheduler, patch(
-            "src.bot.handlers.cancel_handler.generate_message_cancel_error"
-        ) as mock_generate_error:
-            mock_generate_error.return_value = "Scheduler error occurred!"
+            "src.bot.handlers.cancel_handler.CancelMessages"
+        ) as mock_cls:
+            mock_cls.return_value.error.return_value = "Scheduler error occurred!"
             from src.bot.scheduler import SchedulerOperationError
 
             mock_remove_scheduler.side_effect = SchedulerOperationError(
@@ -263,7 +263,7 @@ class TestCancelHandler:
 
             await handler.handle(mock_update, mock_context)
 
-            mock_generate_error.assert_called_once()
+            mock_cls.return_value.error.assert_called_once()
             mock_update.message.reply_text.assert_called_once()
             call_args = mock_update.message.reply_text.call_args
             assert call_args.kwargs["text"] == "Scheduler error occurred!"

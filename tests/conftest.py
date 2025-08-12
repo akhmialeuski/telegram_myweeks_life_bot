@@ -194,15 +194,9 @@ def mock_user_service(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture
 def mock_generate_message(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_week function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_week function
-    :rtype: MagicMock
-    """
+    """Provides a mocked WeeksMessages.generate function for scheduler tests."""
     return mocker.patch(
-        "src.bot.scheduler.generate_message_week", return_value=TEST_MESSAGE
+        "src.bot.scheduler.WeeksMessages.generate", return_value=TEST_MESSAGE
     )
 
 
@@ -344,7 +338,7 @@ def mock_generate_message_help(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_help function
     :rtype: MagicMock
     """
-    return mocker.patch("src.core.messages.generate_message_help")
+    return mocker.patch("src.core.messages.SystemMessages.help")
 
 
 @pytest.fixture
@@ -356,7 +350,7 @@ def mock_generate_message_cancel_success(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_cancel_success function
     :rtype: MagicMock
     """
-    return mocker.patch("src.core.messages.generate_message_cancel_success")
+    return mocker.patch("src.core.messages.CancelMessages.success")
 
 
 @pytest.fixture
@@ -368,7 +362,7 @@ def mock_generate_message_cancel_error(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_cancel_error function
     :rtype: MagicMock
     """
-    return mocker.patch("src.core.messages.generate_message_cancel_error")
+    return mocker.patch("src.core.messages.CancelMessages.error")
 
 
 @pytest.fixture
@@ -463,9 +457,7 @@ def mock_generate_message_unknown_command(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_unknown_command function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.unknown_handler.generate_message_unknown_command"
-    )
+    return mocker.patch("src.core.messages.SystemMessages.unknown")
 
 
 # --- Start Handler Fixtures ---
@@ -480,9 +472,7 @@ def mock_generate_message_start_welcome_existing(mocker: MockerFixture) -> Magic
     :returns: Mocked generate_message_start_welcome_existing function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_start_welcome_existing"
-    )
+    return mocker.patch("src.core.messages.SystemMessages.welcome_existing")
 
 
 @pytest.fixture
@@ -494,9 +484,7 @@ def mock_generate_message_start_welcome_new(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_start_welcome_new function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_start_welcome_new"
-    )
+    return mocker.patch("src.core.messages.SystemMessages.welcome_new")
 
 
 @pytest.fixture
@@ -508,9 +496,7 @@ def mock_generate_message_birth_date_future_error(mocker: MockerFixture) -> Magi
     :returns: Mocked generate_message_birth_date_future_error function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_birth_date_future_error"
-    )
+    return mocker.patch("src.core.messages.SettingsMessages.birth_date_future_error")
 
 
 @pytest.fixture
@@ -522,9 +508,7 @@ def mock_generate_message_birth_date_old_error(mocker: MockerFixture) -> MagicMo
     :returns: Mocked generate_message_birth_date_old_error function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_birth_date_old_error"
-    )
+    return mocker.patch("src.core.messages.SettingsMessages.birth_date_old_error")
 
 
 @pytest.fixture
@@ -536,9 +520,7 @@ def mock_generate_message_birth_date_format_error(mocker: MockerFixture) -> Magi
     :returns: Mocked generate_message_birth_date_format_error function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_birth_date_format_error"
-    )
+    return mocker.patch("src.core.messages.SettingsMessages.birth_date_format_error")
 
 
 @pytest.fixture
@@ -550,9 +532,7 @@ def mock_generate_message_registration_error(mocker: MockerFixture) -> MagicMock
     :returns: Mocked generate_message_registration_error function
     :rtype: MagicMock
     """
-    return mocker.patch(
-        "src.bot.handlers.start_handler.generate_message_registration_error"
-    )
+    return mocker.patch("src.core.messages.RegistrationMessages.error")
 
 
 # --- Weeks Handler Fixtures ---
@@ -567,7 +547,7 @@ def mock_generate_message_week(mocker: MockerFixture) -> MagicMock:
     :returns: Mocked generate_message_week function
     :rtype: MagicMock
     """
-    return mocker.patch("src.bot.handlers.weeks_handler.generate_message_week")
+    return mocker.patch("src.core.messages.WeeksMessages.generate")
 
 
 @pytest.fixture

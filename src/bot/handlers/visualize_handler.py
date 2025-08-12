@@ -17,7 +17,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ...core.messages import generate_message_visualize
+from ...core.messages import VisualizeMessages
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -110,7 +110,7 @@ class VisualizeHandler(BaseHandler):
         # Generate and send visual representation with caption
         await update.message.reply_photo(
             photo=generate_visualization(user_info=user),
-            caption=generate_message_visualize(user_info=user),
+            caption=VisualizeMessages().generate(user_info=user),
             parse_mode=ParseMode.HTML,
         )
         return None

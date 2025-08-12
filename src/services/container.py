@@ -41,9 +41,15 @@ class ServiceContainer:
         :returns: ServiceContainer instance
         :rtype: ServiceContainer
         """
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        # Double-checked locking to ensure thread-safe singleton
+        instance = cls._instance
+        if instance is None:
+            with cls._lock:
+                instance = cls._instance
+                if instance is None:
+                    instance = super().__new__(cls)
+                    cls._instance = instance
+        return instance
 
     def __init__(self) -> None:
         """Initialize the service container with all dependencies.
@@ -181,8 +187,9 @@ class ServiceContainer:
 
         :returns: None
         """
-        if cls._instance:
-            cls._instance.cleanup()
-        cls._instance = None
-        cls._initialized = False
-        DatabaseManager.reset_instance()
+        with cls._lock:
+            if cls._instance:
+                cls._instance.cleanup()
+            cls._instance = None
+            cls._initialized = False
+            DatabaseManager.reset_instance()

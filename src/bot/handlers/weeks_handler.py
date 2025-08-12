@@ -17,7 +17,7 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ...core.messages import generate_message_week
+from ...core.messages import WeeksMessages
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -104,6 +104,6 @@ class WeeksHandler(BaseHandler):
         # Generate and send life statistics message
         await self.send_message(
             update=update,
-            message_text=generate_message_week(user_info=user),
+            message_text=WeeksMessages().generate(user_info=user),
         )
         return None

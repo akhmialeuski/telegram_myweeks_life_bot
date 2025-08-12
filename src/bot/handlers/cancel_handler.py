@@ -15,10 +15,7 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...core.messages import (
-    generate_message_cancel_error,
-    generate_message_cancel_success,
-)
+from ...core.messages import CancelMessages
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -146,20 +143,17 @@ class CancelHandler(BaseHandler):
             # Send success confirmation message
             await self.send_message(
                 update=update,
-                message_text=generate_message_cancel_success(
+                message_text=CancelMessages().success(
                     user_info=user, language=user_lang
                 ),
             )
 
-        except Exception as error:
+        except Exception:
             # Handle all errors with a single error message
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_cancel_error(
-                    user_info=user,
-                    error_message=str(error),
-                ),
+                error_message=CancelMessages().error(user_info=user),
             )
 
         finally:

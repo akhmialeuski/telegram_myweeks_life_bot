@@ -60,14 +60,12 @@ class TestHelpHandler:
         """
         mock_get_user_language.return_value = SupportedLanguage.EN.value
 
-        with patch(
-            "src.bot.handlers.help_handler.generate_message_help"
-        ) as mock_generate_message_help:
-            mock_generate_message_help.return_value = "Here's the help message!"
+        with patch("src.bot.handlers.help_handler.SystemMessages") as mock_cls:
+            mock_cls.return_value.help.return_value = "Here's the help message!"
 
             await handler.handle(mock_update, mock_context)
 
-            mock_generate_message_help.assert_called_once_with(
+            mock_cls.return_value.help.assert_called_once_with(
                 user_info=mock_update.effective_user
             )
             mock_update.message.reply_text.assert_called_once()

@@ -11,7 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ...core.message_context import use_message_context
-from ...core.messages import generate_message_unknown_command
+from ...core.messages import SystemMessages
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -92,7 +92,7 @@ class UnknownHandler(BaseHandler):
                 )
 
         with use_message_context(user_info=user, fetch_profile=False):
-            message_text = generate_message_unknown_command(user_info=user)
+            message_text = SystemMessages().unknown(user_info=user)
 
         await self.send_message(
             update=update,
