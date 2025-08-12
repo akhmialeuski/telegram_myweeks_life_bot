@@ -22,6 +22,7 @@ from telegram.ext import ContextTypes
 
 from ...core.enums import SubscriptionType
 from ...core.life_calculator import LifeCalculatorEngine
+from ...core.message_context import use_message_context
 from ...core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -38,7 +39,6 @@ from ...core.messages import (
     generate_message_settings_premium,
     generate_settings_buttons,
 )
-from ...core.message_context import use_message_context
 from ...database.service import UserNotFoundError, UserSettingsUpdateError
 from ...services.container import ServiceContainer
 from ...utils.config import (
@@ -221,10 +221,14 @@ class SettingsHandler(BaseHandler):
 
         try:
             # Check subscription type and show appropriate message
-            if user_profile.subscription and user_profile.subscription.subscription_type in [
-                SubscriptionType.PREMIUM,
-                SubscriptionType.TRIAL,
-            ]:
+            if (
+                user_profile.subscription
+                and user_profile.subscription.subscription_type
+                in [
+                    SubscriptionType.PREMIUM,
+                    SubscriptionType.TRIAL,
+                ]
+            ):
                 with use_message_context(user_info=user, fetch_profile=True):
                     message_text = generate_message_settings_premium(user_info=user)
             else:
@@ -290,7 +294,9 @@ class SettingsHandler(BaseHandler):
                 case "settings_birth_date":
                     # Show birth date change interface
                     with use_message_context(user_info=user, fetch_profile=True):
-                        message_text = generate_message_change_birth_date(user_info=user)
+                        message_text = generate_message_change_birth_date(
+                            user_info=user
+                        )
                     await self.edit_message(
                         query=query,
                         message_text=message_text,
