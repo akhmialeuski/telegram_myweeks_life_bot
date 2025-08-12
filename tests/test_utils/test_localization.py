@@ -12,15 +12,17 @@ class TestLocalization:
         languages = get_supported_languages()
         assert isinstance(languages, list)
         assert len(languages) > 0
-        assert "ru" in languages
-        assert "en" in languages
+        from src.utils.localization import SupportedLanguage
+
+        assert SupportedLanguage.RU.value in languages
+        assert SupportedLanguage.EN.value in languages
 
     def test_is_language_supported_valid(self):
         """Test checking if valid language is supported."""
-        from src.utils.localization import is_language_supported
+        from src.utils.localization import SupportedLanguage, is_language_supported
 
-        assert is_language_supported("ru") is True
-        assert is_language_supported("en") is True
+        assert is_language_supported(SupportedLanguage.RU.value) is True
+        assert is_language_supported(SupportedLanguage.EN.value) is True
 
     def test_is_language_supported_invalid(self):
         """Test checking if invalid language is supported."""
@@ -38,73 +40,187 @@ class TestLocalization:
 
     def test_get_localized_language_name_valid_combinations(self):
         """Test getting localized language names for valid combinations."""
-        from src.utils.localization import get_localized_language_name
-
         # Test Russian language names
-        assert get_localized_language_name("ru", "ru") == "Русский"
-        assert get_localized_language_name("en", "ru") == "Английский"
-        assert get_localized_language_name("ua", "ru") == "Украинский"
-        assert get_localized_language_name("by", "ru") == "Белорусский"
+        from src.utils.localization import (
+            SupportedLanguage,
+            get_localized_language_name,
+        )
+
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.RU.value, SupportedLanguage.RU.value
+            )
+            == "Русский"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.EN.value, SupportedLanguage.RU.value
+            )
+            == "Английский"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.UA.value, SupportedLanguage.RU.value
+            )
+            == "Украинский"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.BY.value, SupportedLanguage.RU.value
+            )
+            == "Белорусский"
+        )
 
         # Test English language names
-        assert get_localized_language_name("ru", "en") == "Russian"
-        assert get_localized_language_name("en", "en") == "English"
-        assert get_localized_language_name("ua", "en") == "Ukrainian"
-        assert get_localized_language_name("by", "en") == "Belarusian"
+        from src.utils.localization import SupportedLanguage
+
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.RU.value, SupportedLanguage.EN.value
+            )
+            == "Russian"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.EN.value, SupportedLanguage.EN.value
+            )
+            == "English"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.UA.value, SupportedLanguage.EN.value
+            )
+            == "Ukrainian"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.BY.value, SupportedLanguage.EN.value
+            )
+            == "Belarusian"
+        )
 
         # Test Ukrainian language names
-        assert get_localized_language_name("ru", "ua") == "Російська"
-        assert get_localized_language_name("en", "ua") == "Англійська"
-        assert get_localized_language_name("ua", "ua") == "Українська"
-        assert get_localized_language_name("by", "ua") == "Білоруська"
+        from src.utils.localization import SupportedLanguage
+
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.RU.value, SupportedLanguage.UA.value
+            )
+            == "Російська"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.EN.value, SupportedLanguage.UA.value
+            )
+            == "Англійська"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.UA.value, SupportedLanguage.UA.value
+            )
+            == "Українська"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.BY.value, SupportedLanguage.UA.value
+            )
+            == "Білоруська"
+        )
 
         # Test Belarusian language names
-        assert get_localized_language_name("ru", "by") == "Рускай"
-        assert get_localized_language_name("en", "by") == "Англійская"
-        assert get_localized_language_name("ua", "by") == "Украінская"
-        assert get_localized_language_name("by", "by") == "Беларуская"
+        from src.utils.localization import SupportedLanguage
+
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.RU.value, SupportedLanguage.BY.value
+            )
+            == "Рускай"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.EN.value, SupportedLanguage.BY.value
+            )
+            == "Англійская"
+        )
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.UA.value, SupportedLanguage.BY.value
+            )
+            == "Украінская"
+        )
+        from src.utils.localization import SupportedLanguage
+
+        assert (
+            get_localized_language_name(
+                SupportedLanguage.BY.value, SupportedLanguage.BY.value
+            )
+            == "Беларуская"
+        )
 
     def test_get_localized_language_name_unsupported_target_language(self):
         """Test getting localized language name with unsupported target language."""
-        from src.utils.localization import get_localized_language_name
-
         # Should return the language code if target language is not supported
-        assert get_localized_language_name("ru", "fr") == "ru"
-        assert get_localized_language_name("en", "de") == "en"
+        from src.utils.localization import (
+            SupportedLanguage,
+            get_localized_language_name,
+        )
+
+        assert (
+            get_localized_language_name(SupportedLanguage.RU.value, "fr")
+            == SupportedLanguage.RU.value
+        )
+        assert (
+            get_localized_language_name(SupportedLanguage.EN.value, "de")
+            == SupportedLanguage.EN.value
+        )
 
     def test_get_localized_language_name_unsupported_language(self):
         """Test getting localized language name with unsupported language."""
-        from src.utils.localization import get_localized_language_name
-
         # Should return the language code if language is not supported
-        assert get_localized_language_name("fr", "ru") == "fr"
-        assert get_localized_language_name("de", "en") == "de"
+        from src.utils.localization import (
+            SupportedLanguage,
+            get_localized_language_name,
+        )
+
+        assert get_localized_language_name("fr", SupportedLanguage.RU.value) == "fr"
+        assert get_localized_language_name("de", SupportedLanguage.EN.value) == "de"
 
     def test_get_localized_language_name_edge_cases(self):
         """Test getting localized language name with edge cases."""
-        from src.utils.localization import get_localized_language_name
-
         # Test with empty strings
-        assert get_localized_language_name("", "ru") == ""
-        assert get_localized_language_name("ru", "") == "ru"
+        from src.utils.localization import (
+            SupportedLanguage,
+            get_localized_language_name,
+        )
+
+        assert get_localized_language_name("", SupportedLanguage.RU.value) == ""
+        assert (
+            get_localized_language_name(SupportedLanguage.RU.value, "")
+            == SupportedLanguage.RU.value
+        )
 
         # Test with None values
-        assert get_localized_language_name(None, "ru") is None
-        assert get_localized_language_name("ru", None) == "ru"
+        from src.utils.localization import SupportedLanguage
+
+        assert get_localized_language_name(None, SupportedLanguage.RU.value) is None
+        assert (
+            get_localized_language_name(SupportedLanguage.RU.value, None)
+            == SupportedLanguage.RU.value
+        )
 
     def test_message_builder_initialization(self):
         """Test MessageBuilder initialization."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
-        assert builder.lang == "ru"
+        builder = MessageBuilder(SupportedLanguage.RU.value)
+        assert builder.lang == SupportedLanguage.RU.value
         assert hasattr(builder, "_")
 
     def test_message_builder_get_method(self):
         """Test MessageBuilder.get method with various keys."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test with a key that should exist
         result = builder.get("help.text")
@@ -113,9 +229,9 @@ class TestLocalization:
 
     def test_message_builder_get_with_parameters(self):
         """Test MessageBuilder.get method with parameters."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test with parameters for a key that exists
         result = builder.get("start.welcome_existing", first_name="John")
@@ -124,9 +240,9 @@ class TestLocalization:
 
     def test_message_builder_dunder_getattr(self):
         """Test MessageBuilder.__getattr__ method for dynamic access."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test dynamic access with a key that exists
         result = builder.get("start.welcome_existing", first_name="John")
@@ -135,9 +251,9 @@ class TestLocalization:
 
     def test_message_builder_get_with_fallback(self):
         """Test MessageBuilder.get method with fallback to default language."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test with a non-existent key (should fallback to key itself)
         result = builder.get("non.existent.key")
@@ -145,9 +261,9 @@ class TestLocalization:
 
     def test_message_builder_get_with_formatting(self):
         """Test MessageBuilder.get method with string formatting."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test with formatting parameters
         result = builder.get("start.welcome_existing", first_name="John")
@@ -156,9 +272,9 @@ class TestLocalization:
 
     def test_message_builder_get_with_missing_format_placeholders(self):
         """Test MessageBuilder.get method handles keys with format placeholders not in kwargs gracefully."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Test with a key that contains format placeholders but kwargs doesn't have them
         # This should not raise KeyError or ValueError, but return the key as-is
@@ -194,9 +310,9 @@ class TestLocalization:
 
         We monkeypatch builder._ to simulate translation existing for key-only ids.
         """
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         original_gettext = builder._
 
         def fake_gettext(msgid: str) -> str:
@@ -217,9 +333,9 @@ class TestLocalization:
         """
         from types import SimpleNamespace
 
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         # Ensure id-as-key path fails to force ctx path
         builder._ = lambda s: s  # type: ignore[assignment]
@@ -241,9 +357,9 @@ class TestLocalization:
         """
         from types import SimpleNamespace
 
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         builder._ = lambda s: s  # type: ignore[assignment]
 
         def fake_pgettext(context: str, msgid: str) -> str:
@@ -258,9 +374,9 @@ class TestLocalization:
 
     def test_message_builder_dunder_getattr_maps_snake_to_dotted(self):
         """Test that unknown attributes map to dotted keys via get()."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         captured = {}
 
         def fake_get(key: str, **kwargs):  # type: ignore[no-untyped-def]
@@ -278,27 +394,27 @@ class TestLocalization:
 
     def test_get_translator_is_cached(self):
         """Ensure get_translator reuses translator objects for the same language."""
-        from src.utils.localization import get_translator
+        from src.utils.localization import SupportedLanguage, get_translator
 
-        first = get_translator("ru")
-        second = get_translator("ru")
+        first = get_translator(SupportedLanguage.RU.value)
+        second = get_translator(SupportedLanguage.RU.value)
         assert first is second
 
     def test_get_translation_is_cached(self):
         """Ensure get_translation caches translation instances."""
-        from src.utils.localization import get_translation
+        from src.utils.localization import SupportedLanguage, get_translation
 
-        first = get_translation("ru")
-        second = get_translation("ru")
+        first = get_translation(SupportedLanguage.RU.value)
+        second = get_translation(SupportedLanguage.RU.value)
         assert first is second
 
     def test_message_builder_nget_method(self):
         """Test MessageBuilder.nget returns correct plural forms."""
         from types import SimpleNamespace
 
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         builder._trans = SimpleNamespace(
             ngettext=lambda s, p, n: "one" if n == 1 else "many"
         )  # type: ignore[assignment]
@@ -309,9 +425,9 @@ class TestLocalization:
 
     def test_message_builder_pget_method(self):
         """Test MessageBuilder.pget returns context-based translations."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("en")
+        builder = MessageBuilder(SupportedLanguage.EN.value)
         result = builder.pget("buttons.change_language", "")
         assert "Change Language" in result
 
@@ -319,9 +435,9 @@ class TestLocalization:
         """Test MessageBuilder.npget handles context and pluralization."""
         from types import SimpleNamespace
 
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         captured: dict[str, str] = {}
 
         def fake_npgettext(ctx: str, s: str, p: str, n: int) -> str:
@@ -340,9 +456,9 @@ class TestLocalization:
 
     def test_message_builder_get_logs_missing_key(self, caplog):
         """Test that missing translations are logged."""
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
         with caplog.at_level("WARNING"):
             result = builder.get("missing.key")
         assert "missing.key" in result
@@ -352,9 +468,9 @@ class TestLocalization:
         """Test pluralization support in MessageBuilder."""
         from types import SimpleNamespace
 
-        from src.utils.localization import MessageBuilder
+        from src.utils.localization import MessageBuilder, SupportedLanguage
 
-        builder = MessageBuilder("ru")
+        builder = MessageBuilder(SupportedLanguage.RU.value)
 
         fake = SimpleNamespace(
             ngettext=lambda s, p, n: f"{n} week" if n == 1 else f"{n} weeks",

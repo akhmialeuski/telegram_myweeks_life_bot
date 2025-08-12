@@ -1134,7 +1134,7 @@ class TestUserServiceUpdateSettings:
         # Verify no fields were changed
         assert settings.birth_date == date(1990, 1, 1)
         assert settings.life_expectancy == 75
-        assert settings.language == "en"
+        assert settings.language == SupportedLanguage.EN.value
         user_service.settings_repository.update_user_settings.assert_called_once_with(
             settings
         )

@@ -7,6 +7,8 @@ implementations.
 
 from unittest.mock import MagicMock
 
+from src.utils.localization import SupportedLanguage
+
 
 class FakeServiceContainer:
     """Fake service container for testing purposes.
@@ -64,8 +66,13 @@ class FakeServiceContainer:
         self.life_calculator.return_value.calculate_life_percentage.return_value = 40.0
 
         # Set up config mock behaviors
-        self.config.DEFAULT_LANGUAGE = "ru"
-        self.config.SUPPORTED_LANGUAGES = ["ru", "en", "ua", "by"]
+        self.config.DEFAULT_LANGUAGE = SupportedLanguage.RU.value
+        self.config.SUPPORTED_LANGUAGES = [
+            SupportedLanguage.RU.value,
+            SupportedLanguage.EN.value,
+            SupportedLanguage.UA.value,
+            SupportedLanguage.BY.value,
+        ]
 
     def get_user_service(self) -> MagicMock:
         """Get the mock user service.
@@ -83,7 +90,9 @@ class FakeServiceContainer:
         """
         return self.life_calculator
 
-    def get_message_builder(self, lang_code: str = "ru") -> "FakeMessageBuilder":
+    def get_message_builder(
+        self, lang_code: str = SupportedLanguage.RU.value
+    ) -> "FakeMessageBuilder":
         """Get a fake message builder for tests.
 
         This provides a minimal implementation compatible with
@@ -99,7 +108,11 @@ class FakeServiceContainer:
         return FakeMessageBuilder(container=self, lang_code=lang_code)
 
     def get_message(
-        self, message_key: str, sub_key: str, language: str = "ru", **kwargs
+        self,
+        message_key: str,
+        sub_key: str,
+        language: str = SupportedLanguage.RU.value,
+        **kwargs,
     ) -> str:
         """Get a mock localized message.
 
@@ -121,7 +134,12 @@ class FakeServiceContainer:
         :returns: List of supported language codes
         :rtype: list[str]
         """
-        return ["ru", "en", "ua", "by"]
+        return [
+            SupportedLanguage.RU.value,
+            SupportedLanguage.EN.value,
+            SupportedLanguage.UA.value,
+            SupportedLanguage.BY.value,
+        ]
 
     def cleanup(self) -> None:
         """Clean up mock resources.

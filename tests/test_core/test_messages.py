@@ -391,7 +391,9 @@ class TestMessageGeneration:
         builder.get.return_value = "Cancel success message"
 
         # Execute
-        result = generate_message_cancel_success(mock_telegram_user, "en")
+        result = generate_message_cancel_success(
+            mock_telegram_user, SupportedLanguage.EN.value
+        )
 
         # Assert
         assert result == "Cancel success message"
@@ -1383,7 +1385,7 @@ class TestMessageSettings:
         mock_user_service.get_user_profile.return_value = None
         result = get_user_language(mock_telegram_user)
 
-        assert result == "en"  # Should use Telegram language
+        assert result == SupportedLanguage.EN.value  # Should use Telegram language
         mock_user_service.get_user_profile.assert_called_once_with(
             telegram_id=mock_telegram_user.id
         )
@@ -1401,7 +1403,7 @@ class TestMessageSettings:
 
         result = get_user_language(mock_telegram_user, user_profile=mock_profile)
 
-        assert result == "ru"  # Should use profile language
+        assert result == SupportedLanguage.RU.value  # Should use profile language
 
     @patch("src.database.service.user_service")
     def test_get_user_language_with_profile_from_database(
@@ -1423,7 +1425,9 @@ class TestMessageSettings:
             mock_telegram_user
         )  # No profile passed, will fetch from DB
 
-        assert result == "ua"  # Should use profile language from database
+        assert (
+            result == SupportedLanguage.UA.value
+        )  # Should use profile language from database
         mock_user_service.get_user_profile.assert_called_once_with(
             telegram_id=mock_telegram_user.id
         )

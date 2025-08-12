@@ -3,6 +3,7 @@
 Tests the ServiceContainer class which manages all application dependencies.
 """
 from src.services.container import ServiceContainer
+from src.utils.localization import SupportedLanguage
 
 
 class TestServiceContainer:
@@ -72,7 +73,7 @@ class TestServiceContainer:
         assert isinstance(text_default, str) and len(text_default) > 0
 
         # Specific language
-        builder_en = container.get_message_builder("en")
+        builder_en = container.get_message_builder(SupportedLanguage.EN.value)
         text_en = builder_en.help()
         assert isinstance(text_en, str) and len(text_en) > 0
 
@@ -89,10 +90,10 @@ class TestServiceContainer:
 
         assert isinstance(languages, list)
         assert len(languages) > 0
-        assert "ru" in languages
-        assert "en" in languages
-        assert "ua" in languages
-        assert "by" in languages
+        assert SupportedLanguage.RU.value in languages
+        assert SupportedLanguage.EN.value in languages
+        assert SupportedLanguage.UA.value in languages
+        assert SupportedLanguage.BY.value in languages
 
     def test_cleanup(self) -> None:
         """Test cleanup method.

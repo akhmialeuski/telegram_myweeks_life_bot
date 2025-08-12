@@ -68,8 +68,11 @@ class SupportedLanguage(StrEnum):
 # Supported languages
 LANGUAGES = SupportedLanguage.list()
 
-# Default language
+# Default language for app UI/content (used when user's language is unknown)
 DEFAULT_LANGUAGE = SupportedLanguage.RU.value
+
+# Fallback language for missing translations (used inside MessageBuilder)
+FALLBACK_LANGUAGE = SupportedLanguage.EN.value
 
 # Localized language names
 _LANGUAGE_NAMES = {
@@ -166,7 +169,7 @@ class MessageBuilder:
     message generation functions while providing a cleaner interface.
     """
 
-    def __init__(self, lang: str, default_lang: str = DEFAULT_LANGUAGE):
+    def __init__(self, lang: str, default_lang: str = FALLBACK_LANGUAGE):
         """Initialize MessageBuilder with language and default fallback language.
 
         :param lang: Language code (ru, en, ua, by)
@@ -212,7 +215,7 @@ class MessageBuilder:
         1) Current language: gettext(key)
         2) Current language: pgettext(key, "") (context-as-key with empty id)
         3) Current language: pgettext(key, key) (context and id are the key)
-        4) Fallback language (default en): same three strategies
+        4) Fallback language (default fallback, usually English): same three strategies
         5) If still not found, return the key itself as a last resort
 
         Always applies ``str.format(**kwargs)`` when kwargs provided.

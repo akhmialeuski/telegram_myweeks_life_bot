@@ -28,7 +28,7 @@ class MessageService:
     def get_builder(self, lang_code: str = DEFAULT_LANGUAGE) -> MessageBuilder:
         """Get cached ``MessageBuilder`` for a language, creating if missing.
 
-        :param lang_code: IETF language tag, e.g. ``"ru"``, ``"en"``
+        :param lang_code: IETF language tag, use values from ``SupportedLanguage``
         :type lang_code: str
         :returns: Builder configured for the language
         :rtype: MessageBuilder

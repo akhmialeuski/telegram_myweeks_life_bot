@@ -23,7 +23,7 @@ class UserSettings(Base):
     :param notifications_day: Day of the week for notifications (enum WeekDay)
     :param life_expectancy: Expected life expectancy in years
     :param timezone: User's timezone (e.g., "Europe/Warsaw")
-    :param language: User's language preference (e.g., "ru", "en", "ua", "by")
+    :param language: User's language preference (use values from SupportedLanguage)
     :param notifications: Whether notifications are enabled
     :param notifications_time: Time of day for notifications
     :param updated_at: Last update timestamp
