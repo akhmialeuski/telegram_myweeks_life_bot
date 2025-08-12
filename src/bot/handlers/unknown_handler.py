@@ -10,6 +10,7 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ...core.message_context import use_message_context
 from ...core.messages import generate_message_unknown_command
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -90,7 +91,10 @@ class UnknownHandler(BaseHandler):
                     f"{self.command_name}: [{user_id}]: Handling unknown message type '{message_type}'"
                 )
 
+        with use_message_context(user_info=user, fetch_profile=False):
+            message_text = generate_message_unknown_command(user_info=user)
+
         await self.send_message(
             update=update,
-            message_text=generate_message_unknown_command(user_info=user),
+            message_text=message_text,
         )

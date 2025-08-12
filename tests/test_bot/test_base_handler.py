@@ -101,7 +101,7 @@ class TestBaseHandler:
         mock_method = MagicMock()
         handler.command_name = f"/{COMMAND_HELP}"
         result = handler._wrap_with_registration(mock_method)
-        assert result is mock_method
+        assert callable(result)  # Should return a callable wrapper
 
     @pytest.mark.asyncio
     async def test_edit_message(self, handler: ConcreteHandler) -> None:

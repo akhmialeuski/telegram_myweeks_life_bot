@@ -98,7 +98,18 @@ class BaseHandler(ABC):
         """
         if self._should_require_registration():
             return self.require_registration()(handler_method)
-        return handler_method
+
+        # For commands not requiring registration (e.g., /help, /start), still
+        # ensure MessageContext is available during execution.
+        from ...core.message_context import use_message_context
+
+        @wraps(handler_method)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
+            cmd_context = self._extract_command_context(update)
+            with use_message_context(user_info=cmd_context.user, fetch_profile=False):
+                return await handler_method(update, context)
+
+        return wrapper
 
     def _extract_command_context(self, update: Update) -> CommandContext:
         """Extract common context information from an update.
@@ -168,8 +179,13 @@ class BaseHandler(ABC):
                         )
                         return None
 
-                    # Execute the original command handler
-                    return await func(update, context)
+                    # Execute the original command handler under MessageContext
+                    from ...core.message_context import use_message_context
+
+                    with use_message_context(
+                        user_info=cmd_context.user, fetch_profile=True
+                    ):
+                        return await func(update, context)
 
                 except Exception as error:  # pylint: disable=broad-exception-caught
                     # Handle error through the centralized error handler

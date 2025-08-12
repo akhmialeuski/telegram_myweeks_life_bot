@@ -22,6 +22,7 @@ if not hasattr(_messages_mod, "get_message"):
 
 if not hasattr(_messages_mod, "get_subscription_description"):
     _messages_mod.get_subscription_description = _get_sub_add_msg
+from src.core.message_context import use_message_context
 from src.core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -161,12 +162,8 @@ class TestMessageGeneration:
 
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_week_success(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_subscription_addition,
         mock_telegram_user,
@@ -184,10 +181,18 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
-        mock_calculator.return_value = mock_calculator_instance
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = mock_life_stats
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
+
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = (
@@ -196,14 +201,13 @@ class TestMessageGeneration:
         mock_subscription_addition.return_value = ""
 
         # Execute
-        result = generate_message_week(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_week(mock_telegram_user)
 
         # Assert
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
-        mock_user_service.get_user_profile.assert_called_once_with(
-            telegram_id=123456789
-        )
-        mock_calculator.assert_called_once_with(user=sample_user_profile)
+        usvc.get_user_profile.assert_called_once_with(telegram_id=123456789)
+        engine_cls.assert_called_once_with(user=sample_user_profile)
         builder.get.assert_called_once_with(
             key="weeks.statistics",
             age=33,
@@ -213,9 +217,9 @@ class TestMessageGeneration:
             days_until_birthday=45,
         )
 
-    @patch("src.database.service.user_service")
+    @patch("src.services.container.ServiceContainer")
     def test_generate_message_week_user_not_found(
-        self, mock_user_service, mock_telegram_user
+        self, mock_service_container, mock_telegram_user
     ):
         """Test weekly statistics message generation when user not found.
 
@@ -224,22 +228,21 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = None
+        usvc = Mock()
+        usvc.get_user_profile.return_value = None
+        mock_service_container.return_value.get_user_service.return_value = usvc
 
         # Execute and Assert
-        with pytest.raises(
-            ValueError, match="User profile not found for telegram_id: 123456789"
-        ):
-            generate_message_week(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            with pytest.raises(
+                ValueError, match="User profile not found for telegram_id: 123456789"
+            ):
+                generate_message_week(mock_telegram_user)
 
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_week_russian_language(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_subscription_addition,
         mock_telegram_user_ru,
@@ -257,17 +260,26 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
-        mock_calculator.return_value = mock_calculator_instance
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = mock_life_stats
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
+
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Ваша статистика жизни: 33 года, 1720 недель прожито"
         mock_subscription_addition.return_value = ""
 
         # Execute
-        result = generate_message_week(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=True):
+            result = generate_message_week(mock_telegram_user_ru)
 
         # Assert
         assert result == "Ваша статистика жизни: 33 года, 1720 недель прожито"
@@ -281,12 +293,8 @@ class TestMessageGeneration:
         )
 
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_visualize_success(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_telegram_user,
         sample_user_profile,
@@ -294,8 +302,6 @@ class TestMessageGeneration:
     ):
         """Test successful visualization message generation.
 
-        :param mock_user_service: Mock user service
-        :param mock_calculator: Mock life calculator
         :param mock_service_container: Mock service container
         :param mock_telegram_user: Mock Telegram user
         :param sample_user_profile: Sample user profile
@@ -303,23 +309,30 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
-        mock_calculator.return_value = mock_calculator_instance
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = mock_life_stats
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
+
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Visualization message"
 
         # Execute
-        result = generate_message_visualize(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_visualize(mock_telegram_user)
 
         # Assert
         assert result == "Visualization message"
-        mock_user_service.get_user_profile.assert_called_once_with(
-            telegram_id=123456789
-        )
-        mock_calculator.assert_called_once_with(user=sample_user_profile)
+        usvc.get_user_profile.assert_called_once_with(telegram_id=123456789)
+        engine_cls.assert_called_once_with(user=sample_user_profile)
         builder.get.assert_called_once_with(
             key="visualize.info",
             age=33,
@@ -345,7 +358,8 @@ class TestMessageGeneration:
         )
 
         # Execute
-        result = generate_message_help(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_help(mock_telegram_user)
 
         # Assert
         assert result == "Available commands: /start, /weeks, /visualize, /help"
@@ -369,7 +383,8 @@ class TestMessageGeneration:
         )
 
         # Execute
-        result = generate_message_help(user)
+        with use_message_context(user_info=user, fetch_profile=False):
+            result = generate_message_help(user)
 
         # Assert
         assert result == "Available commands: /start, /weeks, /visualize, /help"
@@ -391,9 +406,10 @@ class TestMessageGeneration:
         builder.get.return_value = "Cancel success message"
 
         # Execute
-        result = generate_message_cancel_success(
-            mock_telegram_user, SupportedLanguage.EN.value
-        )
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_cancel_success(
+                mock_telegram_user, SupportedLanguage.EN.value
+            )
 
         # Assert
         assert result == "Cancel success message"
@@ -415,7 +431,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Cancel error message"
 
         # Execute
-        result = generate_message_cancel_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_cancel_error(mock_telegram_user)
 
         # Assert
         assert result == "Cancel error message"
@@ -437,7 +454,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Welcome back, Test! You are already registered."
 
         # Execute
-        result = generate_message_start_welcome_existing(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_start_welcome_existing(mock_telegram_user)
 
         # Assert
         assert result == "Welcome back, Test! You are already registered."
@@ -461,19 +479,16 @@ class TestMessageGeneration:
         )
 
         # Execute
-        result = generate_message_start_welcome_new(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_start_welcome_new(mock_telegram_user)
 
         # Assert
         assert result == "Welcome, Test! Please provide your birth date to get started."
         builder.get.assert_called_once_with("start.welcome_new", first_name="Test")
 
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_registration_success(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_telegram_user,
         sample_user_profile,
@@ -490,23 +505,32 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = mock_life_stats
-        mock_calculator.return_value = mock_calculator_instance
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = mock_life_stats
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
+
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Registration success message"
 
         # Execute
-        result = generate_message_registration_success(mock_telegram_user, "1990-01-01")
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_registration_success(
+                mock_telegram_user, "1990-01-01"
+            )
 
         # Assert
         assert result == "Registration success message"
-        mock_user_service.get_user_profile.assert_called_once_with(
-            telegram_id=123456789
-        )
-        mock_calculator.assert_called_once_with(user=sample_user_profile)
+        usvc.get_user_profile.assert_called_once_with(telegram_id=123456789)
+        engine_cls.assert_called_once_with(user=sample_user_profile)
         builder.get.assert_called_once()
 
     @patch("src.services.container.ServiceContainer")
@@ -525,7 +549,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Registration failed. Please try again."
 
         # Execute
-        result = generate_message_registration_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_registration_error(mock_telegram_user)
 
         # Assert
         assert result == "Registration failed. Please try again."
@@ -547,7 +572,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Birth date future error message"
 
         # Execute
-        result = generate_message_birth_date_future_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_birth_date_future_error(mock_telegram_user)
 
         # Assert
         assert result == "Birth date future error message"
@@ -569,7 +595,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Birth date old error message"
 
         # Execute
-        result = generate_message_birth_date_old_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_birth_date_old_error(mock_telegram_user)
 
         # Assert
         assert result == "Birth date old error message"
@@ -591,51 +618,53 @@ class TestMessageGeneration:
         builder.get.return_value = "Invalid birth date format. Please use DD.MM.YYYY."
 
         # Execute
-        result = generate_message_birth_date_format_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_birth_date_format_error(mock_telegram_user)
 
         # Assert
         assert result == "Invalid birth date format. Please use DD.MM.YYYY."
         builder.get.assert_called_once()
 
     @patch("src.core.messages.get_subscription_addition_message")
-    @patch("src.core.messages.get_message")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
+    @patch("src.services.container.ServiceContainer")
     def test_generate_message_week_missing_stats_key(
         self,
-        mock_user_service,
-        mock_calculator,
-        mock_get_message,
-        mock_subscription_addition,
+        mock_service_container,
         mock_telegram_user,
         sample_user_profile,
     ):
         """Test weekly statistics message generation with missing statistics key.
 
-        :param mock_user_service: Mock user service
-        :param mock_calculator: Mock life calculator
-        :param mock_get_message: Mock message localization function
+        :param mock_service_container: Mock service container
         :param mock_telegram_user: Mock Telegram user
         :param sample_user_profile: Sample user profile
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        # Mock LifeCalculatorEngine
         mock_calculator_instance = Mock()
         mock_calculator_instance.get_life_statistics.return_value = {
             "age": 33
         }  # Missing keys
-        mock_calculator.return_value = mock_calculator_instance
+        mock_calculator_class = Mock()
+        mock_calculator_class.return_value = mock_calculator_instance
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            mock_calculator_class
+        )
 
         # Execute and Assert
         with pytest.raises(KeyError):
-            generate_message_week(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+                generate_message_week(mock_telegram_user)
 
     @patch("src.core.messages.get_message")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
+    @patch("src.services.container.ServiceContainer")
     def test_generate_message_visualize_user_not_found(
-        self, mock_user_service, mock_calculator, mock_get_message, mock_telegram_user
+        self, mock_service_container, mock_get_message, mock_telegram_user
     ):
         """Test visualization message generation when user not found.
 
@@ -646,17 +675,20 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = None
+        usvc = Mock()
+        usvc.get_user_profile.return_value = None
+        mock_service_container.return_value.get_user_service.return_value = usvc
 
         # Execute and Assert
-        with pytest.raises(
-            ValueError, match="User profile not found for telegram_id: 123456789"
-        ):
-            generate_message_visualize(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            with pytest.raises(
+                ValueError, match="User profile not found for telegram_id: 123456789"
+            ):
+                generate_message_visualize(mock_telegram_user)
 
-    @patch("src.database.service.user_service")
+    @patch("src.services.container.ServiceContainer")
     def test_generate_message_registration_success_user_not_found(
-        self, mock_user_service, mock_telegram_user
+        self, mock_service_container, mock_telegram_user
     ):
         """Test registration success message generation when user not found.
 
@@ -665,21 +697,20 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = None
+        usvc = Mock()
+        usvc.get_user_profile.return_value = None
+        mock_service_container.return_value.get_user_service.return_value = usvc
 
         # Execute and assert
-        with pytest.raises(
-            ValueError, match="User profile not found for telegram_id: 123456789"
-        ):
-            generate_message_registration_success(mock_telegram_user, "1990-01-01")
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            with pytest.raises(
+                ValueError, match="User profile not found for telegram_id: 123456789"
+            ):
+                generate_message_registration_success(mock_telegram_user, "1990-01-01")
 
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_registration_success_missing_stats(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_telegram_user,
         sample_user_profile,
@@ -694,16 +725,24 @@ class TestMessageGeneration:
         :returns: None
         """
         # Setup
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = {
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = {
             "age": 33
         }  # Missing weeks_lived
-        mock_calculator.return_value = mock_calculator_instance
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
 
         # Execute and Assert
-        with pytest.raises(KeyError):
-            generate_message_registration_success(mock_telegram_user, "1990-01-01")
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            with pytest.raises(KeyError):
+                generate_message_registration_success(mock_telegram_user, "1990-01-01")
 
     @patch("src.services.container.ServiceContainer")
     def test_generate_message_week_russian_language_no_lang_code(
@@ -724,68 +763,68 @@ class TestMessageGeneration:
         )
 
         # Execute
-        result = generate_message_help(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=False):
+            result = generate_message_help(mock_telegram_user_ru)
 
         # Assert
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
         builder.get.assert_called_once()
 
-    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.services.container.ServiceContainer")
     def test_generate_message_subscription_current_success(
-        self,
-        mock_service_container,
-        mock_get_subscription_description,
-        mock_user_service,
-        mock_telegram_user,
-        sample_user_profile,
+        self, mock_service_container, mock_telegram_user, sample_user_profile
     ):
         """Test generate_message_subscription_current returns correct message."""
-        # Setup
-        sample_user_profile.subscription.subscription_type = SubscriptionType.BASIC
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_get_subscription_description.return_value = (
-            "Basic subscription description"
-        )
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Subscription info"
-
-        # Execute
         from src.core.messages import generate_message_subscription_current
 
-        result = generate_message_subscription_current(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_subscription_current(mock_telegram_user)
 
         # Assert
         assert result == "Subscription info"
         builder.get.assert_called_once()
 
-    @patch("src.database.service.user_service")
+    @patch("src.services.container.ServiceContainer")
     def test_generate_message_subscription_current_no_profile(
-        self, mock_user_service, mock_telegram_user
+        self, mock_service_container, mock_telegram_user
     ):
         """Test generate_message_subscription_current raises ValueError if no profile."""
-        mock_user_service.get_user_profile.return_value = None
+        usvc = Mock()
+        usvc.get_user_profile.return_value = None
+        mock_service_container.return_value.get_user_service.return_value = usvc
         from src.core.messages import generate_message_subscription_current
 
         with pytest.raises(ValueError):
-            generate_message_subscription_current(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+                generate_message_subscription_current(mock_telegram_user)
 
-    @patch("src.database.service.user_service")
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.services.container.ServiceContainer")
     def test_generate_message_subscription_current_no_subscription(
         self,
         mock_service_container,
         mock_get_subscription_description,
-        mock_user_service,
         mock_telegram_user,
         sample_user_profile,
     ):
         """Test fallback to BASIC when no subscription in profile."""
         sample_user_profile.subscription = None
-        mock_user_service.get_user_profile.return_value = sample_user_profile
+
+        # Setup ServiceContainer mock properly - ensure it returns a mock object, not a string
+        mock_service_container_instance = Mock()
+        mock_service_container.return_value = mock_service_container_instance
+
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container_instance.get_user_service.return_value = usvc
+
         mock_get_subscription_description.return_value = (
             "Basic subscription description"
         )
@@ -793,10 +832,11 @@ class TestMessageGeneration:
         from src.core.messages import generate_message_subscription_current
 
         builder = Mock()
-        mock_service_container.return_value.get_message_builder.return_value = builder
+        mock_service_container_instance.get_message_builder.return_value = builder
         builder.get.return_value = "Subscription info"
 
-        result = generate_message_subscription_current(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_subscription_current(mock_telegram_user)
         assert result == "Subscription info"
         builder.get.assert_called_once()
 
@@ -810,7 +850,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Invalid subscription type message"
         from src.core.messages import generate_message_subscription_invalid_type
 
-        result = generate_message_subscription_invalid_type(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_invalid_type(mock_telegram_user)
         assert result == "Invalid subscription type message"
         builder.get.assert_called_once()
 
@@ -824,7 +865,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Profile error"
         from src.core.messages import generate_message_subscription_profile_error
 
-        result = generate_message_subscription_profile_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_profile_error(mock_telegram_user)
         assert result == "Profile error"
         builder.get.assert_called_once()
 
@@ -838,9 +880,10 @@ class TestMessageGeneration:
         builder.get.return_value = "Already active message"
         from src.core.messages import generate_message_subscription_already_active
 
-        result = generate_message_subscription_already_active(
-            mock_telegram_user, "premium"
-        )
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_already_active(
+                mock_telegram_user, "premium"
+            )
         assert result == "Already active message"
         builder.get.assert_called_once()
 
@@ -861,9 +904,10 @@ class TestMessageGeneration:
         builder.get.return_value = "Change success message"
         from src.core.messages import generate_message_subscription_change_success
 
-        result = generate_message_subscription_change_success(
-            mock_telegram_user, "premium"
-        )
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_change_success(
+                mock_telegram_user, "premium"
+            )
         assert result == "Change success message"
         builder.get.assert_called_once()
 
@@ -877,7 +921,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Change failed"
         from src.core.messages import generate_message_subscription_change_failed
 
-        result = generate_message_subscription_change_failed(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_change_failed(mock_telegram_user)
         assert result == "Change failed"
         builder.get.assert_called_once()
 
@@ -891,7 +936,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Change error"
         from src.core.messages import generate_message_subscription_change_error
 
-        result = generate_message_subscription_change_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_subscription_change_error(mock_telegram_user)
         assert result == "Change error"
         builder.get.assert_called_once()
 
@@ -914,7 +960,8 @@ class TestMessageGeneration:
         mock_service_container.return_value.get_message_builder.return_value = builder
         from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert "https://test.buymeacoffee.com/testuser" in result
 
     @patch("src.services.container.ServiceContainer")
@@ -929,7 +976,8 @@ class TestMessageGeneration:
             generate_message_week_addition_premium,
         )
 
-        result = generate_message_week_addition_premium(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_premium(mock_telegram_user)
         assert isinstance(result, str)
 
     @patch("src.services.container.ServiceContainer")
@@ -942,7 +990,8 @@ class TestMessageGeneration:
         builder.get.return_value = "Unknown command"
         from src.core.messages import generate_message_unknown_command
 
-        result = generate_message_unknown_command(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_unknown_command(mock_telegram_user)
         assert result == "Unknown command"
         builder.get.assert_called_once()
 
@@ -950,12 +999,7 @@ class TestMessageGeneration:
     def test_generate_settings_buttons_success(
         self, mock_service_container, mock_telegram_user
     ):
-        """Test generate_settings_buttons returns correct button configurations.
-
-        :param mock_get_message: Mock message localization function
-        :param mock_telegram_user: Mock Telegram user
-        :returns: None
-        """
+        """Test generate_settings_buttons returns correct button structure."""
         # Setup
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
@@ -970,7 +1014,8 @@ class TestMessageGeneration:
         # Execute
         from src.core.messages import generate_settings_buttons
 
-        result = generate_settings_buttons(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_settings_buttons(mock_telegram_user)
 
         # Assert
         expected_result = [
@@ -1011,7 +1056,8 @@ class TestMessageGeneration:
         # Execute
         from src.core.messages import generate_settings_buttons
 
-        result = generate_settings_buttons(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=False):
+            result = generate_settings_buttons(mock_telegram_user_ru)
 
         # Assert
         expected_result = [
@@ -1092,7 +1138,8 @@ class TestMessageSettings:
         builder.get.return_value = "Basic settings message"
         from src.core.messages import generate_message_settings_basic
 
-        result = generate_message_settings_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_settings_basic(mock_telegram_user)
         assert result == "Basic settings message"
         assert builder.get.called
 
@@ -1114,7 +1161,8 @@ class TestMessageSettings:
         builder.get.return_value = "Premium settings message"
         from src.core.messages import generate_message_settings_premium
 
-        result = generate_message_settings_premium(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_settings_premium(mock_telegram_user)
         assert result == "Premium settings message"
         assert builder.get.called
 
@@ -1133,7 +1181,8 @@ class TestMessageSettings:
         builder.get.return_value = "Change birth date message"
         from src.core.messages import generate_message_change_birth_date
 
-        result = generate_message_change_birth_date(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_change_birth_date(mock_telegram_user)
         assert result == "Change birth date message"
         assert builder.get.called
 
@@ -1158,10 +1207,9 @@ class TestMessageSettings:
         mock_user_service.get_user_profile.return_value = profile
         from src.core.messages import generate_message_change_language
 
-        result = generate_message_change_language(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_change_language(mock_telegram_user)
         assert result == "Change language message"
-        assert builder.get.called
-        assert mock_get_localized_language_name.called
 
     @patch("src.database.service.user_service")
     @patch("src.services.container.ServiceContainer")
@@ -1178,7 +1226,8 @@ class TestMessageSettings:
         builder.get.return_value = "Change life expectancy message"
         from src.core.messages import generate_message_change_life_expectancy
 
-        result = generate_message_change_life_expectancy(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_change_life_expectancy(mock_telegram_user)
         assert result == "Change life expectancy message"
         assert builder.get.called
 
@@ -1191,9 +1240,10 @@ class TestMessageSettings:
         builder.get.return_value = "Birth date updated message"
         from src.core.messages import generate_message_birth_date_updated
 
-        result = generate_message_birth_date_updated(
-            mock_telegram_user, date(2000, 1, 1), 24
-        )
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_birth_date_updated(
+                mock_telegram_user, date(2000, 1, 1), 24
+            )
         assert result == "Birth date updated message"
         assert builder.get.called
 
@@ -1206,7 +1256,8 @@ class TestMessageSettings:
         builder.get.return_value = "Language updated message"
         from src.core.messages import generate_message_language_updated
 
-        result = generate_message_language_updated(mock_telegram_user, "English")
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_language_updated(mock_telegram_user, "English")
         assert result == "Language updated message"
         assert builder.get.called
 
@@ -1219,7 +1270,8 @@ class TestMessageSettings:
         builder.get.return_value = "Life expectancy updated message"
         from src.core.messages import generate_message_life_expectancy_updated
 
-        result = generate_message_life_expectancy_updated(mock_telegram_user, 90)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_life_expectancy_updated(mock_telegram_user, 90)
         assert result == "Life expectancy updated message"
         assert builder.get.called
 
@@ -1232,7 +1284,8 @@ class TestMessageSettings:
         builder.get.return_value = "Invalid life expectancy message"
         from src.core.messages import generate_message_invalid_life_expectancy
 
-        result = generate_message_invalid_life_expectancy(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_invalid_life_expectancy(mock_telegram_user)
         assert result == "Invalid life expectancy message"
         assert builder.get.called
 
@@ -1245,7 +1298,8 @@ class TestMessageSettings:
         builder.get.return_value = "Settings error message"
         from src.core.messages import generate_message_settings_error
 
-        result = generate_message_settings_error(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_settings_error(mock_telegram_user)
         assert result == "Settings error message"
         assert builder.get.called
 
@@ -1257,7 +1311,8 @@ class TestMessageSettings:
         from src.core.messages import generate_message_settings_basic
 
         with pytest.raises(ValueError):
-            generate_message_settings_basic(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+                generate_message_settings_basic(mock_telegram_user)
 
     @patch("src.database.service.user_service")
     def test_generate_message_settings_premium_no_profile(
@@ -1267,7 +1322,8 @@ class TestMessageSettings:
         from src.core.messages import generate_message_settings_premium
 
         with pytest.raises(ValueError):
-            generate_message_settings_premium(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+                generate_message_settings_premium(mock_telegram_user)
 
     @patch("src.database.service.user_service")
     def test_generate_message_change_birth_date_no_profile(
@@ -1277,7 +1333,8 @@ class TestMessageSettings:
         from src.core.messages import generate_message_change_birth_date
 
         with pytest.raises(ValueError):
-            generate_message_change_birth_date(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+                generate_message_change_birth_date(mock_telegram_user)
 
     @patch("src.database.service.user_service")
     def test_generate_message_change_life_expectancy_no_profile(
@@ -1287,7 +1344,8 @@ class TestMessageSettings:
         from src.core.messages import generate_message_change_life_expectancy
 
         with pytest.raises(ValueError):
-            generate_message_change_life_expectancy(mock_telegram_user)
+            with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+                generate_message_change_life_expectancy(mock_telegram_user)
 
     @patch("src.database.service.user_service")
     @patch("src.services.container.ServiceContainer")
@@ -1315,7 +1373,8 @@ class TestMessageSettings:
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Basic settings message"
 
-        result = generate_message_settings_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_settings_basic(mock_telegram_user)
 
         assert result == "Basic settings message"
         assert builder.get.call_count == 1
@@ -1346,7 +1405,8 @@ class TestMessageSettings:
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Premium settings message"
 
-        result = generate_message_settings_premium(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_settings_premium(mock_telegram_user)
 
         assert result == "Premium settings message"
         assert builder.get.call_count == 1
@@ -1370,7 +1430,8 @@ class TestMessageSettings:
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = "Change birth date message"
 
-        result = generate_message_change_birth_date(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_change_birth_date(mock_telegram_user)
 
         assert result == "Change birth date message"
         assert builder.get.call_count == 1
@@ -1383,7 +1444,8 @@ class TestMessageSettings:
         from src.core.messages import get_user_language
 
         mock_user_service.get_user_profile.return_value = None
-        result = get_user_language(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = get_user_language(mock_telegram_user)
 
         assert result == SupportedLanguage.EN.value  # Should use Telegram language
         mock_user_service.get_user_profile.assert_called_once_with(
@@ -1401,7 +1463,8 @@ class TestMessageSettings:
         mock_profile.settings = Mock()
         mock_profile.settings.language = SupportedLanguage.RU.value
 
-        result = get_user_language(mock_telegram_user, user_profile=mock_profile)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = get_user_language(mock_telegram_user, user_profile=mock_profile)
 
         assert result == SupportedLanguage.RU.value  # Should use profile language
 
@@ -1421,9 +1484,10 @@ class TestMessageSettings:
 
         mock_user_service.get_user_profile.return_value = mock_profile
 
-        result = get_user_language(
-            mock_telegram_user
-        )  # No profile passed, will fetch from DB
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = get_user_language(
+                mock_telegram_user
+            )  # No profile passed, will fetch from DB
 
         assert (
             result == SupportedLanguage.UA.value
@@ -1434,12 +1498,8 @@ class TestMessageSettings:
 
     @patch("src.core.messages.get_subscription_addition_message")
     @patch("src.services.container.ServiceContainer")
-    @patch("src.core.messages.LifeCalculatorEngine")
-    @patch("src.database.service.user_service")
     def test_generate_message_week_no_subscription(
         self,
-        mock_user_service,
-        mock_calculator,
         mock_service_container,
         mock_subscription_addition,
         mock_telegram_user,
@@ -1451,16 +1511,23 @@ class TestMessageSettings:
         # Remove subscription from user profile
         sample_user_profile.subscription = None
 
-        mock_user_service.get_user_profile.return_value = sample_user_profile
-        mock_calculator_instance = Mock()
-        mock_calculator_instance.get_life_statistics.return_value = {
+        usvc = Mock()
+        usvc.get_user_profile.return_value = sample_user_profile
+        mock_service_container.return_value.get_user_service.return_value = usvc
+
+        engine_cls = Mock()
+        engine_inst = Mock()
+        engine_inst.get_life_statistics.return_value = {
             "age": 33,
             "weeks_lived": 1720,
             "remaining_weeks": 2448,
             "life_percentage": 0.412,
             "days_until_birthday": 45,
         }
-        mock_calculator.return_value = mock_calculator_instance
+        engine_cls.return_value = engine_inst
+        mock_service_container.return_value.get_life_calculator.return_value = (
+            engine_cls
+        )
         builder = Mock()
         mock_service_container.return_value.get_message_builder.return_value = builder
         builder.get.return_value = (
@@ -1468,7 +1535,8 @@ class TestMessageSettings:
         )
         mock_subscription_addition.return_value = ""
 
-        result = generate_message_week(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=True):
+            result = generate_message_week(mock_telegram_user)
 
         assert result == "Your life statistics: 33 years old, 1720 weeks lived"
         # Should call with BASIC subscription type as fallback

@@ -1,5 +1,7 @@
 """Tests for subscription message generation module."""
 
+from unittest.mock import Mock
+
 import pytest
 
 # Backward-compatibility shim so patch targets exist even if implementation moved
@@ -9,6 +11,7 @@ from src.core.enums import SubscriptionType
 
 if not hasattr(_subs_mod, "get_message"):
     _subs_mod.get_message = _loc.get_message
+from src.core.message_context import use_message_context
 from src.core.subscription_messages import (
     generate_message_week_addition_basic,
     generate_message_week_addition_premium,
@@ -23,8 +26,6 @@ class TestSubscriptionMessages:
     @pytest.fixture
     def mock_telegram_user(self):
         """Create a mock Telegram user."""
-        from unittest.mock import Mock
-
         user = Mock()
         user.id = 123456
         user.username = "test_user"
@@ -35,8 +36,6 @@ class TestSubscriptionMessages:
     @pytest.fixture
     def mock_telegram_user_ru(self):
         """Create a mock Telegram user with Russian language."""
-        from unittest.mock import Mock
-
         user = Mock()
         user.id = 123456
         user.username = "test_user"
@@ -47,8 +46,6 @@ class TestSubscriptionMessages:
     @pytest.fixture
     def mock_telegram_user_no_lang(self):
         """Create a mock Telegram user without language code."""
-        from unittest.mock import Mock
-
         user = Mock()
         user.id = 123456
         user.username = "test_user"
@@ -70,8 +67,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert "https://coff.ee/akhmelevskiy" in result
 
     def test_generate_message_week_addition_basic_russian(
@@ -87,8 +86,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "💡 <b>Базовая подписка</b>\n\nВы используете базовую версию бота с основной функциональностью.\n\n🔗 <b>Поддержать проект:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Донат: https://coff.ee/akhmelevskiy\n\nВаша поддержка помогает развивать бота! 🙏"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user_ru)
         assert "https://coff.ee/akhmelevskiy" in result
 
     def test_generate_message_week_addition_basic_no_language(
@@ -104,8 +105,12 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user_no_lang)
+        with use_message_context(
+            user_info=mock_telegram_user_no_lang, fetch_profile=False
+        ):
+            result = generate_message_week_addition_basic(mock_telegram_user_no_lang)
         assert "https://coff.ee/akhmelevskiy" in result
 
     def test_generate_message_week_addition_basic_custom_url(
@@ -121,8 +126,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert "https://coff.ee" in result
 
     def test_generate_message_week_addition_basic_default_url(
@@ -138,8 +145,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: https://coff.ee/akhmelevskiy\n\nYour support helps develop the bot! 🙏"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert "https://coff.ee/akhmelevskiy" in result
 
     def test_generate_message_week_addition_basic_probability_high(
@@ -151,7 +160,8 @@ class TestSubscriptionMessages:
             85  # Higher than 20% probability, so message should not be shown
         )
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
 
         assert result == ""
         mock_randint.assert_called_once_with(1, 100)
@@ -166,8 +176,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Test message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Test message"
         mock_randint.assert_called_once_with(1, 100)
 
@@ -183,8 +195,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Test message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Test message"
         mock_randint.assert_called_once_with(1, 100)
 
@@ -203,8 +217,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Custom probability message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Custom probability message"
         mock_randint.assert_called_once_with(1, 100)
 
@@ -220,7 +236,8 @@ class TestSubscriptionMessages:
             75  # Higher than 50% probability, so message should not be shown
         )
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
 
         assert result == ""
         mock_randint.assert_called_once_with(1, 100)
@@ -233,8 +250,12 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Premium subscription message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import (
+            generate_message_week_addition_premium,
+        )
 
-        result = generate_message_week_addition_premium(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_premium(mock_telegram_user)
         assert result == "Premium subscription message"
 
     def test_generate_message_week_addition_premium_russian(
@@ -245,8 +266,12 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Сообщение премиум подписки"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import (
+            generate_message_week_addition_premium,
+        )
 
-        result = generate_message_week_addition_premium(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=False):
+            result = generate_message_week_addition_premium(mock_telegram_user_ru)
         assert result == "Сообщение премиум подписки"
 
     def test_get_subscription_addition_message_premium(
@@ -348,8 +373,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Integrated basic message with donation"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Integrated basic message with donation"
 
     def test_integration_premium_message_generation(self, mocker, mock_telegram_user):
@@ -358,8 +385,12 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Integrated premium message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import (
+            generate_message_week_addition_premium,
+        )
 
-        result = generate_message_week_addition_premium(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_premium(mock_telegram_user)
         assert result == "Integrated premium message"
 
     def test_integration_subscription_addition_message(
@@ -401,8 +432,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "https://coff.ee/akhmelevskiy"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        message = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            message = generate_message_week_addition_basic(mock_telegram_user)
         assert "https://coff.ee/akhmelevskiy" in message
 
     def test_empty_buymeacoffee_url_handling(self, mocker, mock_telegram_user):
@@ -413,8 +446,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Empty URL message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "Empty URL message"
 
     def test_none_buymeacoffee_url_handling(self, mocker, mock_telegram_user):
@@ -425,8 +460,10 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "None URL message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
-        result = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result = generate_message_week_addition_basic(mock_telegram_user)
         assert result == "None URL message"
 
     def test_module_imports_correctly(self):
@@ -462,13 +499,16 @@ class TestSubscriptionMessages:
         builder = mocker.MagicMock()
         builder.get.return_value = "Multi-language message"
         svc.return_value.get_message_builder.return_value = builder
+        from src.core.subscription_messages import generate_message_week_addition_basic
 
         # Test English
-        result_en = generate_message_week_addition_basic(mock_telegram_user)
+        with use_message_context(user_info=mock_telegram_user, fetch_profile=False):
+            result_en = generate_message_week_addition_basic(mock_telegram_user)
         assert result_en == "Multi-language message"
 
         # Test Russian
-        result_ru = generate_message_week_addition_basic(mock_telegram_user_ru)
+        with use_message_context(user_info=mock_telegram_user_ru, fetch_profile=False):
+            result_ru = generate_message_week_addition_basic(mock_telegram_user_ru)
         assert result_ru == "Multi-language message"
 
         # Just verify we got the expected return each time

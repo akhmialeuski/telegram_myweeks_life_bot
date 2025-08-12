@@ -11,6 +11,7 @@ from telegram import User as TelegramUser
 
 from ..utils.config import BUYMEACOFFEE_URL, SUBSCRIPTION_MESSAGE_PROBABILITY
 from .enums import SubscriptionType
+from .message_context import MessageContext
 
 
 def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
@@ -29,18 +30,8 @@ def generate_message_week_addition_basic(user_info: TelegramUser) -> str:
     if random.randint(1, 100) > SUBSCRIPTION_MESSAGE_PROBABILITY:
         return ""
 
-    # Get user's language preference
-    from .messages import get_user_language
-
-    user_lang = get_user_language(user_info)
-
-    # Use MessageBuilder with lazy import
-    from ..services.container import ServiceContainer
-
-    container = ServiceContainer()
-    builder = container.get_message_builder(user_lang)
-
-    return builder.get("subscription.basic_info", buymeacoffee_url=BUYMEACOFFEE_URL)
+    ctx: MessageContext = MessageContext.require()
+    return ctx.builder.get("subscription.basic_info", buymeacoffee_url=BUYMEACOFFEE_URL)
 
 
 def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
@@ -54,18 +45,8 @@ def generate_message_week_addition_premium(user_info: TelegramUser) -> str:
     :returns: Localized premium subscription addition message
     :rtype: str
     """
-    # Get user's language preference
-    from .messages import get_user_language
-
-    user_lang = get_user_language(user_info)
-
-    # Use MessageBuilder with lazy import
-    from ..services.container import ServiceContainer
-
-    container = ServiceContainer()
-    builder = container.get_message_builder(user_lang)
-
-    return builder.get("subscription.premium_content")
+    ctx: MessageContext = MessageContext.require()
+    return ctx.builder.get("subscription.premium_content")
 
 
 def get_subscription_addition_message(

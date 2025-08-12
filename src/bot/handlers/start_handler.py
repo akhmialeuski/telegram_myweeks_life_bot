@@ -16,6 +16,7 @@ from datetime import date, datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ...core.message_context import use_message_context
 from ...core.messages import (
     generate_message_birth_date_format_error,
     generate_message_birth_date_future_error,
@@ -89,17 +90,21 @@ class StartHandler(BaseHandler):
         # Check if user has already completed registration
         if self.services.user_service.is_valid_user_profile(user_id):
             # User is already registered - send welcome back message
-            await self.send_message(
-                update=update,
-                message_text=generate_message_start_welcome_existing(user_info=user),
-            )
+            with use_message_context(user_info=user, fetch_profile=False):
+                await self.send_message(
+                    update=update,
+                    message_text=generate_message_start_welcome_existing(
+                        user_info=user
+                    ),
+                )
             return
 
         # User needs to register - request birth date
-        await self.send_message(
-            update=update,
-            message_text=generate_message_start_welcome_new(user_info=user),
-        )
+        with use_message_context(user_info=user, fetch_profile=False):
+            await self.send_message(
+                update=update,
+                message_text=generate_message_start_welcome_new(user_info=user),
+            )
 
         # Set waiting state for birth date input
         context.user_data["waiting_for"] = "start_birth_date"
@@ -148,20 +153,24 @@ class StartHandler(BaseHandler):
 
             # Validate that birth date is not in the future
             if birth_date > date.today():
-                await self.send_message(
-                    update=update,
-                    message_text=generate_message_birth_date_future_error(
-                        user_info=user
-                    ),
-                )
+                with use_message_context(user_info=user, fetch_profile=False):
+                    await self.send_message(
+                        update=update,
+                        message_text=generate_message_birth_date_future_error(
+                            user_info=user
+                        ),
+                    )
                 return
 
             # Validate that birth date is not unreasonably old
             if birth_date.year < MIN_BIRTH_YEAR:
-                await self.send_message(
-                    update=update,
-                    message_text=generate_message_birth_date_old_error(user_info=user),
-                )
+                with use_message_context(user_info=user, fetch_profile=False):
+                    await self.send_message(
+                        update=update,
+                        message_text=generate_message_birth_date_old_error(
+                            user_info=user
+                        ),
+                    )
                 return
 
             # Attempt to create user profile in the database
@@ -187,10 +196,13 @@ class StartHandler(BaseHandler):
                 )
 
             # Send success message with calculated statistics
-            await self.send_message(
-                update=update,
-                message_text=generate_message_start_welcome_existing(user_info=user),
-            )
+            with use_message_context(user_info=user, fetch_profile=False):
+                await self.send_message(
+                    update=update,
+                    message_text=generate_message_start_welcome_existing(
+                        user_info=user
+                    ),
+                )
 
             # Clear waiting state
             context.user_data.pop("waiting_for", None)
@@ -200,21 +212,25 @@ class StartHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Registration error: {error}"
             )
-            await self.send_error_message(
-                update=update,
-                cmd_context=cmd_context,
-                error_message=generate_message_registration_error(user_info=user),
-            )
+            with use_message_context(user_info=user, fetch_profile=False):
+                await self.send_error_message(
+                    update=update,
+                    cmd_context=cmd_context,
+                    error_message=generate_message_registration_error(user_info=user),
+                )
             # Clear waiting state on error
             context.user_data.pop("waiting_for", None)
 
         except Exception as error:
             # Handle invalid date format
-            await self.send_error_message(
-                update=update,
-                cmd_context=cmd_context,
-                error_message=generate_message_birth_date_format_error(user_info=user),
-            )
+            with use_message_context(user_info=user, fetch_profile=False):
+                await self.send_error_message(
+                    update=update,
+                    cmd_context=cmd_context,
+                    error_message=generate_message_birth_date_format_error(
+                        user_info=user
+                    ),
+                )
             logger.error(
                 f"{self.command_name}: [{user_id}]: Error in handle_birth_date_input: {error}"
             )

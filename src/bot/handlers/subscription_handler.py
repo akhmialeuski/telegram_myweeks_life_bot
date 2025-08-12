@@ -17,6 +17,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from ...core.enums import SubscriptionType
+from ...core.message_context import use_message_context
 from ...core.messages import (
     generate_message_subscription_already_active,
     generate_message_subscription_change_error,
@@ -114,11 +115,12 @@ class SubscriptionHandler(BaseHandler):
                     [InlineKeyboardButton(text, callback_data=callback_data)]
                 )
 
-            await self.send_message(
-                update=update,
-                message_text=generate_message_subscription_current(user_info=user),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-            )
+            with use_message_context(user_info=user, fetch_profile=True):
+                await self.send_message(
+                    update=update,
+                    message_text=generate_message_subscription_current(user_info=user),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
 
         except Exception as error:
             await self.send_error_message(
@@ -167,13 +169,15 @@ class SubscriptionHandler(BaseHandler):
 
             # Check if subscription actually changed
             if current_subscription == new_subscription_type:
-                await self.edit_message(
-                    query=query,
-                    message_text=generate_message_subscription_already_active(
-                        user_info=user, subscription_type=new_subscription_type.value
-                    ),
-                )
-                return
+                with use_message_context(user_info=user, fetch_profile=True):
+                    await self.edit_message(
+                        query=query,
+                        message_text=generate_message_subscription_already_active(
+                            user_info=user,
+                            subscription_type=new_subscription_type.value,
+                        ),
+                    )
+                    return
 
             # Update subscription in database
             self.services.user_service.update_user_subscription(
@@ -182,31 +186,34 @@ class SubscriptionHandler(BaseHandler):
             )
 
             # Show success message
-            await self.edit_message(
-                query=query,
-                message_text=generate_message_subscription_change_success(
-                    user_info=user, subscription_type=new_subscription_type.value
-                ),
-            )
+            with use_message_context(user_info=user, fetch_profile=True):
+                await self.edit_message(
+                    query=query,
+                    message_text=generate_message_subscription_change_success(
+                        user_info=user, subscription_type=new_subscription_type.value
+                    ),
+                )
 
             logger.info(
                 f"{self.command_name}: [{user_id}]: Subscription changed from {current_subscription} to {new_subscription_type}"
             )
 
         except UserSubscriptionUpdateError:
-            await self.send_error_message(
-                update=update,
-                cmd_context=cmd_context,
-                error_message=generate_message_subscription_change_failed(
-                    user_info=user
-                ),
-            )
+            with use_message_context(user_info=user, fetch_profile=True):
+                await self.send_error_message(
+                    update=update,
+                    cmd_context=cmd_context,
+                    error_message=generate_message_subscription_change_failed(
+                        user_info=user
+                    ),
+                )
 
         except Exception:
-            await self.send_error_message(
-                update=update,
-                cmd_context=cmd_context,
-                error_message=generate_message_subscription_change_error(
-                    user_info=user
-                ),
-            )
+            with use_message_context(user_info=user, fetch_profile=True):
+                await self.send_error_message(
+                    update=update,
+                    cmd_context=cmd_context,
+                    error_message=generate_message_subscription_change_error(
+                        user_info=user
+                    ),
+                )

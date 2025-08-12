@@ -16,6 +16,7 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ...core.message_context import use_message_context
 from ...core.messages import generate_message_help
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -77,8 +78,9 @@ class HelpHandler(BaseHandler):
 
         logger.info(f"{self.command_name}: [{cmd_context.user_id}]: Handling command")
 
-        # Generate and send help message
-        await self.send_message(
-            update=update,
-            message_text=generate_message_help(user_info=cmd_context.user),
-        )
+        # Generate and send help message under MessageContext
+        with use_message_context(user_info=cmd_context.user, fetch_profile=False):
+            await self.send_message(
+                update=update,
+                message_text=generate_message_help(user_info=cmd_context.user),
+            )

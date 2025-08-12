@@ -3,7 +3,7 @@
 Tests the UnknownHandler class which handles unknown messages.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from telegram.constants import ParseMode
@@ -342,3 +342,35 @@ class TestUnknownHandler:
         call_args = mock_update.message.reply_text.call_args
         assert call_args.kwargs["text"] == "Unknown command!"
         assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+
+    @pytest.mark.asyncio
+    async def test_handle_uses_message_context(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test that handle method properly uses MessageContext.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mock Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mock ContextTypes object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        # Mock the send_message method to capture the call
+        handler.send_message = AsyncMock()
+
+        await handler.handle(mock_update, mock_context)
+
+        # Verify that send_message was called
+        handler.send_message.assert_called_once()
+
+        # Verify that the message_text parameter is not empty
+        call_args = handler.send_message.call_args
+        message_text = call_args.kwargs["message_text"]
+        assert message_text is not None
+        assert len(message_text) > 0

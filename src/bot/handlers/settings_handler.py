@@ -38,6 +38,7 @@ from ...core.messages import (
     generate_message_settings_premium,
     generate_settings_buttons,
 )
+from ...core.message_context import use_message_context
 from ...database.service import UserNotFoundError, UserSettingsUpdateError
 from ...services.container import ServiceContainer
 from ...utils.config import (
@@ -215,19 +216,20 @@ class SettingsHandler(BaseHandler):
         user = cmd_context.user
         user_id = cmd_context.user_id
         user_profile = cmd_context.user_profile
-        current_subscription = user_profile.subscription.subscription_type
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling settings command")
 
         try:
-            # Generate appropriate settings message based on subscription type
-            if current_subscription in [
+            # Check subscription type and show appropriate message
+            if user_profile.subscription and user_profile.subscription.subscription_type in [
                 SubscriptionType.PREMIUM,
                 SubscriptionType.TRIAL,
             ]:
-                message_text = generate_message_settings_premium(user_info=user)
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_settings_premium(user_info=user)
             else:
-                message_text = generate_message_settings_basic(user_info=user)
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_settings_basic(user_info=user)
 
             # Create settings selection keyboard with localized buttons
             button_configs = generate_settings_buttons(user_info=user)
@@ -287,9 +289,11 @@ class SettingsHandler(BaseHandler):
             match callback_data:
                 case "settings_birth_date":
                     # Show birth date change interface
+                    with use_message_context(user_info=user, fetch_profile=True):
+                        message_text = generate_message_change_birth_date(user_info=user)
                     await self.edit_message(
                         query=query,
-                        message_text=generate_message_change_birth_date(user_info=user),
+                        message_text=message_text,
                     )
                     # Store state in context for handling user input
                     self._set_waiting_state(context, "settings_birth_date")
@@ -318,19 +322,23 @@ class SettingsHandler(BaseHandler):
                             )
                         ],
                     ]
+                    with use_message_context(user_info=user, fetch_profile=True):
+                        message_text = generate_message_change_language(user_info=user)
                     await self.edit_message(
                         query=query,
-                        message_text=generate_message_change_language(user_info=user),
+                        message_text=message_text,
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )
 
                 case "settings_life_expectancy":
                     # Show life expectancy change interface
+                    with use_message_context(user_info=user, fetch_profile=True):
+                        message_text = generate_message_change_life_expectancy(
+                            user_info=user
+                        )
                     await self.edit_message(
                         query=query,
-                        message_text=generate_message_change_life_expectancy(
-                            user_info=user
-                        ),
+                        message_text=message_text,
                     )
                     # Store state in context for handling user input
                     self._set_waiting_state(context, "settings_life_expectancy")
@@ -342,9 +350,11 @@ class SettingsHandler(BaseHandler):
                     )
 
         except Exception:
+            with use_message_context(user_info=user, fetch_profile=True):
+                message_text = generate_message_settings_error(user_info=user)
             await self.edit_message(
                 query=query,
-                message_text=generate_message_settings_error(user_info=user),
+                message_text=message_text,
             )
 
     async def handle_language_callback(
@@ -380,9 +390,11 @@ class SettingsHandler(BaseHandler):
 
             # Validate language code
             if language_code not in LANGUAGES:
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_settings_error(user_info=user)
                 await self.edit_message(
                     query=query,
-                    message_text=generate_message_settings_error(user_info=user),
+                    message_text=message_text,
                 )
                 return
 
@@ -402,9 +414,10 @@ class SettingsHandler(BaseHandler):
                 logger.warning(f"No scheduler available for user {user_id}")
 
             # Show success message (function will use the updated language from DB)
-            success_message = generate_message_language_updated(
-                user_info=user, new_language=language_name
-            )
+            with use_message_context(user_info=user, fetch_profile=True):
+                success_message = generate_message_language_updated(
+                    user_info=user, new_language=language_name
+                )
             await self.edit_message(
                 query=query,
                 message_text=success_message,
@@ -418,9 +431,11 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update language: {error}"
             )
+            with use_message_context(user_info=user, fetch_profile=True):
+                message_text = generate_message_settings_error(user_info=user)
             await self.edit_message(
                 query=query,
-                message_text=generate_message_settings_error(user_info=user),
+                message_text=message_text,
             )
 
     async def handle_settings_input(
@@ -533,19 +548,23 @@ class SettingsHandler(BaseHandler):
 
             # Validate that birth date is not in the future
             if birth_date > date.today():
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_birth_date_future_error(
+                        user_info=user
+                    )
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_birth_date_future_error(
-                        user_info=user
-                    ),
+                    message_text=message_text,
                 )
                 return
 
             # Validate that birth date is not unreasonably old
             if birth_date.year < MIN_BIRTH_YEAR:
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_birth_date_old_error(user_info=user)
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_birth_date_old_error(user_info=user),
+                    message_text=message_text,
                 )
                 return
 
@@ -564,13 +583,15 @@ class SettingsHandler(BaseHandler):
             calculator = LifeCalculatorEngine(user=updated_user_profile)
 
             # Send success message
-            await self.send_message(
-                update=update,
-                message_text=generate_message_birth_date_updated(
+            with use_message_context(user_info=user, fetch_profile=True):
+                message_text = generate_message_birth_date_updated(
                     user_info=user,
                     new_birth_date=birth_date,
                     new_age=calculator.calculate_age(),
-                ),
+                )
+            await self.send_message(
+                update=update,
+                message_text=message_text,
             )
 
             # Clear waiting state
@@ -583,10 +604,12 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update birth date: {error}"
             )
+            with use_message_context(user_info=user, fetch_profile=True):
+                error_message = generate_message_settings_error(user_info=user)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_settings_error(user_info=user),
+                error_message=error_message,
             )
 
         except Exception as error:
@@ -594,10 +617,12 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Exception in handle_birth_date_input: {error}"
             )
+            with use_message_context(user_info=user, fetch_profile=True):
+                error_message = generate_message_birth_date_format_error(user_info=user)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_birth_date_format_error(user_info=user),
+                error_message=error_message,
             )
 
     async def handle_life_expectancy_input(
@@ -632,11 +657,13 @@ class SettingsHandler(BaseHandler):
                 life_expectancy < MIN_LIFE_EXPECTANCY
                 or life_expectancy > MAX_LIFE_EXPECTANCY
             ):
+                with use_message_context(user_info=user, fetch_profile=True):
+                    message_text = generate_message_invalid_life_expectancy(
+                        user_info=user
+                    )
                 await self.send_message(
                     update=update,
-                    message_text=generate_message_invalid_life_expectancy(
-                        user_info=user
-                    ),
+                    message_text=message_text,
                 )
                 return
 
@@ -645,11 +672,13 @@ class SettingsHandler(BaseHandler):
                 telegram_id=user_id, life_expectancy=life_expectancy
             )
 
+            with use_message_context(user_info=user, fetch_profile=True):
+                message_text = generate_message_life_expectancy_updated(
+                    user_info=user, new_life_expectancy=life_expectancy
+                )
             await self.send_message(
                 update=update,
-                message_text=generate_message_life_expectancy_updated(
-                    user_info=user, new_life_expectancy=life_expectancy
-                ),
+                message_text=message_text,
             )
 
             # Clear waiting state
@@ -662,16 +691,20 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update life expectancy: {error}"
             )
+            with use_message_context(user_info=user, fetch_profile=True):
+                error_message = generate_message_settings_error(user_info=user)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_settings_error(user_info=user),
+                error_message=error_message,
             )
 
         except Exception:
             # Invalid number format
+            with use_message_context(user_info=user, fetch_profile=True):
+                error_message = generate_message_invalid_life_expectancy(user_info=user)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_invalid_life_expectancy(user_info=user),
+                error_message=error_message,
             )
