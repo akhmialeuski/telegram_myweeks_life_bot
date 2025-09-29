@@ -17,13 +17,15 @@ import uuid
 from datetime import date, datetime
 from typing import Literal, Optional, TypedDict
 
+from babel.dates import format_date
+from babel.numbers import format_decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from ...core.enums import SubscriptionType
+from src.i18n import normalize_babel_locale, use_locale
+
+from ...core.enums import SubscriptionType, SupportedLanguage
 from ...core.life_calculator import LifeCalculatorEngine
-from ...core.message_context import use_message_context
-from ...core.messages import SettingsMessages
 from ...database.service import UserNotFoundError, UserSettingsUpdateError
 from ...services.container import ServiceContainer
 from ...utils.config import (
@@ -32,7 +34,6 @@ from ...utils.config import (
     MIN_BIRTH_YEAR,
     MIN_LIFE_EXPECTANCY,
 )
-from ...utils.localization import LANGUAGES, get_localized_language_name
 from ...utils.logger import get_logger
 from ..constants import COMMAND_SETTINGS
 from ..scheduler import update_user_schedule
@@ -200,49 +201,106 @@ class SettingsHandler(BaseHandler):
         cmd_context = self._extract_command_context(update)
         user = cmd_context.user
         user_id = cmd_context.user_id
-        user_profile = cmd_context.user_profile
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling settings command")
 
         try:
-            # Check subscription type and show appropriate message
-            if (
-                user_profile.subscription
-                and user_profile.subscription.subscription_type
-                in [
-                    SubscriptionType.PREMIUM,
-                    SubscriptionType.TRIAL,
-                ]
-            ):
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().premium(user_info=user)
-            else:
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().basic(user_info=user)
+            # Resolve language and profile
+            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+            lang = (
+                profile.settings.language
+                if profile and profile.settings and profile.settings.language
+                else (user.language_code or "en")
+            )
+            _, _, pgettext = use_locale(lang=lang)
 
-            # Create settings selection keyboard with localized buttons
-            button_configs = SettingsMessages().buttons(user_info=user)
-            keyboard = []
-            for button_config in button_configs:
-                for button in button_config:
-                    keyboard.append(
-                        [
-                            InlineKeyboardButton(
-                                button["text"], callback_data=button["callback_data"]
-                            )
-                        ]
+            # Determine subscription type
+            is_premium = (
+                profile
+                and profile.subscription
+                and profile.subscription.subscription_type
+                in [SubscriptionType.PREMIUM, SubscriptionType.TRIAL]
+            )
+
+            birth_date_value = (
+                format_date(
+                    profile.birth_date,
+                    format="dd.MM.yyyy",
+                    locale=normalize_babel_locale(lang),
+                )
+                if getattr(profile, "birth_date", None)
+                else pgettext("not.set", "Not set")
+            )
+            language_name = lang  # Replaced get_localized_language_name
+            life_expectancy_val = (
+                getattr(getattr(profile, "settings", None), "life_expectancy", None)
+                or 80
+            )
+
+            template = pgettext(
+                "settings.premium" if is_premium else "settings.basic",
+                (
+                    "⚙️ <b>Profile Settings (Premium Subscription)</b>\n\n"
+                    "📅 <b>Birth date:</b> {birth_date}\n"
+                    "🌍 <b>Language:</b> {language_name}\n"
+                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\n"
+                    "Select what you want to change:"
+                    if is_premium
+                    else "⚙️ <b>Profile Settings (Basic Subscription)</b>\n\n"
+                    "📅 <b>Birth date:</b> {birth_date}\n"
+                    "🌍 <b>Language:</b> {language_name}\n"
+                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\n"
+                    "Select what you want to change:"
+                ),
+            ).format(
+                birth_date=birth_date_value,
+                language_name=language_name,
+                life_expectancy=format_decimal(
+                    life_expectancy_val, locale=normalize_babel_locale(lang)
+                ),
+            )
+
+            # Localized buttons
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        text=pgettext(
+                            "buttons.change_birth_date", "📅 Change birth date"
+                        ),
+                        callback_data="settings_birth_date",
                     )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=pgettext("buttons.change_language", "🌍 Change language"),
+                        callback_data="settings_language",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=pgettext(
+                            "buttons.change_life_expectancy",
+                            "⏰ Change life expectancy",
+                        ),
+                        callback_data="settings_life_expectancy",
+                    )
+                ],
+            ]
 
             await self.send_message(
                 update=update,
-                message_text=message_text,
+                message_text=template,
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
             return None
 
-        except Exception as error:
+        except Exception:  # pylint: disable=broad-exception-caught
+            error_text = pgettext(
+                "settings.error",
+                "❌ An error occurred while updating settings.\nPlease try again later or contact the administrator.",
+            )
             await self.send_error_message(
-                update=update, cmd_context=cmd_context, error_message=str(error)
+                update=update, cmd_context=cmd_context, error_message=error_text
             )
             return None
 
@@ -270,6 +328,15 @@ class SettingsHandler(BaseHandler):
             f"{self.command_name}: [{user_id}]: Executed callback: {callback_data}"
         )
 
+        # Resolve language
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
         try:
             # Answer the callback query to remove loading state
             await query.answer()
@@ -278,10 +345,24 @@ class SettingsHandler(BaseHandler):
             match callback_data:
                 case "settings_birth_date":
                     # Show birth date change interface
-                    with use_message_context(user_info=user, fetch_profile=True):
-                        message_text = SettingsMessages().change_birth_date(
-                            user_info=user
+                    message_text = pgettext(
+                        "settings.change_birth_date",
+                        "📅 <b>Change Birth Date</b>\n\n"
+                        "Current date: <b>{current_birth_date}</b>\n\n"
+                        "Enter new birth date in DD.MM.YYYY format\n"
+                        "For example: 15.03.1990\n\n"
+                        "Or press /cancel to cancel",
+                    ).format(
+                        current_birth_date=(
+                            format_date(
+                                profile.birth_date,
+                                format="dd.MM.yyyy",
+                                locale=normalize_babel_locale(lang),
+                            )
+                            if getattr(profile, "birth_date", None)
+                            else pgettext("not.set", "Not set")
                         )
+                    )
                     await self.edit_message(
                         query=query,
                         message_text=message_text,
@@ -290,7 +371,7 @@ class SettingsHandler(BaseHandler):
                     self._set_waiting_state(context, "settings_birth_date")
 
                 case "settings_language":
-                    # Show language selection keyboard
+                    # Show language selection keyboard (labels remain recognizable)
                     keyboard = [
                         [
                             InlineKeyboardButton(
@@ -313,10 +394,10 @@ class SettingsHandler(BaseHandler):
                             )
                         ],
                     ]
-                    with use_message_context(user_info=user, fetch_profile=True):
-                        message_text = SettingsMessages().change_language(
-                            user_info=user
-                        )
+                    message_text = pgettext(
+                        "settings.change_language",
+                        "🌍 Select your preferred language",
+                    )
                     await self.edit_message(
                         query=query,
                         message_text=message_text,
@@ -325,10 +406,21 @@ class SettingsHandler(BaseHandler):
 
                 case "settings_life_expectancy":
                     # Show life expectancy change interface
-                    with use_message_context(user_info=user, fetch_profile=True):
-                        message_text = SettingsMessages().change_life_expectancy(
-                            user_info=user
+                    message_text = pgettext(
+                        "settings.change_life_expectancy",
+                        "⏰ <b>Change Expected Life Expectancy</b>\n\n"
+                        "Current value: <b>{current_life_expectancy} years</b>\n\n"
+                        "Enter new value (from 50 to 120 years):",
+                    ).format(
+                        current_life_expectancy=format_decimal(
+                            getattr(
+                                getattr(profile, "settings", None),
+                                "life_expectancy",
+                                80,
+                            ),
+                            locale=normalize_babel_locale(lang),
                         )
+                    )
                     await self.edit_message(
                         query=query,
                         message_text=message_text,
@@ -343,8 +435,11 @@ class SettingsHandler(BaseHandler):
                     )
 
         except Exception:
-            with use_message_context(user_info=user, fetch_profile=True):
-                message_text = SettingsMessages().settings_error(user_info=user)
+            message_text = pgettext(
+                "settings.error",
+                "❌ An error occurred while updating settings.\n"
+                "Please try again later or contact the administrator.",
+            )
             await self.edit_message(
                 query=query,
                 message_text=message_text,
@@ -366,7 +461,6 @@ class SettingsHandler(BaseHandler):
         """
         query = update.callback_query
         cmd_context = self._extract_command_context(update)
-        user = cmd_context.user
         user_id = cmd_context.user_id
 
         callback_data = query.data
@@ -382,17 +476,17 @@ class SettingsHandler(BaseHandler):
             language_code = callback_data.replace("language_", "")
 
             # Validate language code
-            if language_code not in LANGUAGES:
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().settings_error(user_info=user)
+            if language_code not in [e.value for e in SupportedLanguage]:
+                _, _, pgettext = use_locale(lang=language_code)
+                error_text = pgettext(
+                    "settings.error",
+                    "❌ An error occurred while updating settings.\nPlease try again later or contact the administrator.",
+                )
                 await self.edit_message(
                     query=query,
-                    message_text=message_text,
+                    message_text=error_text,
                 )
                 return
-
-            # Get language name for display
-            language_name = get_localized_language_name(language_code, language_code)
 
             # Update user's language preference in database
             self.services.user_service.update_user_settings(
@@ -406,11 +500,16 @@ class SettingsHandler(BaseHandler):
             else:
                 logger.warning(f"No scheduler available for user {user_id}")
 
-            # Show success message (function will use the updated language from DB)
-            with use_message_context(user_info=user, fetch_profile=True):
-                success_message = SettingsMessages().language_updated(
-                    user_info=user, new_language=language_name
-                )
+            # Show success message in the new language
+            _, _, pgettext = use_locale(lang=language_code)
+
+            success_message = pgettext(
+                "settings.language_updated",
+                "✅ <b>Language successfully changed!</b>\n\n"
+                "New language: <b>{new_language}</b>\n\n"
+                "All bot messages will now be in the selected language",
+            ).format(new_language=language_code)
+
             await self.edit_message(
                 query=query,
                 message_text=success_message,
@@ -424,11 +523,13 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update language: {error}"
             )
-            with use_message_context(user_info=user, fetch_profile=True):
-                message_text = SettingsMessages().settings_error(user_info=user)
+            error_text = pgettext(
+                "settings.error",
+                "❌ An error occurred while updating settings.\nPlease try again later or contact the administrator.",
+            )
             await self.edit_message(
                 query=query,
-                message_text=message_text,
+                message_text=error_text,
             )
 
     async def handle_settings_input(
@@ -535,72 +636,91 @@ class SettingsHandler(BaseHandler):
             f"{self.command_name}: [{user_id}]: handle_birth_date_input called with text: '{message_text}'"
         )
 
+        # Resolve language
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
         try:
             # Parse birth date from user input (DD.MM.YYYY format)
-            birth_date = datetime.strptime(message_text, "%d.%m.%Y").date()
+            birth_date_value = datetime.strptime(message_text, "%d.%m.%Y").date()
 
             # Validate that birth date is not in the future
-            if birth_date > date.today():
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().birth_date_future_error(
-                        user_info=user
-                    )
+            if birth_date_value > date.today():
                 await self.send_message(
                     update=update,
-                    message_text=message_text,
+                    message_text=pgettext(
+                        "birth_date.future_error",
+                        "❌ Birth date cannot be in the future!\nPlease enter a valid date in DD.MM.YYYY format",
+                    ),
                 )
                 return
 
             # Validate that birth date is not unreasonably old
-            if birth_date.year < MIN_BIRTH_YEAR:
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().birth_date_old_error(
-                        user_info=user
-                    )
+            if birth_date_value.year < MIN_BIRTH_YEAR:
                 await self.send_message(
                     update=update,
-                    message_text=message_text,
+                    message_text=pgettext(
+                        "birth_date.old_error",
+                        "❌ Birth date is too old!\nPlease enter a valid date in DD.MM.YYYY format",
+                    ),
                 )
                 return
 
             # Update birth date in database
             logger.info(
-                f"{self.command_name}: [{user_id}]: Updating birth date to {birth_date}"
+                f"{self.command_name}: [{user_id}]: Updating birth date to {birth_date_value}"
             )
             self.services.user_service.update_user_settings(
-                telegram_id=user_id, birth_date=birth_date
+                telegram_id=user_id, birth_date=birth_date_value
             )
 
             # Get updated user profile after birth date change
-            updated_user_profile = self.services.user_service.get_user_profile(user_id)
+            updated_user_profile = self.services.user_service.get_user_profile(
+                telegram_id=user_id
+            )
 
             # Calculate new age with updated profile
             calculator = LifeCalculatorEngine(user=updated_user_profile)
 
             # Send success message
-            with use_message_context(user_info=user, fetch_profile=True):
-                message_text = SettingsMessages().birth_date_updated(
-                    user_info=user,
-                    new_birth_date=birth_date,
-                    new_age=calculator.calculate_age(),
-                )
             await self.send_message(
                 update=update,
-                message_text=message_text,
+                message_text=pgettext(
+                    "settings.birth_date_updated",
+                    "✅ <b>Birth date successfully updated!</b>\n\n"
+                    "New date: <b>{new_birth_date}</b>\n"
+                    "New age: <b>{new_age} years</b>\n\n"
+                    "Use /weeks to see updated statistics",
+                ).format(
+                    new_birth_date=format_date(
+                        birth_date_value,
+                        format="dd.MM.yyyy",
+                        locale=normalize_babel_locale(lang),
+                    ),
+                    new_age=calculator.calculate_age(),
+                ),
             )
 
             # Clear waiting state
             self._clear_waiting_state(context)
             logger.info(
-                f"{self.command_name}: [{user_id}]: Updated birth date to {birth_date}"
+                f"{self.command_name}: [{user_id}]: Updated birth date to {birth_date_value}"
             )
 
         except (UserNotFoundError, UserSettingsUpdateError) as error:
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update birth date: {error}"
             )
-            with use_message_context(user_info=user, fetch_profile=True):
-                error_message = SettingsMessages().settings_error(user_info=user)
+            error_message = pgettext(
+                "settings.error",
+                "❌ An error occurred while updating settings.\n"
+                "Please try again later or contact the administrator.",
+            )
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
@@ -612,10 +732,12 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Exception in handle_birth_date_input: {error}"
             )
-            with use_message_context(user_info=user, fetch_profile=True):
-                error_message = SettingsMessages().birth_date_format_error(
-                    user_info=user
-                )
+            error_message = pgettext(
+                "birth_date.format_error",
+                "❌ Invalid date format!\n"
+                "Please enter date in DD.MM.YYYY format\n"
+                "For example: 15.03.1990",
+            )
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
@@ -645,6 +767,15 @@ class SettingsHandler(BaseHandler):
             f"{self.command_name}: [{user_id}]: Handling life expectancy input: {message_text}"
         )
 
+        # Resolve language
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
         try:
             # Parse life expectancy from user input
             life_expectancy = int(message_text)
@@ -654,13 +785,13 @@ class SettingsHandler(BaseHandler):
                 life_expectancy < MIN_LIFE_EXPECTANCY
                 or life_expectancy > MAX_LIFE_EXPECTANCY
             ):
-                with use_message_context(user_info=user, fetch_profile=True):
-                    message_text = SettingsMessages().invalid_life_expectancy(
-                        user_info=user
-                    )
                 await self.send_message(
                     update=update,
-                    message_text=message_text,
+                    message_text=pgettext(
+                        "settings.invalid_life_expectancy",
+                        "❌ Invalid life expectancy.\n"
+                        "Please enter a value between 50 and 120 years.",
+                    ),
                 )
                 return
 
@@ -669,13 +800,19 @@ class SettingsHandler(BaseHandler):
                 telegram_id=user_id, life_expectancy=life_expectancy
             )
 
-            with use_message_context(user_info=user, fetch_profile=True):
-                message_text = SettingsMessages().life_expectancy_updated(
-                    user_info=user, new_life_expectancy=life_expectancy
+            message_text_out = pgettext(
+                "settings.life_expectancy_updated",
+                "✅ <b>Expected life expectancy updated!</b>\n\n"
+                "New value: <b>{new_life_expectancy} years</b>\n\n"
+                "Use /weeks to see updated statistics",
+            ).format(
+                new_life_expectancy=format_decimal(
+                    life_expectancy, locale=normalize_babel_locale(lang)
                 )
+            )
             await self.send_message(
                 update=update,
-                message_text=message_text,
+                message_text=message_text_out,
             )
 
             # Clear waiting state
@@ -688,8 +825,11 @@ class SettingsHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Failed to update life expectancy: {error}"
             )
-            with use_message_context(user_info=user, fetch_profile=True):
-                error_message = SettingsMessages().settings_error(user_info=user)
+            error_message = pgettext(
+                "settings.error",
+                "❌ An error occurred while updating settings.\n"
+                "Please try again later or contact the administrator.",
+            )
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
@@ -698,10 +838,11 @@ class SettingsHandler(BaseHandler):
 
         except Exception:
             # Invalid number format
-            with use_message_context(user_info=user, fetch_profile=True):
-                error_message = SettingsMessages().invalid_life_expectancy(
-                    user_info=user
-                )
+            error_message = pgettext(
+                "settings.invalid_life_expectancy",
+                "❌ Invalid life expectancy.\n"
+                "Please enter a value between 50 and 120 years.",
+            )
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,

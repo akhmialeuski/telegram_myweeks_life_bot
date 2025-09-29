@@ -2,8 +2,8 @@
 
 Tests the ServiceContainer class which manages all application dependencies.
 """
+
 from src.services.container import ServiceContainer
-from src.utils.localization import SupportedLanguage
 
 
 class TestServiceContainer:
@@ -59,55 +59,6 @@ class TestServiceContainer:
         assert life_calculator is container.life_calculator
         assert life_calculator.__name__ == "LifeCalculatorEngine"
 
-    def test_get_message_via_builder(self) -> None:
-        """Test retrieving messages via MessageBuilder from container.
-
-        This test verifies that the container provides a MessageBuilder
-        and it can generate a localized message string.
-        """
-        container = ServiceContainer()
-
-        # Default language
-        builder_default = container.get_message_builder()
-        text_default = builder_default.help()
-        assert isinstance(text_default, str) and len(text_default) > 0
-
-        # Specific language
-        builder_en = container.get_message_builder(SupportedLanguage.EN.value)
-        text_en = builder_en.help()
-        assert isinstance(text_en, str) and len(text_en) > 0
-
-    def test_get_supported_languages(self) -> None:
-        """Test get_supported_languages method.
-
-        This test verifies that the get_supported_languages method
-        returns the correct list of supported languages.
-
-        :returns: None
-        """
-        container = ServiceContainer()
-        languages = container.get_supported_languages()
-
-        assert isinstance(languages, list)
-        assert len(languages) > 0
-        assert SupportedLanguage.RU.value in languages
-        assert SupportedLanguage.EN.value in languages
-        assert SupportedLanguage.UA.value in languages
-        assert SupportedLanguage.BY.value in languages
-
-    def test_cleanup(self) -> None:
-        """Test cleanup method.
-
-        This test verifies that the cleanup method
-        can be called without errors.
-
-        :returns: None
-        """
-        container = ServiceContainer()
-
-        # Should not raise any exceptions
-        container.cleanup()
-
     def test_service_initialization_order(self) -> None:
         """Test that services are initialized in correct order.
 
@@ -126,3 +77,136 @@ class TestServiceContainer:
         # (this would fail if initialization order was wrong)
         assert hasattr(container.user_service, "initialize")
         assert hasattr(container.user_service, "close")
+
+    def test_cleanup_method(self):
+        """Test cleanup method closes database connections and cleans up resources.
+
+        :returns: None
+        """
+        from unittest.mock import Mock, patch
+
+        container = ServiceContainer()
+
+        # Mock DatabaseManager
+        with patch("src.services.container.DatabaseManager") as mock_db_manager:
+            mock_db_instance = Mock()
+            mock_db_manager.return_value = mock_db_instance
+
+            # Test cleanup
+            container.cleanup()
+
+            # Verify database close was called
+            mock_db_instance.close.assert_called_once()
+
+    def test_reset_instance_with_existing_instance(self):
+        """Test reset_instance properly cleans up existing instance and resets state.
+
+        :returns: None
+        """
+        from unittest.mock import patch
+
+        # Create first instance
+        container1 = ServiceContainer()
+
+        # Mock cleanup to verify it's called
+        with patch.object(container1, "cleanup") as mock_cleanup:
+            # Reset instance
+            ServiceContainer.reset_instance()
+
+            # Verify cleanup was called
+            mock_cleanup.assert_called_once()
+
+            # Verify instance is reset
+            assert ServiceContainer._instance is None
+            assert not ServiceContainer._initialized
+
+    def test_reset_instance_without_existing_instance(self):
+        """Test reset_instance works when no instance exists.
+
+        :returns: None
+        """
+        # Reset instance first
+        ServiceContainer.reset_instance()
+
+        # Verify state is reset
+        assert ServiceContainer._instance is None
+        assert not ServiceContainer._initialized
+
+        # Reset again should not raise error
+        ServiceContainer.reset_instance()
+        assert ServiceContainer._instance is None
+        assert not ServiceContainer._initialized
+
+    def test_singleton_behavior_multiple_calls(self):
+        """Test singleton behavior with multiple get_instance calls.
+
+        :returns: None
+        """
+        # Reset first
+        ServiceContainer.reset_instance()
+
+        # Get multiple instances
+        container1 = ServiceContainer()
+        container2 = ServiceContainer()
+
+        # Verify they are the same instance
+        assert container1 is container2
+        assert ServiceContainer._instance is container1
+
+    def test_singleton_thread_safety(self):
+        """Test singleton thread safety.
+
+        :returns: None
+        """
+        import threading
+        import time
+
+        # Reset first
+        ServiceContainer.reset_instance()
+
+        results = []
+
+        def get_container():
+            """Get container instance in thread."""
+            container = ServiceContainer()
+            results.append(container)
+            time.sleep(0.01)  # Small delay
+
+        # Create multiple threads
+        threads = []
+        for _ in range(3):
+            thread = threading.Thread(target=get_container)
+            threads.append(thread)
+
+        # Start all threads
+        for thread in threads:
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        # Verify all instances are the same
+        assert len(results) == 3
+        for container in results[1:]:
+            assert container is results[0]
+
+    def test_initialization_flag_behavior(self):
+        """Test initialization flag behavior.
+
+        :returns: None
+        """
+        # Initially not initialized
+        assert not ServiceContainer._initialized
+
+        # Create instance
+        ServiceContainer()
+
+        # Should be initialized now
+        assert hasattr(ServiceContainer, "_initialized")
+
+        # Reset instance
+        ServiceContainer.reset_instance()
+
+        # Should not be initialized after reset
+        assert not ServiceContainer._initialized

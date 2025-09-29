@@ -1,7 +1,7 @@
 """Message context utilities for localized message rendering.
 
 This module provides a per-request/task ``MessageContext`` that encapsulates
-resolved user profile, language, and a per-language ``MessageBuilder``.
+resolved user profile and language.
 
 All message generation functions should assume that a context is already set
 via :pyfunc:`use_message_context` at the entry point (e.g., a Telegram handler).
@@ -12,14 +12,12 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
-from typing import Any, Iterator, Optional
+from typing import Iterator, Optional
 
 from telegram import User as TelegramUser
 
-from ..core.enums import SubscriptionType
 from ..database.models.user import User
 from ..utils.config import DEFAULT_LANGUAGE
-from ..utils.localization import MessageBuilder
 
 _CURRENT_CTX: ContextVar[Optional["MessageContext"]] = ContextVar(
     "_CURRENT_CTX", default=None
@@ -30,8 +28,7 @@ _CURRENT_CTX: ContextVar[Optional["MessageContext"]] = ContextVar(
 class MessageContext:
     """Per-call message rendering context.
 
-    Encapsulates user profile retrieval, language resolution, and access to
-    the per-language :pyclass:`MessageBuilder`.
+    Encapsulates user profile retrieval and language resolution.
 
     :param user_info: Telegram user object
     :type user_info: TelegramUser
@@ -41,15 +38,12 @@ class MessageContext:
     :type user_profile: Optional[User]
     :param language: Resolved UI language code
     :type language: str
-    :param builder: Localized message builder
-    :type builder: MessageBuilder
     """
 
     user_info: TelegramUser
     user_id: int
     user_profile: Optional[User]
     language: str
-    builder: MessageBuilder
 
     @classmethod
     def from_user(
@@ -73,29 +67,12 @@ class MessageContext:
             else None
         )
         language: str = cls._resolve_language(user_info=user_info, user_profile=profile)
-        builder: MessageBuilder = container.get_message_builder(lang_code=language)
         return cls(
             user_info=user_info,
             user_id=user_info.id,
             user_profile=profile,
             language=language,
-            builder=builder,
         )
-
-    @classmethod
-    def require(cls) -> "MessageContext":
-        """Get current context or raise if missing.
-
-        :returns: Current :pyclass:`MessageContext`
-        :rtype: MessageContext
-        :raises RuntimeError: If context is not set
-        """
-        ctx: Optional["MessageContext"] = _CURRENT_CTX.get()
-        if ctx is None:
-            raise RuntimeError(
-                "MessageContext is not set. Use use_message_context(...) at entry points."
-            )
-        return ctx
 
     @staticmethod
     def _resolve_language(user_info: TelegramUser, user_profile: Optional[User]) -> str:
@@ -133,31 +110,6 @@ class MessageContext:
                 )
             self.user_profile = profile
         return self.user_profile
-
-    def life_stats(self) -> dict[str, Any]:
-        """Compute life statistics for the current user.
-
-        :returns: Life statistics dict
-        :rtype: dict[str, Any]
-        :raises ValueError: When user profile is missing
-        """
-        from ..services.container import ServiceContainer
-
-        profile: User = self.ensure_profile()
-        calc_cls = ServiceContainer().get_life_calculator()
-        engine = calc_cls(user=profile)
-        return engine.get_life_statistics()
-
-    def subscription_type_value(self) -> str:
-        """Get current subscription type value with basic fallback.
-
-        :returns: Subscription type value
-        :rtype: str
-        """
-        profile: Optional[User] = self.user_profile
-        if profile and profile.subscription:
-            return profile.subscription.subscription_type.value
-        return SubscriptionType.BASIC.value
 
 
 @contextmanager

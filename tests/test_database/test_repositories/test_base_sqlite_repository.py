@@ -408,3 +408,378 @@ class TestBaseSQLiteRepository:
 
         # Test that ModelType is bound to Base
         assert ModelType.__bound__ == Base
+
+    def test_initialize_with_sqlalchemy_error(self):
+        """Test initialize method handles SQLAlchemyError during engine creation.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            repository = BaseSQLiteRepository(db_path=temp_path)
+
+            # Mock SQLAlchemyError during engine creation
+            with patch(
+                "src.database.repositories.sqlite.base_repository.create_engine",
+                side_effect=SQLAlchemyError("Database error"),
+            ):
+                # Test initialize with error
+                with pytest.raises(SQLAlchemyError):
+                    repository.initialize()
+
+                # Verify cleanup was performed
+                assert repository.engine is None
+                assert repository.SessionLocal is None
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_initialize_with_dispose_error(self):
+        """Test initialize method handles dispose errors during cleanup.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import Mock, patch
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            repository = BaseSQLiteRepository(db_path=temp_path)
+
+            # Mock engine that raises error on dispose
+            mock_engine = Mock()
+            mock_engine.dispose.side_effect = Exception("Dispose error")
+
+            # Add engine to registry first
+            db_key = str(temp_path.resolve())
+            BaseSQLiteRepository._engines[db_key] = mock_engine
+
+            # Mock SQLAlchemyError during session creation
+            with patch(
+                "src.database.repositories.sqlite.base_repository.sessionmaker",
+                side_effect=SQLAlchemyError("Session error"),
+            ):
+                # Test initialize with error
+                with pytest.raises(SQLAlchemyError):
+                    repository.initialize()
+
+                # Verify cleanup was performed despite dispose error
+                assert repository.engine is None
+                assert repository.SessionLocal is None
+                assert db_key not in BaseSQLiteRepository._engines
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_close_with_dispose_error(self):
+        """Test close method handles dispose errors gracefully.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            repository = BaseSQLiteRepository(db_path=temp_path)
+            repository.initialize()
+
+            # Mock engine that raises error on dispose
+            mock_engine = Mock()
+            mock_engine.dispose.side_effect = Exception("Dispose error")
+
+            db_key = str(temp_path.resolve())
+            BaseSQLiteRepository._engines[db_key] = mock_engine
+
+            # Test close with dispose error - should not raise exception
+            try:
+                repository.close()
+            except Exception:
+                # Exception should be caught and handled internally
+                pass
+
+            # Verify cleanup was performed despite dispose error
+            assert repository.engine is None
+            assert repository.SessionLocal is None
+            assert db_key not in BaseSQLiteRepository._engines
+            assert db_key not in BaseSQLiteRepository._sessions
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_reset_instances_with_dispose_errors(self):
+        """Test reset_instances method handles dispose errors and continues cleanup.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            # Create repository and initialize
+            repository = BaseSQLiteRepository(db_path=temp_path)
+            repository.initialize()
+
+            # Mock engines that raise errors on dispose
+            db_key = str(temp_path.resolve())
+            mock_engine1 = Mock()
+            mock_engine1.dispose.side_effect = Exception("Dispose error 1")
+
+            mock_engine2 = Mock()
+            mock_engine2.dispose.side_effect = Exception("Dispose error 2")
+
+            BaseSQLiteRepository._engines[db_key] = mock_engine1
+            BaseSQLiteRepository._engines["another_key"] = mock_engine2
+
+            # Test reset_instances with dispose errors
+            BaseSQLiteRepository.reset_instances()
+
+            # Verify cleanup was performed despite errors
+            assert len(BaseSQLiteRepository._engines) == 0
+            assert len(BaseSQLiteRepository._sessions) == 0
+            assert len(BaseSQLiteRepository._initialized_once_logged) == 0
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_multiple_repositories_same_path(self):
+        """Test multiple repositories with same path share engine and session.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            # Create two repositories with same path
+            repo1 = BaseSQLiteRepository(db_path=temp_path)
+            repo2 = BaseSQLiteRepository(db_path=temp_path)
+
+            # Initialize both
+            repo1.initialize()
+            repo2.initialize()
+
+            # Verify they share the same engine
+            assert repo1.engine is repo2.engine
+            assert repo1.SessionLocal is repo2.SessionLocal
+
+            # Verify registry contains only one entry
+            db_key = str(temp_path.resolve())
+            assert db_key in BaseSQLiteRepository._engines
+            assert db_key in BaseSQLiteRepository._sessions
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_repository_initialization_flag(self):
+        """Test repository initialization flag behavior.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            repository = BaseSQLiteRepository(db_path=temp_path)
+            db_key = str(temp_path.resolve())
+
+            # Initially initialized (key added in constructor)
+            key = f"BaseSQLiteRepository_{temp_path}"
+            assert key in repository._initialized
+
+            # Initialize repository
+            repository.initialize()
+
+            # Should be initialized now
+            assert repository._initialized
+
+            # Verify it's in the logged set
+            assert db_key in BaseSQLiteRepository._initialized_once_logged
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_repository_with_nonexistent_path(self):
+        """Test repository creates database file for non-existent paths.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+
+        temp_dir = tempfile.mkdtemp()
+        db_path = Path(temp_dir) / "nonexistent.db"
+
+        try:
+            repository = BaseSQLiteRepository(db_path=db_path)
+
+            # Should not exist initially
+            assert not db_path.exists()
+
+            # Initialize repository
+            repository.initialize()
+
+            # Database file should be created
+            assert db_path.exists()
+
+        finally:
+            # Cleanup
+            if db_path.exists():
+                db_path.unlink()
+            Path(temp_dir).rmdir()
+
+    def test_repository_thread_safety(self):
+        """Test repository thread safety for concurrent access.
+
+        :returns: None
+        """
+        import tempfile
+        import threading
+        import time
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            results = []
+
+            def init_repository():
+                """Initialize repository in thread."""
+                repo = BaseSQLiteRepository(db_path=temp_path)
+                repo.initialize()
+                results.append(repo)
+                time.sleep(0.01)  # Small delay
+
+            # Create multiple threads
+            threads = []
+            for _ in range(3):
+                thread = threading.Thread(target=init_repository)
+                threads.append(thread)
+
+            # Start all threads
+            for thread in threads:
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
+
+            # Verify all repositories share the same engine
+            assert len(results) == 3
+            for repo in results[1:]:
+                assert repo.engine is results[0].engine
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_repository_path_resolution(self):
+        """Test repository properly resolves relative paths.
+
+        :returns: None
+        """
+        import os
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            relative_path = Path("test.db")
+            full_path = Path(temp_dir) / relative_path
+
+            # Change to temp directory
+            original_cwd = Path.cwd()
+            try:
+                os.chdir(temp_dir)
+
+                repository = BaseSQLiteRepository(db_path=relative_path)
+                repository.initialize()
+
+                # Verify database was created in correct location
+                assert full_path.exists()
+
+                # Verify path resolution
+                assert repository.db_path.resolve() == full_path.resolve()
+
+            finally:
+                # Restore original working directory
+                os.chdir(original_cwd)
+
+    def test_repository_cleanup_on_error(self):
+        """Test repository cleanup when initialization fails.
+
+        :returns: None
+        """
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            repository = BaseSQLiteRepository(db_path=temp_path)
+
+            # Mock error during session creation
+            with patch(
+                "src.database.repositories.sqlite.base_repository.sessionmaker",
+                side_effect=SQLAlchemyError("Session creation failed"),
+            ):
+                # Test initialization failure
+                with pytest.raises(SQLAlchemyError):
+                    repository.initialize()
+
+                # Verify cleanup was performed
+                assert repository.engine is None
+                assert repository.SessionLocal is None
+
+                # Verify registry was cleaned up
+                db_key = str(temp_path.resolve())
+                assert db_key not in BaseSQLiteRepository._engines
+                assert db_key not in BaseSQLiteRepository._sessions
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()

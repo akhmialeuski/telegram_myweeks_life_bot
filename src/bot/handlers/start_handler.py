@@ -13,11 +13,14 @@ The registration flow includes:
 
 from datetime import date, datetime
 
+from babel.dates import format_date
+from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ...core.message_context import use_message_context
-from ...core.messages import RegistrationMessages, SettingsMessages, SystemMessages
+from src.i18n import normalize_babel_locale, use_locale
+
+from ...core.enums import SupportedLanguage
 from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
@@ -81,21 +84,43 @@ class StartHandler(BaseHandler):
         logger.info(f"{self.command_name}: [{user_id}]: User started the bot")
 
         # Check if user has already completed registration
-        if self.services.user_service.is_valid_user_profile(user_id):
-            # User is already registered - send welcome back message
-            with use_message_context(user_info=user, fetch_profile=False):
-                await self.send_message(
-                    update=update,
-                    message_text=SystemMessages().welcome_existing(user_info=user),
-                )
-            return
+        if self.services.user_service.is_valid_user_profile(telegram_id=user_id):
+            # Fetch profile to get preferred language
+            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+            _, _, pgettext = use_locale(
+                lang=profile.settings.language or user.language_code
+            )
 
-        # User needs to register - request birth date
-        with use_message_context(user_info=user, fetch_profile=False):
+            # User is already registered - send welcome back message
             await self.send_message(
                 update=update,
-                message_text=SystemMessages().welcome_new(user_info=user),
+                message_text=pgettext(
+                    "start.welcome_existing",
+                    "👋 Hello, %(first_name)s! Welcome back to LifeWeeksBot!\n\n"
+                    "You are already registered and ready to track your life weeks.\n\n"
+                    "Use /weeks to view your life weeks.\n"
+                    "Use /help for help.",
+                )
+                % {"first_name": profile.first_name},
             )
+            return
+
+        # For new users, use Telegram language
+        lang = user.language_code or SupportedLanguage.EN.value
+        _, _, pgettext = use_locale(lang=lang)
+
+        # User needs to register - request birth date
+        await self.send_message(
+            update=update,
+            message_text=pgettext(
+                "start.welcome_new",
+                "👋 Hello, %(first_name)s! Welcome to LifeWeeksBot!\n\n"
+                "This bot will help you track the weeks of your life.\n\n"
+                "📅 Please enter your birth date in DD.MM.YYYY format\n"
+                "For example: 15.03.1990",
+            )
+            % {"first_name": user.first_name},
+        )
 
         # Set waiting state for birth date input
         context.user_data["waiting_for"] = "start_birth_date"
@@ -138,30 +163,36 @@ class StartHandler(BaseHandler):
         user_id = cmd_context.user_id
         birth_date_text = update.message.text.strip()
 
+        # For validation errors, use Telegram language since user not registered yet
+        lang = user.language_code or SupportedLanguage.EN.value
+        _, _, pgettext = use_locale(lang=lang)
+
         try:
             # Parse birth date from user input (DD.MM.YYYY format)
             birth_date = datetime.strptime(birth_date_text, "%d.%m.%Y").date()
 
             # Validate that birth date is not in the future
             if birth_date > date.today():
-                with use_message_context(user_info=user, fetch_profile=False):
-                    await self.send_message(
-                        update=update,
-                        message_text=SettingsMessages().birth_date_future_error(
-                            user_info=user
-                        ),
-                    )
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "birth_date.future_error",
+                        "❌ Birth date cannot be in the future!\n"
+                        "Please enter a valid date in DD.MM.YYYY format",
+                    ),
+                )
                 return
 
             # Validate that birth date is not unreasonably old
             if birth_date.year < MIN_BIRTH_YEAR:
-                with use_message_context(user_info=user, fetch_profile=False):
-                    await self.send_message(
-                        update=update,
-                        message_text=SettingsMessages().birth_date_old_error(
-                            user_info=user
-                        ),
-                    )
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "birth_date.old_error",
+                        "❌ Birth date is too old!\n"
+                        "Please enter a valid date in DD.MM.YYYY format",
+                    ),
+                )
                 return
 
             # Attempt to create user profile in the database
@@ -186,40 +217,109 @@ class StartHandler(BaseHandler):
                     f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"
                 )
 
+            # Fetch profile and compute statistics for success message
+            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+            if not profile:
+                raise UserServiceError("Failed to fetch newly created profile")
+
+            # Update language from profile if set
+            lang = (
+                profile.settings.language
+                if profile and profile.settings and profile.settings.language
+                else lang
+            )
+            _, _, pgettext = use_locale(lang=lang)
+
+            calc_engine = self.services.get_life_calculator()(user=profile)
+            stats = calc_engine.get_life_statistics()
+
             # Send success message with calculated statistics
-            with use_message_context(user_info=user, fetch_profile=False):
-                await self.send_message(
-                    update=update,
-                    message_text=SystemMessages().welcome_existing(user_info=user),
+            await self.send_message(
+                update=update,
+                message_text=pgettext(
+                    "registration.success",
+                    "✅ Great! You have successfully registered!\n\n"
+                    "📅 Birth date: %(birth_date)s\n"
+                    "🎂 Age: %(age)s years\n"
+                    "📊 Weeks lived: %(weeks_lived)s\n"
+                    "⏳ Remaining weeks: %(remaining_weeks)s\n"
+                    "📈 Life progress: %(life_percentage)s\n\n"
+                    "Now you can use commands:\n"
+                    "• /weeks - show life weeks\n"
+                    "• /visualize - visualize weeks\n"
+                    "• /help - help",
                 )
+                % {
+                    "birth_date": format_date(
+                        birth_date,
+                        format="dd.MM.yyyy",
+                        locale=normalize_babel_locale(lang),
+                    ),
+                    "age": format_decimal(
+                        stats["age"], locale=normalize_babel_locale(lang)
+                    ),
+                    "weeks_lived": format_decimal(
+                        stats["weeks_lived"],
+                        locale=normalize_babel_locale(lang),
+                        format="#,##0",
+                    ),
+                    "remaining_weeks": format_decimal(
+                        stats["remaining_weeks"],
+                        locale=normalize_babel_locale(lang),
+                        format="#,##0",
+                    ),
+                    "life_percentage": format_percent(
+                        stats["life_percentage"],
+                        locale=normalize_babel_locale(lang),
+                        format="#0.1%",
+                    ),
+                },
+            )
 
             # Clear waiting state
             context.user_data.pop("waiting_for", None)
+
+        except ValueError:
+            # Handle invalid date format
+            await self.send_message(
+                update=update,
+                message_text=pgettext(
+                    "birth_date.format_error",
+                    "❌ Invalid date format!\n"
+                    "Please enter date in DD.MM.YYYY format\n"
+                    "For example: 15.03.1990",
+                ),
+            )
 
         except (UserRegistrationError, UserServiceError) as error:
             # Handle all database errors with a single error message
             logger.error(
                 f"{self.command_name}: [{user_id}]: Registration error: {error}"
             )
-            with use_message_context(user_info=user, fetch_profile=False):
-                await self.send_error_message(
-                    update=update,
-                    cmd_context=cmd_context,
-                    error_message=RegistrationMessages().error(user_info=user),
-                )
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=pgettext(
+                    "registration.error",
+                    "❌ An error occurred during registration.\n"
+                    "Try again or contact the administrator.",
+                ),
+            )
             # Clear waiting state on error
             context.user_data.pop("waiting_for", None)
 
         except Exception as error:
-            # Handle invalid date format
-            with use_message_context(user_info=user, fetch_profile=False):
-                await self.send_error_message(
-                    update=update,
-                    cmd_context=cmd_context,
-                    error_message=SettingsMessages().birth_date_format_error(
-                        user_info=user
-                    ),
-                )
             logger.error(
                 f"{self.command_name}: [{user_id}]: Error in handle_birth_date_input: {error}"
             )
+            # Fallback error handling
+            await self.send_error_message(
+                update=update,
+                cmd_context=cmd_context,
+                error_message=pgettext(
+                    "registration.error",
+                    "❌ An error occurred during registration.\n"
+                    "Try again or contact the administrator.",
+                ),
+            )
+            context.user_data.pop("waiting_for", None)

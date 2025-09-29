@@ -11,7 +11,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_HELP, COMMAND_START, COMMAND_WEEKS
 from src.bot.handlers.base_handler import BaseHandler, CommandContext
-from src.utils.localization import SupportedLanguage
+from src.core.enums import SupportedLanguage
 from tests.utils.fake_container import FakeServiceContainer
 
 
@@ -148,21 +148,10 @@ class TestBaseHandler:
         self,
         handler: ConcreteHandler,
         mock_update: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
-        """Test _extract_command_context method.
-
-        :param handler: ConcreteHandler instance
-        :type handler: ConcreteHandler
-        :param mock_update: Mock Update object
-        :type mock_update: MagicMock
-        :param mock_get_user_language: Mocked get_user_language function
-        :type mock_get_user_language: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        mock_get_user_language.return_value = SupportedLanguage.EN.value
+        """Test _extract_command_context method."""
         mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = SupportedLanguage.EN.value
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
         result = handler._extract_command_context(mock_update)

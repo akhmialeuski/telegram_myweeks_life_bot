@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 # Use enum values for language constants
-from src.utils.localization import SupportedLanguage
+from ..core.enums import SupportedLanguage
 
 # Load environment variables
 load_dotenv()

@@ -5,7 +5,7 @@ Tests the FakeServiceContainer class which provides mock services for testing.
 
 from unittest.mock import MagicMock
 
-from src.utils.localization import SupportedLanguage
+from src.core.enums import SupportedLanguage
 from tests.utils.fake_container import FakeServiceContainer
 
 
@@ -59,7 +59,7 @@ class TestFakeServiceContainer:
         )
         assert (
             container.life_calculator.return_value.calculate_life_percentage.return_value
-            == 40.0
+            == 0.4
         )
 
         # Test config mock behaviors
@@ -117,25 +117,6 @@ class TestFakeServiceContainer:
 
         assert isinstance(message, str)
         assert "Mock message: test_key.test_sub_key (en)" in message
-
-    def test_get_supported_languages(self) -> None:
-        """Test get_supported_languages method.
-
-        This test verifies that the get_supported_languages method
-        returns the correct list of supported languages.
-
-        :returns: None
-        """
-        container = FakeServiceContainer()
-        languages = container.get_supported_languages()
-
-        assert isinstance(languages, list)
-        assert languages == [
-            SupportedLanguage.RU.value,
-            SupportedLanguage.EN.value,
-            SupportedLanguage.UA.value,
-            SupportedLanguage.BY.value,
-        ]
 
     def test_cleanup(self) -> None:
         """Test cleanup method.
@@ -196,7 +177,6 @@ class TestFakeServiceContainer:
         assert hasattr(container, "get_user_service")
         assert hasattr(container, "get_life_calculator")
         assert hasattr(container, "get_message")
-        assert hasattr(container, "get_supported_languages")
         assert hasattr(container, "cleanup")
 
         # Verify that all required attributes exist

@@ -21,7 +21,7 @@ from telegram import CallbackQuery, InlineKeyboardMarkup, Update, User
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ...core.messages import get_user_language
+from ...i18n import use_locale
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -125,10 +125,17 @@ class BaseHandler(ABC):
         # Get user profile from database
         user_profile = self.services.user_service.get_user_profile(user_id)
 
+        # Get language from user profile or Telegram language code
+        lang = (
+            user_profile.settings.language
+            if user_profile and user_profile.settings and user_profile.settings.language
+            else (user.language_code or "en")
+        )
+
         return CommandContext(
             user=user,
             user_id=user_id,
-            language=get_user_language(user),
+            language=lang,
             user_profile=user_profile,
             command_name=None,
         )
@@ -172,10 +179,13 @@ class BaseHandler(ABC):
                 try:
                     # Validate that user has completed registration with birth date
                     if not self.services.user_service.is_valid_user_profile(user_id):
-                        # Use MessageBuilder for generating the message
-                        builder = self.services.get_message_builder(user_lang)
+                        # Use gettext for localization
+                        _, _, pgettext = use_locale(user_lang)
                         await update.message.reply_text(
-                            builder.get("common.not_registered")
+                            pgettext(
+                                "common.not_registered",
+                                "You are not registered. Use /start to register.",
+                            )
                         )
                         return None
 
@@ -264,7 +274,7 @@ class BaseHandler(ABC):
         :returns: None
         """
         logger.error(
-            f"/{self.command_name}: [{cmd_context.user_id}]: Error occurred: {error_message}"
+            f"{self.command_name}: [{cmd_context.user_id}]: Error occurred: {error_message}"
         )
 
         # Send user-friendly error message

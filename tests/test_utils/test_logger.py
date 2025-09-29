@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.logger import get_logger, set_log_level
+from src.utils.logger import get_logger
 
 
 class TestLogger:
@@ -57,40 +57,6 @@ class TestLogger:
 
         assert logger.level == logging.INFO
 
-    def test_set_log_level_valid_levels(self):
-        """Test setting valid log levels.
-
-        :returns: None
-        """
-        logger_name = "test_level_logger"
-
-        for level in [
-            logging.DEBUG,
-            logging.INFO,
-            logging.WARNING,
-            logging.ERROR,
-            logging.CRITICAL,
-        ]:
-            set_log_level(logger_name, level)
-            logger = get_logger(logger_name)
-            assert logger.level == level
-
-    def test_set_log_level_invalid_level(self):
-        """Test setting invalid log level raises ValueError.
-
-        :returns: None
-        """
-        with pytest.raises(ValueError, match="Invalid logging level"):
-            set_log_level("test_logger", 999)
-
-    def test_set_log_level_string_level(self):
-        """Test setting log level with string raises ValueError.
-
-        :returns: None
-        """
-        with pytest.raises(ValueError, match="Invalid logging level"):
-            set_log_level("test_logger", "INFO")
-
     def test_logger_has_handlers(self):
         """Test that root logger has console and file handlers.
 
@@ -134,25 +100,18 @@ class TestLogger:
         assert LOG_FILE.parent == LOGS_DIR
 
     def test_module_specific_log_levels(self):
-        """Test that different modules can have different log levels.
+        """Test that default module levels are applied.
 
         :returns: None
         """
-        # Test default levels for known modules
         from src.utils.logger import DEFAULT_LOG_LEVELS
 
         assert isinstance(DEFAULT_LOG_LEVELS, dict)
         assert len(DEFAULT_LOG_LEVELS) > 0
 
-        # Test setting levels for different modules
-        set_log_level("test_module_1", logging.DEBUG)
-        set_log_level("test_module_2", logging.ERROR)
-
-        logger1 = get_logger("test_module_1")
-        logger2 = get_logger("test_module_2")
-
-        assert logger1.level == logging.DEBUG
-        assert logger2.level == logging.ERROR
+        for module_name, level in DEFAULT_LOG_LEVELS.items():
+            logger = get_logger(module_name)
+            assert logger.level == level
 
     def test_logger_format_configuration(self):
         """Test that loggers use proper formatting.
@@ -209,24 +168,6 @@ class TestLogger:
         except Exception as e:
             pytest.fail(f"Logger should handle exceptions gracefully: {e}")
 
-    def test_set_log_level_updates_existing_logger(self):
-        """Test that changing log level affects existing logger instances.
-
-        :returns: None
-        """
-        logger_name = "test_update_logger"
-
-        # Get logger with default level
-        logger = get_logger(logger_name)
-        original_level = logger.level
-
-        # Change level
-        new_level = logging.ERROR if original_level != logging.ERROR else logging.DEBUG
-        set_log_level(logger_name, new_level)
-
-        # Same instance should have new level
-        assert logger.level == new_level
-
     def test_logs_directory_creation(self):
         """Test that logs directory gets created if it doesn't exist.
 
@@ -264,9 +205,9 @@ class TestLogger:
         logger1 = get_logger("independent_logger_1")
         logger2 = get_logger("independent_logger_2")
 
-        # Set different levels
-        set_log_level("independent_logger_1", logging.DEBUG)
-        set_log_level("independent_logger_2", logging.ERROR)
+        # Set different levels directly
+        logger1.setLevel(logging.DEBUG)
+        logger2.setLevel(logging.ERROR)
 
         # Verify independence
         assert logger1.level == logging.DEBUG

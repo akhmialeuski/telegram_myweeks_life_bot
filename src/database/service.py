@@ -322,19 +322,6 @@ class UserService:
             logger.error(f"Error getting user profile for {telegram_id}: {e}")
             return None
 
-    def user_exists(self, telegram_id: int) -> bool:
-        """Check if user exists.
-
-        :param telegram_id: Telegram user ID
-        :returns: True if user exists, False otherwise
-        """
-        try:
-            user = self.get_user_profile(telegram_id)
-            return user is not None and user.settings is not None
-        except Exception as e:
-            logger.error(f"Error checking user existence for {telegram_id}: {e}")
-            return False
-
     def is_valid_user_profile(self, telegram_id: int) -> bool:
         """Check if user has a valid profile with birth date.
 

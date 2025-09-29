@@ -7,7 +7,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 from ..core.life_calculator import LifeCalculatorEngine
 from ..database.service import user_service
-from ..services.container import ServiceContainer
 from ..utils.config import (
     CELL_SIZE,
     COLORS,
@@ -125,9 +124,12 @@ def generate_visualization(user_info: Any) -> BytesIO:
 
     # Add legend with colored markers (avoid emojis to ensure wide font support)
     legend_y = height - 30
-    container = ServiceContainer()
-    builder = container.get_message_builder(lang_code=user_lang)
-    legend_text: str = builder.get("visualize.legend")
+
+    # Use gettext for localization
+    from ..i18n import use_locale
+
+    _, _, pgettext = use_locale(user_lang)
+    legend_text: str = pgettext("visualize.legend", "🟩 Lived weeks | ⬜ Future weeks")
 
     lived_label, future_label = _parse_legend_labels(raw_legend=legend_text)
 

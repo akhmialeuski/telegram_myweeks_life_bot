@@ -10,8 +10,8 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ...core.message_context import use_message_context
-from ...core.messages import SystemMessages
+from src.i18n import use_locale
+
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -91,8 +91,20 @@ class UnknownHandler(BaseHandler):
                     f"{self.command_name}: [{user_id}]: Handling unknown message type '{message_type}'"
                 )
 
-        with use_message_context(user_info=user, fetch_profile=False):
-            message_text = SystemMessages().unknown(user_info=user)
+        # Resolve language from DB profile or Telegram fallback
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
+        message_text = pgettext(
+            "unknown.command",
+            "❌ Error: Unknown command or message.\n\n"
+            "Use /help to get a list of available commands.",
+        )
 
         await self.send_message(
             update=update,

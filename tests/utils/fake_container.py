@@ -7,7 +7,7 @@ implementations.
 
 from unittest.mock import MagicMock
 
-from src.utils.localization import SupportedLanguage
+from src.core.enums import SupportedLanguage
 
 
 class FakeServiceContainer:
@@ -63,7 +63,15 @@ class FakeServiceContainer:
         self.life_calculator.return_value.calculate_age.return_value = 30
         self.life_calculator.return_value.calculate_weeks_lived.return_value = 1560
         self.life_calculator.return_value.calculate_remaining_weeks.return_value = 2340
-        self.life_calculator.return_value.calculate_life_percentage.return_value = 40.0
+        self.life_calculator.return_value.calculate_life_percentage.return_value = 0.4
+        # Provide full statistics for handlers using get_life_statistics
+        self.life_calculator.return_value.get_life_statistics.return_value = {
+            "age": 30,
+            "weeks_lived": 1560,
+            "remaining_weeks": 2340,
+            "life_percentage": 0.4,
+            "days_until_birthday": 120,
+        }
 
         # Set up config mock behaviors
         self.config.DEFAULT_LANGUAGE = SupportedLanguage.RU.value
@@ -90,23 +98,6 @@ class FakeServiceContainer:
         """
         return self.life_calculator
 
-    def get_message_builder(
-        self, lang_code: str = SupportedLanguage.RU.value
-    ) -> "FakeMessageBuilder":
-        """Get a fake message builder for tests.
-
-        This provides a minimal implementation compatible with
-        ``ServiceContainer.get_message_builder`` used by ``BaseHandler``.
-        It delegates actual text retrieval to ``self.get_message`` so tests can
-        patch that method and control returned strings.
-
-        :param lang_code: Language code to use for messages
-        :type lang_code: str
-        :returns: Fake message builder instance
-        :rtype: FakeMessageBuilder
-        """
-        return FakeMessageBuilder(container=self, lang_code=lang_code)
-
     def get_message(
         self,
         message_key: str,
@@ -128,19 +119,6 @@ class FakeServiceContainer:
         """
         return f"Mock message: {message_key}.{sub_key} ({language})"
 
-    def get_supported_languages(self) -> list[str]:
-        """Get list of supported languages.
-
-        :returns: List of supported language codes
-        :rtype: list[str]
-        """
-        return [
-            SupportedLanguage.RU.value,
-            SupportedLanguage.EN.value,
-            SupportedLanguage.UA.value,
-            SupportedLanguage.BY.value,
-        ]
-
     def cleanup(self) -> None:
         """Clean up mock resources.
 
@@ -153,60 +131,3 @@ class FakeServiceContainer:
         self.user_service.reset_mock()
         self.life_calculator.reset_mock()
         self.config.reset_mock()
-
-
-class FakeMessageBuilder:
-    """Fake message builder used in tests to emulate ``MessageBuilder``.
-
-    The builder exposes only methods that are exercised by unit tests, and each
-    method pulls text from the parent container's ``get_message`` so that test
-    patches applied to ``FakeServiceContainer.get_message`` are respected.
-
-    :param container: Parent fake service container
-    :type container: FakeServiceContainer
-    :param lang_code: Language code for produced messages
-    :type lang_code: str
-    """
-
-    def __init__(self, container: "FakeServiceContainer", lang_code: str) -> None:
-        """Initialize builder with container and language.
-
-        :param container: Parent fake container that supplies messages
-        :type container: FakeServiceContainer
-        :param lang_code: Language code for messages
-        :type lang_code: str
-        :returns: None
-        :rtype: None
-        """
-        self._container: FakeServiceContainer = container
-        self._lang: str = lang_code
-
-    def not_registered(self) -> str:
-        """Produce generic "not registered" message.
-
-        :returns: Localized not-registered message
-        :rtype: str
-        """
-        return self._container.get_message(
-            message_key="common", sub_key="not_registered", language=self._lang
-        )
-
-    def not_registered_weeks(self) -> str:
-        """Produce weeks-specific "not registered" message.
-
-        :returns: Localized not-registered message for weeks
-        :rtype: str
-        """
-        return self._container.get_message(
-            message_key="weeks", sub_key="not_registered", language=self._lang
-        )
-
-    def not_registered_visualize(self) -> str:
-        """Produce visualize-specific "not registered" message.
-
-        :returns: Localized not-registered message for visualize
-        :rtype: str
-        """
-        return self._container.get_message(
-            message_key="visualize", sub_key="not_registered", language=self._lang
-        )

@@ -3,12 +3,11 @@
 Tests the VisualizeHandler class which handles /visualize command.
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from src.bot.handlers.visualize_handler import VisualizeHandler
-from src.utils.localization import SupportedLanguage
 from tests.utils.fake_container import FakeServiceContainer
 
 
@@ -25,6 +24,16 @@ class TestVisualizeHandler:
         services = FakeServiceContainer()
         return VisualizeHandler(services)
 
+    @pytest.fixture(autouse=True)
+    def mock_use_locale(self, mocker):
+        """Mock use_locale to control translations."""
+        mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
+        mocker.patch(
+            "src.bot.handlers.visualize_handler.use_locale",
+            return_value=(None, None, mock_pgettext),
+        )
+        return mock_pgettext
+
     def test_handler_creation(self, handler: VisualizeHandler) -> None:
         """Test VisualizeHandler creation.
 
@@ -37,33 +46,21 @@ class TestVisualizeHandler:
     async def test_handle_success(
         self, handler: VisualizeHandler, mock_update: Mock, mock_context: Mock
     ) -> None:
-        """Test handle method with successful visualization.
+        """Test handle method with successful visualization."""
+        with patch(
+            "src.bot.handlers.visualize_handler.generate_visualization"
+        ) as mock_generate_visualization:
+            handler.services.user_service.is_valid_user_profile.return_value = True
+            profile = Mock()
+            profile.settings = Mock(language="en")
+            handler.services.user_service.get_user_profile.return_value = profile
+            mock_generate_visualization.return_value = Mock()
 
-        :param handler: VisualizeHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :returns: None
-        """
-        # Setup
-        with patch("src.bot.handlers.visualize_handler.VisualizeMessages") as mock_cls:
-            with patch(
-                "src.bot.handlers.visualize_handler.generate_visualization"
-            ) as mock_generate_visualization:
-                handler.services.user_service.is_valid_user_profile.return_value = True
-                handler.services.user_service.get_user_profile.return_value = Mock()
-                mock_cls.return_value.generate.return_value = (
-                    "Here's your life visualization!"
-                )
-                mock_generate_visualization.return_value = Mock()
+            await handler.handle(mock_update, mock_context)
 
-                # Execute
-                await handler.handle(mock_update, mock_context)
-
-                # Assert
-                mock_update.message.reply_photo.assert_called_once()
-                call_args = mock_update.message.reply_photo.call_args
-                assert call_args.kwargs["caption"] == "Here's your life visualization!"
-                assert call_args.kwargs["parse_mode"] == "HTML"
+            mock_update.message.reply_photo.assert_called_once()
+            call_args = mock_update.message.reply_photo.call_args
+            assert "pgettext_visualize.info_" in call_args.kwargs["caption"]
 
     @pytest.mark.asyncio
     async def test_handle_not_registered(
@@ -71,31 +68,15 @@ class TestVisualizeHandler:
         handler: VisualizeHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
-        mock_get_message: MagicMock,
     ) -> None:
-        """Test handle method with unregistered user.
-
-        :param handler: VisualizeHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :param mock_base_handler_user_service: Mocked user_service for base handler
-        :param mock_get_user_language: Mocked get_user_language function
-        :param mock_get_message: Mocked get_message function
-        :returns: None
-        """
-        # Setup - user not registered
+        """Test handle method with unregistered user."""
         handler.services.user_service.is_valid_user_profile.return_value = False
-        mock_get_user_language.return_value = SupportedLanguage.EN.value
-        # MessageBuilder is used inside BaseHandler now; keep stub in case
-        mock_get_message.return_value = "You need to register first!"
 
-        # Execute
         result = await handler.handle(mock_update, mock_context)
 
-        # Assert
         assert result is None
         mock_update.message.reply_text.assert_called_once()
+        # The specific message is checked within the wrapper, here we just check the call
 
     @pytest.mark.asyncio
     async def test_handle_visualize_returns_none(
@@ -103,39 +84,21 @@ class TestVisualizeHandler:
         handler: VisualizeHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
+        mock_user_profile: MagicMock,
     ) -> None:
-        """Test that _handle_visualize returns None.
+        """Test handle method when visualization returns None."""
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        # Mock the user profile to have proper settings
+        if not getattr(mock_user_profile, "settings", None):
+            mock_user_profile.settings = MagicMock()
+        mock_user_profile.settings.language = "en"
 
-        This test covers line 114: return None in _handle_visualize method.
-
-        :param handler: VisualizeHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :returns: None
-        """
-        # Setup
-        mock_get_user_language.return_value = SupportedLanguage.EN.value
-
-        # Mock all required functions in the module where they're imported
         with patch(
-            "src.bot.handlers.visualize_handler.generate_visualization"
-        ) as mock_generate_viz, patch(
-            "src.bot.handlers.visualize_handler.VisualizeMessages"
-        ) as mock_cls:
-            # Setup mocks
-            handler.services.user_service.is_valid_user_profile.return_value = True
-            handler.services.user_service.get_user_profile.return_value = MagicMock()
-            mock_generate_viz.return_value = b"fake_image_data"
-            mock_cls.return_value.generate.return_value = "Visualization caption"
-
-            # Mock reply_photo
-            mock_update.message.reply_photo = AsyncMock(return_value=None)
-
-            # Execute
-            result = await handler.handle(mock_update, mock_context)
-
-            # Assert - the method should return None
-            assert result is None
-            mock_update.message.reply_photo.assert_called_once()
+            "src.bot.handlers.visualize_handler.generate_visualization",
+            return_value=b"img",
+        ):
+            await handler.handle(mock_update, mock_context)
+        mock_update.message.reply_photo.assert_called_once()
+        call_args = mock_update.message.reply_photo.call_args
+        assert "pgettext_visualize.info_" in call_args.kwargs["caption"]

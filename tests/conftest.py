@@ -1,5 +1,8 @@
 """Common test fixtures and configuration for all tests."""
 
+# Ensure compatibility alias for legacy import paths in some modules
+import sys
+import types
 from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,10 +11,14 @@ import pytest
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
-# Import from src directory
+import src.core.life_calculator as _lc
 from src.bot.application import LifeWeeksBot
-from src.core.enums import SubscriptionType, WeekDay
-from src.utils.localization import SupportedLanguage
+from src.core.enums import SubscriptionType, SupportedLanguage, WeekDay
+
+sys.modules.setdefault("core", types.ModuleType("core"))
+sys.modules["core.life_calculator"] = _lc
+# Alias missing class name used by some modules
+setattr(_lc, "LifeCalculator", _lc.LifeCalculatorEngine)
 
 
 class MockerFixture:
@@ -330,70 +337,6 @@ def mock_context() -> MagicMock:
 
 
 @pytest.fixture
-def mock_generate_message_help(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_help function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_help function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SystemMessages.help")
-
-
-@pytest.fixture
-def mock_generate_message_cancel_success(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_cancel_success function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_cancel_success function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.CancelMessages.success")
-
-
-@pytest.fixture
-def mock_generate_message_cancel_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_cancel_error function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_cancel_error function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.CancelMessages.error")
-
-
-@pytest.fixture
-def mock_get_user_language(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked get_user_language function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked get_user_language function
-    :rtype: MagicMock
-    """
-    mock = mocker.patch(
-        "src.bot.handlers.base_handler.get_user_language", autospec=True
-    )
-    mock.return_value = SupportedLanguage.EN.value
-    return mock
-
-
-@pytest.fixture
-def mock_get_message(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked get_message function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked get_message function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.utils.localization.get_message")
-
-
-@pytest.fixture
 def make_mock_user_profile():
     """Provides a factory for creating mock user profiles.
 
@@ -446,108 +389,6 @@ def mock_premium_user_profile() -> MagicMock:
     user.life_expectancy = 80
     user.subscription_type = SubscriptionType.PREMIUM
     return user
-
-
-@pytest.fixture
-def mock_generate_message_unknown_command(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_unknown_command function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_unknown_command function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SystemMessages.unknown")
-
-
-# --- Start Handler Fixtures ---
-
-
-@pytest.fixture
-def mock_generate_message_start_welcome_existing(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_start_welcome_existing function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_start_welcome_existing function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SystemMessages.welcome_existing")
-
-
-@pytest.fixture
-def mock_generate_message_start_welcome_new(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_start_welcome_new function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_start_welcome_new function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SystemMessages.welcome_new")
-
-
-@pytest.fixture
-def mock_generate_message_birth_date_future_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_birth_date_future_error function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_birth_date_future_error function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SettingsMessages.birth_date_future_error")
-
-
-@pytest.fixture
-def mock_generate_message_birth_date_old_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_birth_date_old_error function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_birth_date_old_error function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SettingsMessages.birth_date_old_error")
-
-
-@pytest.fixture
-def mock_generate_message_birth_date_format_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_birth_date_format_error function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_birth_date_format_error function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.SettingsMessages.birth_date_format_error")
-
-
-@pytest.fixture
-def mock_generate_message_registration_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_registration_error function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_registration_error function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.RegistrationMessages.error")
-
-
-# --- Weeks Handler Fixtures ---
-
-
-@pytest.fixture
-def mock_generate_message_week(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked generate_message_week function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked generate_message_week function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.core.messages.WeeksMessages.generate")
 
 
 @pytest.fixture

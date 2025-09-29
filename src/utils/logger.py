@@ -47,37 +47,6 @@ DEFAULT_LOG_LEVELS: Dict[str, int] = {
 }
 
 
-def set_log_level(module_name: str, level: int) -> None:
-    """Set log level for a specific module.
-
-    This function allows dynamic control of logging levels for any module.
-    Changes are applied immediately and persist for the lifetime of the application.
-
-    :param module_name: Name of the module to set level for (e.g., "LifeWeeksBot", "httpx")
-    :type module_name: str
-    :param level: Logging level from logging module (e.g., logging.INFO, logging.DEBUG)
-    :type level: int
-    :returns: None
-    :raises ValueError: If invalid logging level is provided
-
-    Example:
-        >>> set_log_level("LifeWeeksBot", logging.DEBUG)
-        >>> set_log_level("httpx", logging.INFO)
-    """
-    if not isinstance(level, int) or level not in [
-        logging.DEBUG,
-        logging.INFO,
-        logging.WARNING,
-        logging.ERROR,
-        logging.CRITICAL,
-    ]:
-        raise ValueError(f"Invalid logging level: {level}")
-
-    logger = logging.getLogger(module_name)
-    logger.setLevel(level)
-    DEFAULT_LOG_LEVELS[module_name] = level
-
-
 def _setup_root_logger() -> None:
     """Set up the root logger with file and console handlers.
 

@@ -7,8 +7,6 @@ for storing user data in SQLite database.
 import logging
 from typing import Optional
 
-from sqlalchemy import update
-
 from ....utils.config import BOT_NAME
 from ...models.user import User
 from ..abstract.user_repository import AbstractUserRepository
@@ -38,38 +36,6 @@ class SQLiteUserRepository(BaseSQLiteRepository, AbstractUserRepository):
         :returns: User object if found, None otherwise
         """
         return self._get_entity_by_telegram_id(User, telegram_id, "user")
-
-    def update_user(self, user: User) -> bool:
-        """Update existing user information.
-
-        :param user: User object with updated data
-        :returns: True if successful, False otherwise
-        """
-        try:
-            with self.session() as session:
-                stmt = (
-                    update(User)
-                    .where(User.telegram_id == user.telegram_id)
-                    .values(
-                        username=user.username,
-                        first_name=user.first_name,
-                        last_name=user.last_name,
-                    )
-                )
-                result = session.execute(stmt)
-
-                if result.rowcount > 0:
-                    logger.info(f"Updated user with telegram_id: {user.telegram_id}")
-                    return True
-                else:
-                    logger.warning(
-                        f"User with telegram_id {user.telegram_id} not found"
-                    )
-                    return False
-
-        except Exception as e:
-            logger.error(f"Failed to update user: {e}")
-            return False
 
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.

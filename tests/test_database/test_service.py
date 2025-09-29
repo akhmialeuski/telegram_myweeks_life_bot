@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from src.core.enums import SubscriptionType
+from src.core.enums import SubscriptionType, SupportedLanguage
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
@@ -33,7 +33,6 @@ from src.database.service import (
     UserSettingsUpdateError,
     UserSubscriptionUpdateError,
 )
-from src.utils.localization import SupportedLanguage
 
 
 class TestUserServiceExceptions:
@@ -600,58 +599,6 @@ class TestUserService:
         result = user_service.get_user_profile(123456789)
 
         assert result is None
-
-    def test_user_exists_true(self, user_service, sample_user):
-        """Test user_exists returns True when user exists.
-
-        :param user_service: UserService instance
-        :param sample_user: Sample user object
-        :returns: None
-        """
-        sample_user.settings = UserSettings(telegram_id=123456789)
-        user_service.get_user_profile = Mock(return_value=sample_user)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is True
-
-    def test_user_exists_false_no_user(self, user_service):
-        """Test user_exists returns False when user doesn't exist.
-
-        :param user_service: UserService instance
-        :returns: None
-        """
-        user_service.get_user_profile = Mock(return_value=None)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
-
-    def test_user_exists_false_no_settings(self, user_service, sample_user):
-        """Test user_exists returns False when user has no settings.
-
-        :param user_service: UserService instance
-        :param sample_user: Sample user object
-        :returns: None
-        """
-        sample_user.settings = None
-        user_service.get_user_profile = Mock(return_value=sample_user)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
-
-    def test_user_exists_exception(self, user_service):
-        """Test user_exists with exception.
-
-        :param user_service: UserService instance
-        :returns: None
-        """
-        user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
 
     def test_is_valid_user_profile_true(
         self, user_service, mock_settings_repository, sample_settings

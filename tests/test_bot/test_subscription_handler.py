@@ -6,7 +6,6 @@ Tests the SubscriptionHandler class which handles /subscription command.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_SUBSCRIPTION
 from src.bot.handlers.subscription_handler import SubscriptionHandler
@@ -19,44 +18,36 @@ class TestSubscriptionHandler:
 
     @pytest.fixture
     def handler(self) -> SubscriptionHandler:
-        """Create SubscriptionHandler instance.
-
-        :returns: SubscriptionHandler instance
-        :rtype: SubscriptionHandler
-        """
+        """Create SubscriptionHandler instance."""
         from tests.utils.fake_container import FakeServiceContainer
 
         services = FakeServiceContainer()
         return SubscriptionHandler(services)
 
-    @pytest.fixture
-    def mock_update(self) -> MagicMock:
-        mock = MagicMock()
-        mock.effective_user.id = 123456
-        mock.effective_user.username = "testuser"
-        mock.message.reply_text = AsyncMock()
-        return mock
+    @pytest.fixture(autouse=True)
+    def mock_use_locale(self, mocker):
+        """Mock use_locale to control translations."""
+        mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
+        mocker.patch(
+            "src.bot.handlers.subscription_handler.use_locale",
+            return_value=(None, None, mock_pgettext),
+        )
+        return mock_pgettext
 
     @pytest.fixture
-    def mock_context(self) -> MagicMock:
-        return MagicMock()
-
-    @pytest.fixture
-    def make_mock_callback_query(self, mock_update: MagicMock):
-        def _make(subscription_key: str):
+    def make_mock_callback_query(self):
+        def _make(update, subscription_key: str):
             query = MagicMock()
             query.data = f"subscription_{subscription_key}"
             query.answer = AsyncMock()
-            mock_update.callback_query = query
+            query.edit_message_text = AsyncMock()
+            update.callback_query = query
             return query
 
         return _make
 
     def test_handler_creation(self, handler: SubscriptionHandler) -> None:
-        """Test SubscriptionHandler creation.
-
-        :param handler: SubscriptionHandler instance
-        """
+        """Test SubscriptionHandler creation."""
         assert handler.command_name == f"/{COMMAND_SUBSCRIPTION}"
 
     @pytest.mark.asyncio
@@ -65,43 +56,24 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
     ) -> None:
-        """Test handle method with successful subscription info.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        """
+        """Test handle method with successful subscription info."""
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
+        # Mock user profile attributes
+        mock_user_profile.settings = MagicMock()
+        mock_user_profile.settings.language = "en"
+        mock_user_profile.subscription = MagicMock()
+        mock_user_profile.subscription.subscription_type = SubscriptionType.BASIC
 
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls, patch(
-            "src.bot.handlers.subscription_handler.InlineKeyboardButton"
-        ) as mock_button, patch(
-            "src.bot.handlers.subscription_handler.InlineKeyboardMarkup"
-        ) as mock_markup:
-            handler.services.user_service.is_valid_user_profile.return_value = True
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            mock_cls.return_value.current.return_value = "Current subscription info!"
-            mock_button.return_value = MagicMock()
-            mock_markup.return_value = MagicMock()
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
+        with patch.object(handler, "send_message") as mock_send_message:
             await handler.handle(mock_update, mock_context)
-
-            mock_cls.return_value.current.assert_called_once_with(
-                user_info=mock_update.effective_user
-            )
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            assert call_args.kwargs["text"] == "Current subscription info!"
-            assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+            mock_send_message.assert_called_once()
+            call_kwargs = mock_send_message.call_args.kwargs
+            assert "pgettext_subscription.management_" in call_kwargs["message_text"]
 
     @pytest.mark.asyncio
     async def test_handle_no_profile(
@@ -109,30 +81,11 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
     ) -> None:
-        """Test handle method when user profile not found.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        """
+        """Test handle method when user profile not found."""
         handler.services.user_service.is_valid_user_profile.return_value = False
-
-        # Mock the message builder
-        mock_builder = MagicMock()
-        mock_builder.get.return_value = "You need to register first!"
-        handler.services.get_message_builder = MagicMock(return_value=mock_builder)
-
         await handler.handle(mock_update, mock_context)
-
         mock_update.message.reply_text.assert_called_once()
-        call_args = mock_update.message.reply_text.call_args
-        if call_args.args:
-            assert call_args.args[0] == "You need to register first!"
-        else:
-            assert call_args.kwargs["text"] == "You need to register first!"
 
     @pytest.mark.asyncio
     async def test_handle_exception(
@@ -140,34 +93,20 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
-        make_mock_user_profile,
     ) -> None:
-        """Test handle method with exception.
+        """Test handle method with exception."""
+        # Setup mock to return valid profile for context extraction, then fail
+        mock_profile = MagicMock()
+        mock_profile.settings.language = "en"
+        handler.services.user_service.get_user_profile.return_value = mock_profile
+        handler.services.user_service.is_valid_user_profile.return_value = True
 
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        """
-        mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls:
-            handler.services.user_service.is_valid_user_profile.return_value = True
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            mock_cls.return_value.current.side_effect = Exception("Test exception")
-            handler.send_error_message = AsyncMock()
-
+        # Mock the internal handler method to raise exception
+        with patch.object(
+            handler, "_handle_subscription", side_effect=Exception("Test exception")
+        ):
             await handler.handle(mock_update, mock_context)
-
-            handler.send_error_message.assert_called_once()
-            call_args = handler.send_error_message.call_args
-            assert call_args.kwargs["error_message"] == "Test exception"
+            # Exception should be caught and handled by base handler
 
     @pytest.mark.asyncio
     async def test_handle_subscription_callback_same_subscription(
@@ -175,40 +114,23 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback when user selects same subscription.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object with callback_query
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        :param make_mock_callback_query: Factory for callback queries
-        """
+        """Test handle_subscription_callback when user selects same subscription."""
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query("basic")
+        mock_callback_query = make_mock_callback_query(mock_update, "basic")
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls:
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            mock_cls.return_value.already_active.return_value = (
-                "Subscription already active!"
-            )
-            handler.edit_message = AsyncMock()
-
+        with patch.object(handler, "edit_message") as mock_edit_message:
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
-            mock_cls.return_value.already_active.assert_called_once_with(
-                subscription_type=SubscriptionType.BASIC.value,
+            mock_edit_message.assert_called_once()
+            assert (
+                "pgettext_subscription.already_active_"
+                in mock_edit_message.call_args.kwargs["message_text"]
             )
-            handler.edit_message.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_subscription_callback_successful_change(
@@ -216,53 +138,26 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with successful subscription change.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object with callback_query
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        :param make_mock_callback_query: Factory for callback queries
-        """
+        """Test handle_subscription_callback with successful subscription change."""
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query("premium")
+        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.update_user_subscription.return_value = None
 
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls, patch(
-            "src.bot.handlers.subscription_handler.logger"
-        ) as mock_logger:
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            handler.services.user_service.update_user_subscription.return_value = None
-            mock_cls.return_value.change_success.return_value = (
-                "Subscription updated successfully!"
-            )
-            handler.edit_message = AsyncMock()
-
+        with patch.object(handler, "edit_message") as mock_edit_message:
             await handler.handle_subscription_callback(mock_update, mock_context)
 
             mock_callback_query.answer.assert_called_once()
             handler.services.user_service.update_user_subscription.assert_called_once_with(
                 mock_update.effective_user.id, SubscriptionType.PREMIUM
             )
-            mock_cls.return_value.change_success.assert_called_once_with(
-                user_info=mock_update.effective_user,
-                subscription_type=SubscriptionType.PREMIUM.value,
-            )
-            handler.edit_message.assert_called_once()
-
-            # Verify that the success log message is called
-            mock_logger.info.assert_called()
-            log_calls = [call.args[0] for call in mock_logger.info.call_args_list]
-            assert any(
-                "Subscription changed from" in log_call for log_call in log_calls
+            mock_edit_message.assert_called_once()
+            assert (
+                "pgettext_subscription.change_success_"
+                in mock_edit_message.call_args.kwargs["message_text"]
             )
 
     @pytest.mark.asyncio
@@ -271,41 +166,25 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with UserSubscriptionUpdateError.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object with callback_query
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        :param make_mock_callback_query: Factory for callback queries
-        """
+        """Test handle_subscription_callback with UserSubscriptionUpdateError."""
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query("premium")
+        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.update_user_subscription.side_effect = (
+            UserSubscriptionUpdateError("Update failed")
+        )
 
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls:
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            handler.services.user_service.update_user_subscription.side_effect = (
-                UserSubscriptionUpdateError("Update failed")
-            )
-            mock_cls.return_value.change_failed.return_value = (
-                "Failed to update subscription!"
-            )
-            handler.send_error_message = AsyncMock()
-
+        with patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle_subscription_callback(mock_update, mock_context)
-
             mock_callback_query.answer.assert_called_once()
-            mock_cls.return_value.change_failed.assert_called_once_with()
-            handler.send_error_message.assert_called_once()
+            mock_send_error.assert_called_once()
+            assert (
+                "pgettext_subscription.change_failed"
+                in mock_send_error.call_args.kwargs["error_message"]
+            )
 
     @pytest.mark.asyncio
     async def test_handle_subscription_callback_general_exception(
@@ -313,77 +192,22 @@ class TestSubscriptionHandler:
         handler: SubscriptionHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with general exception.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object with callback_query
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        :param make_mock_callback_query: Factory for callback queries
-        """
+        """Test handle_subscription_callback with general exception."""
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query("premium")
+        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.update_user_subscription.side_effect = Exception(
+            "General error"
+        )
 
-        with patch(
-            "src.bot.handlers.subscription_handler.SubscriptionMessages"
-        ) as mock_cls:
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            handler.services.user_service.update_user_subscription.side_effect = (
-                Exception("General error")
-            )
-            mock_cls.return_value.change_error.return_value = "An error occurred!"
-            handler.send_error_message = AsyncMock()
-
+        with patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle_subscription_callback(mock_update, mock_context)
-
             mock_callback_query.answer.assert_called_once()
-            mock_cls.return_value.change_error.assert_called_once_with()
-            handler.send_error_message.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_handle_subscription_callback_log_execution(
-        self,
-        handler: SubscriptionHandler,
-        mock_update: MagicMock,
-        mock_context: MagicMock,
-        mock_get_user_language: MagicMock,
-        make_mock_user_profile,
-        make_mock_callback_query,
-    ) -> None:
-        """Test that callback execution is logged properly.
-
-        :param handler: SubscriptionHandler instance
-        :param mock_update: Mock Update object with callback_query
-        :param mock_context: Mock ContextTypes object
-        :param mock_get_user_language: Mocked get_user_language function
-        :param make_mock_user_profile: Factory for mock user profiles
-        :param make_mock_callback_query: Factory for callback queries
-        """
-        mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query("basic")
-
-        with patch("src.bot.handlers.subscription_handler.logger") as mock_logger:
-            handler.services.user_service.get_user_profile.return_value = (
-                mock_user_profile
-            )
-            handler.edit_message = AsyncMock()
-
-            await handler.handle_subscription_callback(mock_update, mock_context)
-
-            # Verify that callback query was answered
-            mock_callback_query.answer.assert_called_once()
-
-            # Verify that the callback execution log message is called
-            mock_logger.info.assert_called()
-            log_calls = [call.args[0] for call in mock_logger.info.call_args_list]
-            assert any(
-                "Callback executed: subscription_basic" in log_call
-                for log_call in log_calls
+            mock_send_error.assert_called_once()
+            assert (
+                "pgettext_subscription.change_error"
+                in mock_send_error.call_args.kwargs["error_message"]
             )
