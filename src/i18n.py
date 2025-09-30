@@ -1,6 +1,6 @@
 import gettext
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 try:  # pragma: no cover - optional dependency at runtime
     from babel import Locale
@@ -66,34 +66,112 @@ def get_localized_language_name(
     if Locale is None:
         return language_code or normalized_language
 
-    try:
-        locale_obj = Locale.parse(normalized_display)
-    except (ValueError, UnknownLocaleError):
-        try:
-            locale_obj = Locale.parse("en")
-        except (ValueError, UnknownLocaleError):
-            return language_code or normalized_language
-
-    name = None
-
-    try:
-        name = locale_obj.get_language_name(normalized_language)
-    except (LookupError, ValueError, UnknownLocaleError):
-        name = None
-
-    if not name:
-        languages = getattr(locale_obj, "languages", None)
-        if isinstance(languages, dict):
-            name = languages.get(normalized_language)
-
-    if not name:
-        try:
-            language_locale = Locale.parse(normalized_language)
-            name = language_locale.get_display_name(locale_obj)
-        except (ValueError, UnknownLocaleError):
-            name = None
+    # Try to get language name with fallbacks
+    name = _get_language_name_with_fallbacks(
+        normalized_language, normalized_display
+    )
 
     if isinstance(name, str) and name:
         return name[:1].upper() + name[1:]
 
     return language_code or normalized_language
+
+
+def _get_language_name_with_fallbacks(
+    language_code: str, display_locale: str
+) -> str | None:
+    """Get language name with multiple fallback strategies.
+
+    :param language_code: The language code to get name for
+    :type language_code: str
+    :param display_locale: The locale to display the name in
+    :type display_locale: str
+    :returns: Localized language name or None if not found
+    :rtype: str | None
+    """
+    locale_obj = _parse_locale_safely(display_locale)
+    if not locale_obj:
+        return None
+
+    # Try direct language name lookup
+    name = _get_language_name_direct(locale_obj, language_code)
+    if name:
+        return name
+
+    # Try from locale languages dictionary
+    name = _get_language_name_from_dict(locale_obj, language_code)
+    if name:
+        return name
+
+    # Try display name lookup
+    name = _get_display_name_fallback(locale_obj, language_code)
+    if name:
+        return name
+
+    return None
+
+
+def _parse_locale_safely(locale_str: str) -> Any | None:
+    """Parse locale string with error handling.
+
+    :param locale_str: Locale string to parse
+    :type locale_str: str
+    :returns: Parsed locale object or None if parsing fails
+    :rtype: Any | None
+    """
+    try:
+        return Locale.parse(locale_str)
+    except (ValueError, UnknownLocaleError):
+        try:
+            return Locale.parse("en")
+        except (ValueError, UnknownLocaleError):
+            return None
+
+
+def _get_language_name_direct(locale_obj: Any, language_code: str) -> str | None:
+    """Get language name directly from locale object.
+
+    :param locale_obj: Locale object to query
+    :type locale_obj: Any
+    :param language_code: Language code to look up
+    :type language_code: str
+    :returns: Language name or None if not found
+    :rtype: str | None
+    """
+    try:
+        return locale_obj.get_language_name(language_code)
+    except (LookupError, ValueError, UnknownLocaleError):
+        return None
+
+
+def _get_language_name_from_dict(locale_obj: Any, language_code: str) -> str | None:
+    """Get language name from locale's languages dictionary.
+
+    :param locale_obj: Locale object to query
+    :type locale_obj: Any
+    :param language_code: Language code to look up
+    :type language_code: str
+    :returns: Language name or None if not found
+    :rtype: str | None
+    """
+    languages = getattr(locale_obj, "languages", None)
+    if isinstance(languages, dict):
+        return languages.get(language_code)
+    return None
+
+
+def _get_display_name_fallback(locale_obj: Any, language_code: str) -> str | None:
+    """Get display name as final fallback.
+
+    :param locale_obj: Locale object to query
+    :type locale_obj: Any
+    :param language_code: Language code to look up
+    :type language_code: str
+    :returns: Display name or None if not found
+    :rtype: str | None
+    """
+    try:
+        language_locale = Locale.parse(language_code)
+        return language_locale.get_display_name(locale_obj)
+    except (ValueError, UnknownLocaleError):
+        return None

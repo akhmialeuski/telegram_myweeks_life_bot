@@ -16,6 +16,7 @@ from datetime import date, datetime
 from babel.dates import format_date
 from babel.numbers import format_decimal, format_percent
 from telegram import Update
+from telegram import User as TelegramUser
 from telegram.ext import ContextTypes
 
 from src.i18n import normalize_babel_locale, use_locale
@@ -134,28 +135,11 @@ class StartHandler(BaseHandler):
         registration flow. It validates the input format and date range,
         creates the user profile, and provides feedback to the user.
 
-        The validation process:
-        1. Parses the birth date string (expected format: DD.MM.YYYY)
-        2. Validates that the date is not in the future
-        3. Validates that the date is not too old (before 1900)
-        4. Attempts to create user profile in the database
-        5. Handles various error scenarios with appropriate messages
-
-        Error handling:
-        - Invalid date format: requests re-entry
-        - Future date: explains the error and requests re-entry
-        - Too old date: explains the error and requests re-entry
-        - Database errors: shows error message and clears waiting state
-        - User already exists: shows welcome message and clears waiting state
-
         :param update: The update object containing the birth date input
         :type update: Update
         :param context: The context object for the command execution
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
-
-        Example:
-            User sends "15.03.1990" → Bot validates → Creates profile → Shows success message
         """
         # Extract user information using the new helper method
         cmd_context = self._extract_command_context(update)
@@ -165,115 +149,20 @@ class StartHandler(BaseHandler):
 
         # For validation errors, use Telegram language since user not registered yet
         lang = user.language_code or SupportedLanguage.EN.value
-        _, _, pgettext = use_locale(lang=lang)
 
         try:
-            # Parse birth date from user input (DD.MM.YYYY format)
-            birth_date = datetime.strptime(birth_date_text, "%d.%m.%Y").date()
-
-            # Validate that birth date is not in the future
-            if birth_date > date.today():
-                await self.send_message(
-                    update=update,
-                    message_text=pgettext(
-                        "birth_date.future_error",
-                        "❌ Birth date cannot be in the future!\n"
-                        "Please enter a valid date in DD.MM.YYYY format",
-                    ),
-                )
-                return
-
-            # Validate that birth date is not unreasonably old
-            if birth_date.year < MIN_BIRTH_YEAR:
-                await self.send_message(
-                    update=update,
-                    message_text=pgettext(
-                        "birth_date.old_error",
-                        "❌ Birth date is too old!\n"
-                        "Please enter a valid date in DD.MM.YYYY format",
-                    ),
-                )
-                return
-
-            # Attempt to create user profile in the database
-            self.services.user_service.create_user_profile(
-                user_info=user, birth_date=birth_date
+            # Validate birth date and create profile
+            birth_date = await self._validate_and_create_profile(
+                update, context, user, user_id, birth_date_text, lang
             )
 
-            # Add user to notification scheduler
-            try:
-                scheduler = context.bot_data.get("scheduler")
-                if scheduler:
-                    add_user_to_scheduler(scheduler, user_id)
-                    logger.info(
-                        f"{self.command_name}: [{user_id}]: User added to notification scheduler"
-                    )
-                else:
-                    logger.warning(
-                        f"{self.command_name}: [{user_id}]: No scheduler available"
-                    )
-            except SchedulerOperationError as scheduler_error:
-                logger.warning(
-                    f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"
-                )
-
-            # Fetch profile and compute statistics for success message
-            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
-            if not profile:
-                raise UserServiceError("Failed to fetch newly created profile")
-
-            # Update language from profile if set
-            lang = (
-                profile.settings.language
-                if profile and profile.settings and profile.settings.language
-                else lang
-            )
-            _, _, pgettext = use_locale(lang=lang)
-
-            calc_engine = self.services.get_life_calculator()(user=profile)
-            stats = calc_engine.get_life_statistics()
+            # If validation failed, return early
+            if birth_date is None:
+                return
 
             # Send success message with calculated statistics
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "registration.success",
-                    "✅ Great! You have successfully registered!\n\n"
-                    "📅 Birth date: %(birth_date)s\n"
-                    "🎂 Age: %(age)s years\n"
-                    "📊 Weeks lived: %(weeks_lived)s\n"
-                    "⏳ Remaining weeks: %(remaining_weeks)s\n"
-                    "📈 Life progress: %(life_percentage)s\n\n"
-                    "Now you can use commands:\n"
-                    "• /weeks - show life weeks\n"
-                    "• /visualize - visualize weeks\n"
-                    "• /help - help",
-                )
-                % {
-                    "birth_date": format_date(
-                        birth_date,
-                        format="dd.MM.yyyy",
-                        locale=normalize_babel_locale(lang),
-                    ),
-                    "age": format_decimal(
-                        stats["age"], locale=normalize_babel_locale(lang)
-                    ),
-                    "weeks_lived": format_decimal(
-                        stats["weeks_lived"],
-                        locale=normalize_babel_locale(lang),
-                        format="#,##0",
-                    ),
-                    "remaining_weeks": format_decimal(
-                        stats["remaining_weeks"],
-                        locale=normalize_babel_locale(lang),
-                        format="#,##0",
-                    ),
-                    "life_percentage": format_percent(
-                        stats["life_percentage"],
-                        locale=normalize_babel_locale(lang),
-                        format="#0.1%",
-                    ),
-                },
+            await self._send_registration_success_message(
+                update, context, user_id, birth_date, lang
             )
 
             # Clear waiting state
@@ -281,21 +170,13 @@ class StartHandler(BaseHandler):
 
         except ValueError:
             # Handle invalid date format
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "birth_date.format_error",
-                    "❌ Invalid date format!\n"
-                    "Please enter date in DD.MM.YYYY format\n"
-                    "For example: 15.03.1990",
-                ),
-            )
-
+            await self._send_date_format_error(update, lang)
         except (UserRegistrationError, UserServiceError) as error:
             # Handle all database errors with a single error message
             logger.error(
                 f"{self.command_name}: [{user_id}]: Registration error: {error}"
             )
+            _, _, pgettext = use_locale(lang=lang)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
@@ -313,6 +194,7 @@ class StartHandler(BaseHandler):
                 f"{self.command_name}: [{user_id}]: Error in handle_birth_date_input: {error}"
             )
             # Fallback error handling
+            _, _, pgettext = use_locale(lang=lang)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
@@ -323,3 +205,197 @@ class StartHandler(BaseHandler):
                 ),
             )
             context.user_data.pop("waiting_for", None)
+
+    async def _validate_and_create_profile(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        user: TelegramUser,
+        user_id: int,
+        birth_date_text: str,
+        lang: str,
+    ) -> date | None:
+        """Validate birth date and create user profile.
+
+        :param update: The update object containing the birth date input
+        :type update: Update
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param user: Telegram user object
+        :type user: TelegramUser
+        :param user_id: Telegram user ID
+        :type user_id: int
+        :param birth_date_text: Birth date string from user input
+        :type birth_date_text: str
+        :param lang: Language code for error messages
+        :type lang: str
+        :returns: Parsed birth date if validation successful, None if validation failed
+        :rtype: date | None
+        :raises ValueError: If date format is invalid
+        :raises UserRegistrationError: If profile creation fails
+        :raises UserServiceError: If profile creation fails
+        """
+        _, _, pgettext = use_locale(lang=lang)
+
+        # Parse birth date from user input (DD.MM.YYYY format)
+        birth_date = datetime.strptime(birth_date_text, "%d.%m.%Y").date()
+
+        # Validate that birth date is not in the future
+        if birth_date > date.today():
+            await self.send_message(
+                update=update,
+                message_text=pgettext(
+                    "birth_date.future_error",
+                    "❌ Birth date cannot be in the future!\n"
+                    "Please enter a valid date in DD.MM.YYYY format",
+                ),
+            )
+            return None
+
+        # Validate that birth date is not unreasonably old
+        if birth_date.year < MIN_BIRTH_YEAR:
+            await self.send_message(
+                update=update,
+                message_text=pgettext(
+                    "birth_date.old_error",
+                    "❌ Birth date is too old!\n"
+                    "Please enter a valid date in DD.MM.YYYY format",
+                ),
+            )
+            return None
+
+        # Attempt to create user profile in the database
+        self.services.user_service.create_user_profile(
+            user_info=user, birth_date=birth_date
+        )
+
+        # Add user to notification scheduler
+        await self._add_user_to_scheduler(context, user_id)
+
+        return birth_date
+
+    async def _add_user_to_scheduler(
+        self, context: ContextTypes.DEFAULT_TYPE, user_id: int
+    ) -> None:
+        """Add user to notification scheduler.
+
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param user_id: Telegram user ID
+        :type user_id: int
+        """
+        try:
+            scheduler = context.bot_data.get("scheduler")
+            if scheduler:
+                add_user_to_scheduler(scheduler, user_id)
+                logger.info(
+                    f"{self.command_name}: [{user_id}]: User added to notification scheduler"
+                )
+            else:
+                logger.warning(
+                    f"{self.command_name}: [{user_id}]: No scheduler available"
+                )
+        except SchedulerOperationError as scheduler_error:
+            logger.warning(
+                f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"
+            )
+
+    async def _send_registration_success_message(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        user_id: int,
+        birth_date: date,
+        lang: str,
+    ) -> None:
+        """Send registration success message with calculated statistics.
+
+        :param update: The update object containing the birth date input
+        :type update: Update
+        :param context: The context object for the command execution
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param user_id: Telegram user ID
+        :type user_id: int
+        :param birth_date: User's birth date
+        :type birth_date: date
+        :param lang: Language code for messages
+        :type lang: str
+        """
+        # Fetch profile and compute statistics for success message
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        if not profile:
+            raise UserServiceError("Failed to fetch newly created profile")
+
+        # Update language from profile if set
+        final_lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else lang
+        )
+        _, _, pgettext = use_locale(lang=final_lang)
+
+        calc_engine = self.services.get_life_calculator()(user=profile)
+        stats = calc_engine.get_life_statistics()
+
+        # Send success message with calculated statistics
+        await self.send_message(
+            update=update,
+            message_text=pgettext(
+                "registration.success",
+                "✅ Great! You have successfully registered!\n\n"
+                "📅 Birth date: %(birth_date)s\n"
+                "🎂 Age: %(age)s years\n"
+                "📊 Weeks lived: %(weeks_lived)s\n"
+                "⏳ Remaining weeks: %(remaining_weeks)s\n"
+                "📈 Life progress: %(life_percentage)s\n\n"
+                "Now you can use commands:\n"
+                "• /weeks - show life weeks\n"
+                "• /visualize - visualize weeks\n"
+                "• /help - help",
+            )
+            % {
+                "birth_date": format_date(
+                    birth_date,
+                    format="dd.MM.yyyy",
+                    locale=normalize_babel_locale(final_lang),
+                ),
+                "age": format_decimal(
+                    stats["age"], locale=normalize_babel_locale(final_lang)
+                ),
+                "weeks_lived": format_decimal(
+                    stats["weeks_lived"],
+                    locale=normalize_babel_locale(final_lang),
+                    format="#,##0",
+                ),
+                "remaining_weeks": format_decimal(
+                    stats["remaining_weeks"],
+                    locale=normalize_babel_locale(final_lang),
+                    format="#,##0",
+                ),
+                "life_percentage": format_percent(
+                    stats["life_percentage"],
+                    locale=normalize_babel_locale(final_lang),
+                    format="#0.1%",
+                ),
+            },
+        )
+
+    async def _send_date_format_error(self, update: Update, lang: str) -> None:
+        """Send date format error message.
+
+        :param update: The update object containing the birth date input
+        :type update: Update
+        :param lang: Language code for error messages
+        :type lang: str
+        """
+        _, _, pgettext = use_locale(lang=lang)
+
+        await self.send_message(
+            update=update,
+            message_text=pgettext(
+                "birth_date.format_error",
+                "❌ Invalid date format!\n"
+                "Please enter date in DD.MM.YYYY format\n"
+                "For example: 15.03.1990",
+            ),
+        )

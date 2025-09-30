@@ -22,11 +22,7 @@ from babel.numbers import format_decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.i18n import (
-    get_localized_language_name,
-    normalize_babel_locale,
-    use_locale,
-)
+from src.i18n import get_localized_language_name, normalize_babel_locale, use_locale
 
 from ...core.enums import SubscriptionType, SupportedLanguage
 from ...core.life_calculator import LifeCalculatorEngine
