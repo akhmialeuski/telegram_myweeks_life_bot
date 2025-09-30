@@ -22,7 +22,11 @@ from babel.numbers import format_decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.i18n import normalize_babel_locale, use_locale
+from src.i18n import (
+    get_localized_language_name,
+    normalize_babel_locale,
+    use_locale,
+)
 
 from ...core.enums import SubscriptionType, SupportedLanguage
 from ...core.life_calculator import LifeCalculatorEngine
@@ -231,7 +235,10 @@ class SettingsHandler(BaseHandler):
                 if getattr(profile, "birth_date", None)
                 else pgettext("not.set", "Not set")
             )
-            language_name = lang  # Replaced get_localized_language_name
+            language_name = get_localized_language_name(
+                getattr(getattr(profile, "settings", None), "language", None),
+                lang,
+            )
             life_expectancy_val = (
                 getattr(getattr(profile, "settings", None), "life_expectancy", None)
                 or 80
