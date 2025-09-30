@@ -555,9 +555,8 @@ class TestUserService:
         mock_settings_repository.get_user_settings.return_value = None
 
         result = user_service.get_user_profile(123456789)
-        # Service returns user even if settings are missing
-        assert result is not None
-        assert result.settings is None
+        # Service returns None if settings are missing
+        assert result is None
 
     def test_get_user_profile_subscription_not_found(
         self,
@@ -583,9 +582,8 @@ class TestUserService:
         mock_subscription_repository.get_subscription.return_value = None
 
         result = user_service.get_user_profile(123456789)
-        # Service returns user even if subscription is missing
-        assert result is not None
-        assert result.subscription is None
+        # Service returns None if subscription is missing
+        assert result is None
 
     def test_get_user_profile_exception(self, user_service, mock_user_repository):
         """Test user profile retrieval with exception.

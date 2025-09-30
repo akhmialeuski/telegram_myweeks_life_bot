@@ -279,7 +279,7 @@ class UserService:
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Telegram user ID
-        :returns: User object with settings and subscription if found, None otherwise
+        :returns: User object with complete settings and subscription if found, None if user, settings, or subscription are missing
         """
         try:
             user = self.user_repository.get_user(telegram_id)
@@ -296,25 +296,31 @@ class UserService:
                 created_at=user.created_at,
             )
 
-            # Try to get settings (optional)
+            # Try to get settings (required for complete profile)
             try:
                 settings = self.settings_repository.get_user_settings(telegram_id)
+                if settings is None:
+                    logger.warning(f"Settings not found for user {telegram_id}")
+                    return None
                 new_user.settings = settings
             except Exception as e:
                 logger.warning(f"Failed to get settings for user {telegram_id}: {e}")
-                new_user.settings = None
+                return None
 
-            # Try to get subscription (optional)
+            # Try to get subscription (required for complete profile)
             try:
                 subscription = self.subscription_repository.get_subscription(
                     telegram_id
                 )
+                if subscription is None:
+                    logger.warning(f"Subscription not found for user {telegram_id}")
+                    return None
                 new_user.subscription = subscription
             except Exception as e:
                 logger.warning(
                     f"Failed to get subscription for user {telegram_id}: {e}"
                 )
-                new_user.subscription = None
+                return None
 
             return new_user
 
