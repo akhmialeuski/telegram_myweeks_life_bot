@@ -22,7 +22,11 @@ from babel.numbers import format_decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.i18n import normalize_babel_locale, use_locale
+from src.i18n import (
+    get_localized_language_name,
+    normalize_babel_locale,
+    use_locale,
+)
 
 from ...core.enums import SubscriptionType, SupportedLanguage
 from ...core.life_calculator import LifeCalculatorEngine
@@ -41,23 +45,6 @@ from .base_handler import BaseHandler
 
 # Initialize logger for this module
 logger = get_logger(BOT_NAME)
-
-
-def get_localized_language_name(language_code: str) -> str:
-    """Get localized language name for a given language code.
-
-    :param language_code: The language code (e.g., 'en', 'ru', 'ua', 'by')
-    :type language_code: str
-    :returns: Localized language name with flag emoji
-    :rtype: str
-    """
-    language_names = {
-        "ru": "🇷🇺 Русский",
-        "en": "🇺🇸 English",
-        "ua": "🇺🇦 Українська",
-        "by": "🇧🇾 Беларуская",
-    }
-    return language_names.get(language_code, language_code)
 
 
 class SettingsWaitingState(TypedDict, total=False):
@@ -248,7 +235,10 @@ class SettingsHandler(BaseHandler):
                 if getattr(profile, "birth_date", None)
                 else pgettext("not.set", "Not set")
             )
-            language_name = get_localized_language_name(lang)
+            language_name = get_localized_language_name(
+                getattr(getattr(profile, "settings", None), "language", None),
+                lang,
+            )
             life_expectancy_val = (
                 getattr(getattr(profile, "settings", None), "life_expectancy", None)
                 or 80
