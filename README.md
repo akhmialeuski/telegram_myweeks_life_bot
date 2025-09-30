@@ -1,6 +1,8 @@
 # LifeWeeksBot
 
-Telegram bot that tracks and visualizes the number of weeks lived since birth with multi-language support.
+**MyWeeksBot** is a public Telegram bot specifically designed for tracking the number of weeks lived and sending periodic notifications to users. The main function of the bot is to regularly send weekly messages displaying the exact number of weeks, months, and years lived. In addition to numerical data, the bot provides a visual representation in the form of a convenient table where lived weeks and remaining weeks are marked, allowing users to visually see the passage of time and better understand its flow.
+
+This project helps users better understand the passage of time and motivates more conscious life planning. The bot supports multiple languages and can work with an unlimited number of users simultaneously.
 
 ## Features
 
@@ -92,40 +94,6 @@ Database settings can be configured via environment variables:
 - `DATABASE_URL` - Full database URL (overrides default SQLite)
 - `DATABASE_PATH` - Path to SQLite database file (default: `lifeweeks.db`)
 
-## Development
-
-### Code Quality
-
-This project enforces high code quality standards with automated checks:
-
-```bash
-# Fix code formatting and imports
-./scripts/fix_code_style.sh
-
-# Run tests with coverage
-pytest tests/ --cov=. --cov-report=html
-
-# Check code style manually
-black --check .
-isort --check-only .
-flake8 .
-```
-
-### Translation Management
-
-For managing translations:
-
-```bash
-# Extract messages for translation
-make extract
-
-# Update translation files
-make update
-
-# Compile translation files
-make compile
-```
-
 ## Usage
 
 ### Start the bot:
@@ -143,33 +111,10 @@ python main.py
 - `/help` - Show help information
 - `/cancel` - Cancel current operation
 
-## Architecture
-
-- **Bot Framework**: python-telegram-bot 20.7
-- **Database**: SQLAlchemy 2.0 with SQLite
-- **Visualization**: matplotlib + Pillow
-- **Scheduling**: APScheduler for notifications
-- **Internationalization**: Custom i18n system with Babel support
-- **Testing**: pytest with async support and coverage reporting
-- **Code Quality**: black, isort, flake8 with pre-commit hooks
-
-## Project Structure
-
-```
-telegram_myweeks_life_bot/
-├── src/                    # Main source code
-│   ├── bot/               # Telegram bot implementation
-│   ├── core/              # Core business logic
-│   ├── database/          # Database models and repositories
-│   ├── i18n.py           # Internationalization utilities
-│   └── ...
-├── tests/                 # Test suite
-├── locales/               # Translation files
-├── scripts/               # Utility scripts
-├── docs/                  # Documentation
-└── requirements*.txt       # Dependencies
-```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+You can support this project at https://coff.ee/akhmelevskiy
