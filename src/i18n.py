@@ -67,9 +67,7 @@ def get_localized_language_name(
         return language_code or normalized_language
 
     # Try to get language name with fallbacks
-    name = _get_language_name_with_fallbacks(
-        normalized_language, normalized_display
-    )
+    name = _get_language_name_with_fallbacks(normalized_language, normalized_display)
 
     if isinstance(name, str) and name:
         return name[:1].upper() + name[1:]
