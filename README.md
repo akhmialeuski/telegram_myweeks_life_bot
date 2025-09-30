@@ -1,42 +1,62 @@
 # LifeWeeksBot
 
-Telegram bot that tracks and visualizes the number of weeks lived since birth.
+Telegram bot that tracks and visualizes the number of weeks lived since birth with multi-language support.
 
 ## Features
 
-- Track weeks lived since birth
-- Visualize life progress
-- Set birth date and preferences
-- Weekly notifications
-- Multi-user support
+- 📅 Track weeks lived since birth with detailed statistics
+- 📊 Visualize life progress as an interactive grid
+- 🌍 Multi-language support (Russian, English, Ukrainian, Belarusian)
+- ⚙️ Personal settings and preferences management
+- 📢 Weekly notification system with customizable schedule
+- 👥 Multi-user support with individual profiles
+- 🎨 Beautiful visualizations with matplotlib and Pillow
+- 🔒 Race condition prevention with proper locking mechanisms
+- 🏗️ Modern architecture with dependency injection
+
+## Requirements
+
+- Python 3.12 or higher
+- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
 
 ## Installation
 
-1. Clone the repository:
+### 1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd telegram_myweeks_life_bot
 ```
 
-2. Install dependencies:
+### 2. Set up virtual environment:
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-3. Set up environment variables:
+### 3. Install dependencies:
 ```bash
-cp .env.example .env
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # For development
+```
+
+### 4. Configure environment variables:
+```bash
+cp env.example .env
 # Edit .env with your configuration
 ```
 
-4. Set up the database:
+Required environment variables:
+- `TELEGRAM_BOT_TOKEN` - Your Telegram bot token from BotFather
+- `CHAT_ID` - Your Telegram user ID for notifications
+
+### 5. Set up the database:
 ```bash
 python scripts/setup_database.py
 ```
 
 ## Database Setup
 
-The project uses SQLAlchemy 2.0 with Alembic for database migrations.
+The project uses SQLAlchemy 2.0 with Alembic for database migrations and SQLite as the default database.
 
 ### Initial Setup
 
@@ -74,106 +94,83 @@ Database settings can be configured via environment variables:
 - `DATABASE_URL` - Full database URL (overrides default SQLite)
 - `DATABASE_PATH` - Path to SQLite database file (default: `lifeweeks.db`)
 
-## Usage
+## Development
 
-1. Start the bot:
+### Code Quality
+
+This project enforces high code quality standards with automated checks:
+
 ```bash
-python src/main.py
+# Fix code formatting and imports
+./scripts/fix_code_style.sh
+
+# Run tests with coverage
+pytest tests/ --cov=. --cov-report=html
+
+# Check code style manually
+black --check .
+isort --check-only .
+flake8 .
 ```
 
-2. In Telegram, send `/start` to begin using the bot
+### Translation Management
 
-## Commands
+For managing translations:
 
-- `/start` - Start the bot
-- `/weeks` - Show weeks lived
-- `/visualize` - Show life visualization
-- `/setbirthdate` - Set your birth date
+```bash
+# Extract messages for translation
+make extract
+
+# Update translation files
+make update
+
+# Compile translation files
+make compile
+```
+
+## Usage
+
+### Start the bot:
+```bash
+python main.py
+```
+
+### In Telegram, use these commands:
+
+- `/start` - Initialize the bot and register
+- `/weeks` - Show detailed weeks lived statistics
+- `/visualize` - Generate life progress visualization
+- `/settings` - Configure personal preferences and language
+- `/subscription` - Manage notification subscriptions
 - `/help` - Show help information
+- `/cancel` - Cancel current operation
 
 ## Architecture
 
-### Dependency Injection Container
-
-The project uses a Dependency Injection (DI) container to manage all application dependencies. This approach:
-
-- **Reduces coupling** between modules
-- **Simplifies testing** by allowing easy service substitution
-- **Centralizes dependency management** in one place
-- **Enables easy configuration changes** without modifying multiple files
-
-#### Key Components
-
-- **ServiceContainer** (`src/services/container.py`): Main container that creates and manages all services
-- **FakeServiceContainer** (`tests/utils/fake_container.py`): Mock container for testing
-- **Handler Dependencies**: All handlers receive services through their constructor
-
-#### Usage
-
-```python
-# Creating handlers with DI
-services = ServiceContainer()
-handler = StartHandler(services)
-
-# In tests
-fake_services = FakeServiceContainer()
-handler = StartHandler(fake_services)
-```
-
-#### Services Managed by Container
-
-- `user_service`: User management and database operations
-- `life_calculator`: Life statistics calculations
-- `localization_service`: Message localization and formatting
+- **Bot Framework**: python-telegram-bot 20.7
+- **Database**: SQLAlchemy 2.0 with SQLite
+- **Visualization**: matplotlib + Pillow
+- **Scheduling**: APScheduler for notifications
+- **Internationalization**: Custom i18n system with Babel support
+- **Testing**: pytest with async support and coverage reporting
+- **Code Quality**: black, isort, flake8 with pre-commit hooks
 
 ## Project Structure
 
 ```
-├── src/
-│   ├── services/           # Dependency injection container
-│   │   ├── container.py    # ServiceContainer implementation
-│   │   └── __init__.py
-│   ├── database/           # Database layer
-│   │   ├── models.py       # SQLAlchemy models
-│   │   ├── constants.py    # Database constants
-│   │   ├── abstract_repository.py  # Repository interface
-│   │   └── sqlite_repository.py    # SQLite implementation
-│   ├── visualization/      # Visualization module
-│   └── main.py            # Main application
-├── alembic/               # Database migrations
-│   ├── versions/          # Migration files
-│   ├── env.py            # Alembic environment
-│   └── script.py.mako    # Migration template
-├── scripts/              # Utility scripts
-│   └── setup_database.py # Database setup script
-├── requirements.txt      # Python dependencies
-├── alembic.ini          # Alembic configuration
-└── README.md           # This file
+telegram_myweeks_life_bot/
+├── src/                    # Main source code
+│   ├── bot/               # Telegram bot implementation
+│   ├── core/              # Core business logic
+│   ├── database/          # Database models and repositories
+│   ├── i18n.py           # Internationalization utilities
+│   └── ...
+├── tests/                 # Test suite
+├── locales/               # Translation files
+├── scripts/               # Utility scripts
+├── docs/                  # Documentation
+└── requirements*.txt       # Dependencies
 ```
-
-## Development
-
-### Adding New Migrations
-
-When you modify the database models:
-
-1. Update the models in `src/database/models.py`
-2. Generate a new migration:
-   ```bash
-   alembic revision --autogenerate -m "Add new feature"
-   ```
-3. Review the generated migration file
-4. Apply the migration:
-   ```bash
-   alembic upgrade head
-   ```
-
-### Database Schema
-
-The database contains two main tables:
-
-- `users` - User information (Telegram ID, username, etc.)
-- `user_settings` - User preferences and settings (birth date, notifications, etc.)
 
 ## License
 
