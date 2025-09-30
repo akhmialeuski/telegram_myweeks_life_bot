@@ -10,9 +10,9 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ...core.enums import WeekDay
-from ..constants import MAX_TIMEZONE_LENGTH, USER_SETTINGS_TABLE, USERS_TABLE
-from .base import Base
+from src.core.enums import WeekDay
+from src.database.constants import MAX_TIMEZONE_LENGTH, USER_SETTINGS_TABLE, USERS_TABLE
+from src.database.models.base import Base
 
 
 class UserSettings(Base):
@@ -23,7 +23,7 @@ class UserSettings(Base):
     :param notifications_day: Day of the week for notifications (enum WeekDay)
     :param life_expectancy: Expected life expectancy in years
     :param timezone: User's timezone (e.g., "Europe/Warsaw")
-    :param language: User's language preference (e.g., "ru", "en", "ua", "by")
+    :param language: User's language preference (use values from SupportedLanguage)
     :param notifications: Whether notifications are enabled
     :param notifications_time: Time of day for notifications
     :param updated_at: Last update timestamp

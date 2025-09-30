@@ -36,15 +36,6 @@ class AbstractUserRepository(AbstractBaseRepository):
         """
 
     @abstractmethod
-    def update_user(self, user: User) -> bool:
-        """Update existing user information.
-
-        :param user: User object with updated data
-        :returns: True if successful, False otherwise
-        :raises: DatabaseError if user not found or other database error
-        """
-
-    @abstractmethod
     def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
 

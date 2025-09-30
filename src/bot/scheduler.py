@@ -46,14 +46,16 @@ try:
 except ImportError:
     # Fallback for older versions of APScheduler
     from apscheduler.jobstores.base import JobLookupError
+
 from telegram import User
 from telegram.constants import ParseMode
 from telegram.ext import Application
 
 from ..constants import DEFAULT_USER_FIRST_NAME
 from ..core.enums import WeekDay
-from ..core.messages import generate_message_week
+from ..core.life_calculator import LifeCalculatorEngine
 from ..database.service import user_service
+from ..i18n import use_locale
 from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
 from ..utils.logger import get_logger
 
@@ -209,9 +211,32 @@ class NotificationScheduler:
                 ),
             )
 
-            # Generate the same message as /weeks command using core message functions
+            # Generate the same message as /weeks command using gettext
             # This ensures consistency between manual commands and scheduled notifications
-            message_text = generate_message_week(user_info=telegram_user)
+            _, _, pgettext = use_locale(telegram_user.language_code or DEFAULT_LANGUAGE)
+
+            calculator = LifeCalculatorEngine(user)
+            stats = calculator.calculate_life_statistics(user.birth_date)
+
+            message_text = pgettext(
+                "weeks.statistics",
+                "📊 Your Life Statistics:\n\n"
+                "🎂 Birth Date: %(birth_date)s\n"
+                "📅 Age: %(age)s years\n"
+                "📈 Life Expectancy: %(life_expectancy)s years\n"
+                "🟩 Lived Weeks: %(lived_weeks)s\n"
+                "⬜ Remaining Weeks: %(remaining_weeks)s\n"
+                "📊 Total Life Weeks: %(total_weeks)s\n"
+                "🎯 Progress: %(progress_percent)s%%",
+            ) % {
+                "birth_date": user.birth_date.strftime("%d.%m.%Y"),
+                "age": stats["age"],
+                "life_expectancy": stats["life_expectancy"],
+                "lived_weeks": stats["lived_weeks"],
+                "remaining_weeks": stats["remaining_weeks"],
+                "total_weeks": stats["total_weeks"],
+                "progress_percent": stats["progress_percent"],
+            }
 
             # Send message to user via Telegram Bot API
             await self.application.bot.send_message(
@@ -483,15 +508,6 @@ class NotificationScheduler:
         self.scheduler.shutdown()
         self._is_running = False
         logger.info("User notification scheduler stopped successfully")
-
-    @property
-    def is_running(self) -> bool:
-        """Check if the scheduler is currently running.
-
-        :returns: True if scheduler is running, False otherwise
-        :rtype: bool
-        """
-        return self._is_running
 
 
 # Backward compatibility functions for existing code

@@ -21,7 +21,7 @@ from telegram import CallbackQuery, InlineKeyboardMarkup, Update, User
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ...core.messages import get_user_language
+from ...i18n import use_locale
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -98,7 +98,18 @@ class BaseHandler(ABC):
         """
         if self._should_require_registration():
             return self.require_registration()(handler_method)
-        return handler_method
+
+        # For commands not requiring registration (e.g., /help, /start), still
+        # ensure MessageContext is available during execution.
+        from ...core.message_context import use_message_context
+
+        @wraps(handler_method)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
+            cmd_context = self._extract_command_context(update)
+            with use_message_context(user_info=cmd_context.user, fetch_profile=False):
+                return await handler_method(update, context)
+
+        return wrapper
 
     def _extract_command_context(self, update: Update) -> CommandContext:
         """Extract common context information from an update.
@@ -114,10 +125,17 @@ class BaseHandler(ABC):
         # Get user profile from database
         user_profile = self.services.user_service.get_user_profile(user_id)
 
+        # Get language from user profile or Telegram language code
+        lang = (
+            user_profile.settings.language
+            if user_profile and user_profile.settings and user_profile.settings.language
+            else (user.language_code or "en")
+        )
+
         return CommandContext(
             user=user,
             user_id=user_id,
-            language=get_user_language(user),
+            language=lang,
             user_profile=user_profile,
             command_name=None,
         )
@@ -161,17 +179,23 @@ class BaseHandler(ABC):
                 try:
                     # Validate that user has completed registration with birth date
                     if not self.services.user_service.is_valid_user_profile(user_id):
+                        # Use gettext for localization
+                        _, _, pgettext = use_locale(user_lang)
                         await update.message.reply_text(
-                            self.services.get_message(
-                                message_key="common",
-                                sub_key="not_registered",
-                                language=user_lang,
+                            pgettext(
+                                "common.not_registered",
+                                "You are not registered. Use /start to register.",
                             )
                         )
                         return None
 
-                    # Execute the original command handler
-                    return await func(update, context)
+                    # Execute the original command handler under MessageContext
+                    from ...core.message_context import use_message_context
+
+                    with use_message_context(
+                        user_info=cmd_context.user, fetch_profile=True
+                    ):
+                        return await func(update, context)
 
                 except Exception as error:  # pylint: disable=broad-exception-caught
                     # Handle error through the centralized error handler
@@ -250,7 +274,7 @@ class BaseHandler(ABC):
         :returns: None
         """
         logger.error(
-            f"/{self.command_name}: [{cmd_context.user_id}]: Error occurred: {error_message}"
+            f"{self.command_name}: [{cmd_context.user_id}]: Error occurred: {error_message}"
         )
 
         # Send user-friendly error message

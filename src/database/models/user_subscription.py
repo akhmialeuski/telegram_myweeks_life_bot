@@ -14,7 +14,6 @@ from ...core.enums import SubscriptionType
 from ..constants import USER_SUBSCRIPTIONS_TABLE, USERS_TABLE
 from .base import Base
 
-DEFAULT_SUBSCRIPTION_TYPE = SubscriptionType.BASIC
 # Default subscription expiration days for free users is 100 years
 DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS = 36500
 
@@ -49,38 +48,3 @@ class UserSubscription(Base):
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="subscription")
-
-
-def create_user_subscription(
-    telegram_id: int,
-    subscription_type: SubscriptionType = DEFAULT_SUBSCRIPTION_TYPE,
-    is_active: bool = True,
-    expires_at: Optional[datetime] = None,
-) -> UserSubscription:
-    """Create a new user subscription.
-
-    :param telegram_id: Telegram user ID
-    :param subscription_type: Type of subscription (defaults to BASIC)
-    :param is_active: Whether the subscription is active (defaults to True)
-    :param expires_at: Subscription expiration date (optional)
-    :returns: New UserSubscription instance
-    :raises ValueError: If telegram_id is invalid or subscription_type is invalid
-    """
-    if not isinstance(telegram_id, int) or telegram_id <= 0:
-        raise ValueError("telegram_id must be a positive integer")
-
-    if not SubscriptionType.is_valid(subscription_type):
-        raise ValueError(f"Invalid subscription_type: {subscription_type}")
-
-    # Set default expiration for basic subscriptions if not specified
-    if expires_at is None and subscription_type == SubscriptionType.BASIC:
-        expires_at = datetime.now(UTC).replace(
-            year=datetime.now(UTC).year + (DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS // 365)
-        )
-
-    return UserSubscription(
-        telegram_id=telegram_id,
-        subscription_type=subscription_type,
-        is_active=is_active,
-        expires_at=expires_at,
-    )

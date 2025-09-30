@@ -178,3 +178,255 @@ class TestBaseSchema:
         assert schema.model_config["from_attributes"] is True
         assert schema.model_config["validate_assignment"] is True
         assert schema.model_config["extra"] == "forbid"
+
+    def test_serialize_model_with_datetime_conversion(self):
+        """Test serialize_model properly converts datetime objects to ISO format.
+
+        :returns: None
+        """
+
+        # Create a test schema with datetime field
+        class TestSchema(BaseSchema):
+            name: str
+            created_at: datetime
+            updated_at: datetime
+
+        # Create test instance
+        now = datetime.now()
+        schema = TestSchema(name="test", created_at=now, updated_at=now)
+
+        # Test serialization with datetime conversion
+        result = schema.serialize_model(
+            serializer=lambda x: {
+                "name": x.name,
+                "created_at": x.created_at,
+                "updated_at": x.updated_at,
+            },
+            info=None,
+        )
+
+        # Verify datetime conversion
+        assert result["name"] == "test"
+        assert result["created_at"] == now.isoformat()
+        assert result["updated_at"] == now.isoformat()
+
+    def test_serialize_model_without_datetime(self):
+        """Test serialize_model with data that doesn't contain datetime objects.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            value: int
+
+        schema = TestSchema(name="test", value=42)
+
+        # Test serialization without datetime
+        result = schema.serialize_model(
+            serializer=lambda x: {"name": x.name, "value": x.value}, info=None
+        )
+
+        # Verify no datetime conversion occurred
+        assert result["name"] == "test"
+        assert result["value"] == 42
+
+    def test_serialize_model_with_mixed_data_types(self):
+        """Test serialize_model with mixed data types including datetime.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            created_at: datetime
+            value: int
+
+        now = datetime.now()
+        schema = TestSchema(name="test", created_at=now, value=42)
+
+        # Test serialization with mixed types
+        result = schema.serialize_model(
+            serializer=lambda x: {
+                "name": x.name,
+                "created_at": x.created_at,
+                "value": x.value,
+            },
+            info=None,
+        )
+
+        # Verify mixed data types
+        assert result["name"] == "test"
+        assert result["created_at"] == now.isoformat()
+        assert result["value"] == 42
+
+    def test_serialize_model_with_none_values(self):
+        """Test serialize_model with None values.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            optional_field: str | None = None
+
+        schema = TestSchema(name="test")
+
+        # Test serialization with None values
+        result = schema.serialize_model(
+            serializer=lambda x: {"name": x.name, "optional_field": x.optional_field},
+            info=None,
+        )
+
+        # Verify None values are preserved
+        assert result["name"] == "test"
+        assert result["optional_field"] is None
+
+    def test_serialize_model_with_nested_datetime(self):
+        """Test serialize_model with nested datetime objects.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            metadata: dict
+
+        now = datetime.now()
+        schema = TestSchema(
+            name="test",
+            metadata={"created_at": now, "updated_at": now, "info": "test info"},
+        )
+
+        # Test serialization with nested datetime
+        result = schema.serialize_model(
+            serializer=lambda x: {"name": x.name, "metadata": x.metadata}, info=None
+        )
+
+        # Verify nested datetime conversion
+        assert result["name"] == "test"
+        assert result["metadata"]["created_at"] == now
+        assert result["metadata"]["updated_at"] == now
+        assert result["metadata"]["info"] == "test info"
+
+    def test_serialize_model_with_empty_dict(self):
+        """Test serialize_model with empty dictionary result.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+
+        schema = TestSchema(name="test")
+
+        # Test serialization with empty dict
+        result = schema.serialize_model(serializer=lambda x: {}, info=None)
+
+        # Verify empty dict is returned
+        assert result == {}
+
+    def test_serialize_model_with_non_dict_result(self):
+        """Test serialize_model with non-dictionary result.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+
+        schema = TestSchema(name="test")
+
+        # Test serialization with non-dict result
+        result = schema.serialize_model(serializer=lambda x: "string result", info=None)
+
+        # Verify non-dict result is returned as-is
+        assert result == "string result"
+
+    def test_serialize_model_with_complex_serializer(self):
+        """Test serialize_model with complex serializer function.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            created_at: datetime
+
+        now = datetime.now()
+        schema = TestSchema(name="test", created_at=now)
+
+        # Test serialization with complex serializer
+        result = schema.serialize_model(
+            serializer=lambda x: {
+                "data": {"user": {"name": x.name, "created_at": x.created_at}},
+                "metadata": {"timestamp": now},
+            },
+            info=None,
+        )
+
+        # Verify structure is preserved and datetimes converted
+        assert result["data"]["user"]["name"] == "test"
+        assert result["data"]["user"]["created_at"] == now
+        assert result["metadata"]["timestamp"] == now
+
+    def test_serialize_model_with_info_parameter(self):
+        """Test serialize_model with info parameter.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            created_at: datetime
+
+        # Create test instance
+        now = datetime.now()
+        schema = TestSchema(name="test", created_at=now)
+
+        # Mock info parameter
+        from unittest.mock import Mock
+
+        mock_info = Mock()
+        mock_info.mode = "json"
+
+        # Test serialization with info parameter
+        result = schema.serialize_model(
+            serializer=lambda x: {"name": x.name, "created_at": x.created_at},
+            info=mock_info,
+        )
+
+        # Verify info parameter is handled
+        assert result["name"] == "test"
+        assert result["created_at"] == now.isoformat()
+
+    def test_base_schema_configuration(self):
+        """Test BaseSchema configuration settings.
+
+        :returns: None
+        """
+        # Test configuration is properly set
+        config = BaseSchema.model_config
+
+        assert config["from_attributes"] is True
+        assert config["validate_assignment"] is True
+        assert config["extra"] == "forbid"
+
+    def test_base_schema_validation(self):
+        """Test BaseSchema validation behavior.
+
+        :returns: None
+        """
+
+        class TestSchema(BaseSchema):
+            name: str
+            value: int
+
+        # Test valid data
+        schema = TestSchema(name="test", value=42)
+        assert schema.name == "test"
+        assert schema.value == 42
+
+        # Test validation error
+        with pytest.raises(ValidationError):
+            TestSchema(name="test", value="invalid")

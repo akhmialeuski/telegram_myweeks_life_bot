@@ -4,6 +4,7 @@ This module provides high-level business logic for database operations,
 working with models and repositories to handle complex operations.
 """
 
+import threading
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Optional
 
@@ -30,6 +31,49 @@ from .repositories.sqlite.user_subscription_repository import (
 )
 
 logger = get_logger(f"{BOT_NAME}.DatabaseService")
+
+
+class DatabaseManager:
+    """Manager for database repositories (repositories are already singletons)."""
+
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        # Prevent re-initialization in singleton
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+        self.user_repository = SQLiteUserRepository()
+        self.settings_repository = SQLiteUserSettingsRepository()
+        self.subscription_repository = SQLiteUserSubscriptionRepository()
+
+        # Initialize all repositories (they are singletons, so this only happens once)
+        self.user_repository.initialize()
+        self.settings_repository.initialize()
+        self.subscription_repository.initialize()
+
+        # Mark as initialized to prevent re-initialization on subsequent __init__ calls
+        self._initialized = True
+
+    def close(self):
+        """Close all database connections."""
+        self.user_repository.close()
+        self.settings_repository.close()
+        self.subscription_repository.close()
+
+    @classmethod
+    def reset_instance(cls):
+        """Reset repository instances (for testing)."""
+        SQLiteUserRepository.reset_instances()
+        SQLiteUserSettingsRepository.reset_instances()
+        SQLiteUserSubscriptionRepository.reset_instances()
 
 
 class UserServiceError(Exception):
@@ -127,23 +171,23 @@ class UserService:
         :param settings_repository: User settings repository instance
         :param subscription_repository: User subscription repository instance
         """
-        self.user_repository = user_repository or SQLiteUserRepository()
-        self.settings_repository = settings_repository or SQLiteUserSettingsRepository()
+        # Use DatabaseManager to get singleton repositories
+        db_manager = DatabaseManager()
+        self.user_repository = user_repository or db_manager.user_repository
+        self.settings_repository = settings_repository or db_manager.settings_repository
         self.subscription_repository = (
-            subscription_repository or SQLiteUserSubscriptionRepository()
+            subscription_repository or db_manager.subscription_repository
         )
 
     def initialize(self) -> None:
         """Initialize database connections."""
-        self.user_repository.initialize()
-        self.settings_repository.initialize()
-        self.subscription_repository.initialize()
+        # DatabaseManager already initializes repositories
+        pass
 
     def close(self) -> None:
         """Close database connections."""
-        self.user_repository.close()
-        self.settings_repository.close()
-        self.subscription_repository.close()
+        # DatabaseManager handles closing
+        pass
 
     def create_user_profile(
         self,
@@ -235,7 +279,7 @@ class UserService:
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Telegram user ID
-        :returns: User object with settings and subscription if found, None otherwise
+        :returns: User object with complete settings and subscription if found, None if user, settings, or subscription are missing
         """
         try:
             user = self.user_repository.get_user(telegram_id)
@@ -243,16 +287,7 @@ class UserService:
                 logger.warning(f"User {telegram_id} not found")
                 return None
 
-            settings = self.settings_repository.get_user_settings(telegram_id)
-            if not settings:
-                logger.warning(f"Settings not found for user {telegram_id}")
-                return None
-
-            subscription = self.subscription_repository.get_subscription(telegram_id)
-            if not subscription:
-                logger.warning(f"Subscription not found for user {telegram_id}")
-                return None
-
+            # Create user object
             new_user = User(
                 telegram_id=user.telegram_id,
                 username=user.username,
@@ -260,26 +295,38 @@ class UserService:
                 last_name=user.last_name,
                 created_at=user.created_at,
             )
-            new_user.settings = settings
-            new_user.subscription = subscription
+
+            # Try to get settings (required for complete profile)
+            try:
+                settings = self.settings_repository.get_user_settings(telegram_id)
+                if settings is None:
+                    logger.warning(f"Settings not found for user {telegram_id}")
+                    return None
+                new_user.settings = settings
+            except Exception as e:
+                logger.warning(f"Failed to get settings for user {telegram_id}: {e}")
+                return None
+
+            # Try to get subscription (required for complete profile)
+            try:
+                subscription = self.subscription_repository.get_subscription(
+                    telegram_id
+                )
+                if subscription is None:
+                    logger.warning(f"Subscription not found for user {telegram_id}")
+                    return None
+                new_user.subscription = subscription
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get subscription for user {telegram_id}: {e}"
+                )
+                return None
+
             return new_user
 
         except Exception as e:
             logger.error(f"Error getting user profile for {telegram_id}: {e}")
             return None
-
-    def user_exists(self, telegram_id: int) -> bool:
-        """Check if user exists.
-
-        :param telegram_id: Telegram user ID
-        :returns: True if user exists, False otherwise
-        """
-        try:
-            user = self.get_user_profile(telegram_id)
-            return user is not None and user.settings is not None
-        except Exception as e:
-            logger.error(f"Error checking user existence for {telegram_id}: {e}")
-            return False
 
     def is_valid_user_profile(self, telegram_id: int) -> bool:
         """Check if user has a valid profile with birth date.

@@ -8,7 +8,6 @@ The bot application is responsible for:
     - Starting the bot in polling mode
 """
 
-from ..database.service import user_service
 from .application import LifeWeeksBot
 from .handlers import (
     BaseHandler,
@@ -18,8 +17,14 @@ from .handlers import (
     WeeksHandler,
 )
 
-# Initialize database
-user_service.initialize()
+# Initialize database service if available
+try:
+    from ..database.service import user_service
+
+    user_service.initialize()
+except ImportError:
+    # During testing or when database service is not available
+    user_service = None
 
 __all__ = [
     "LifeWeeksBot",

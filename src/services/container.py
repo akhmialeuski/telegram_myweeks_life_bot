@@ -5,11 +5,10 @@ dependencies, including database services, schedulers, and utilities.
 It implements the Dependency Injection pattern to reduce coupling between
 modules and simplify testing.
 """
-from ..bot.scheduler import NotificationScheduler
+import threading
+
 from ..core.life_calculator import LifeCalculatorEngine
-from ..database.service import UserService
-from ..utils.config import DEFAULT_LANGUAGE
-from ..utils.localization import get_message, get_supported_languages
+from ..database.service import DatabaseManager, UserService
 
 
 class ServiceContainer:
@@ -23,10 +22,29 @@ class ServiceContainer:
     Attributes:
         config: Application configuration object
         user_service: User management service
-        notification_scheduler: Weekly notification scheduler
         life_calculator: Life statistics calculator
         localization_service: Message localization service
     """
+
+    _instance = None
+    _initialized = False
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        """Create singleton instance of ServiceContainer.
+
+        :returns: ServiceContainer instance
+        :rtype: ServiceContainer
+        """
+        # Double-checked locking to ensure thread-safe singleton
+        instance = cls._instance
+        if instance is None:
+            with cls._lock:
+                instance = cls._instance
+                if instance is None:
+                    instance = super().__new__(cls)
+                    cls._instance = instance
+        return instance
 
     def __init__(self) -> None:
         """Initialize the service container with all dependencies.
@@ -37,6 +55,9 @@ class ServiceContainer:
 
         :returns: None
         """
+        if self._initialized:
+            return
+
         # Initialize database services
         self.user_service = UserService()
 
@@ -45,6 +66,8 @@ class ServiceContainer:
 
         # Initialize services that depend on other services
         self._initialize_service_dependencies()
+
+        self._initialized = True
 
     def _initialize_service_dependencies(self) -> None:
         """Initialize services that depend on other services.
@@ -66,14 +89,6 @@ class ServiceContainer:
         """
         return self.user_service
 
-    def get_notification_scheduler(self) -> NotificationScheduler:
-        """Get the notification scheduler instance.
-
-        :returns: Notification scheduler instance
-        :rtype: NotificationScheduler
-        """
-        return self.notification_scheduler
-
     def get_life_calculator(self) -> type[LifeCalculatorEngine]:
         """Get the life calculator class.
 
@@ -82,43 +97,25 @@ class ServiceContainer:
         """
         return self.life_calculator
 
-    def get_message(
-        self, message_key: str, sub_key: str, language: str = DEFAULT_LANGUAGE, **kwargs
-    ) -> str:
-        """Get localized message.
-
-        :param message_key: Message key
-        :type message_key: str
-        :param sub_key: Sub key
-        :type sub_key: str
-        :param language: Language code
-        :type language: str
-        :param kwargs: Additional parameters for message formatting
-        :returns: Localized message
-        :rtype: str
-        """
-        return get_message(
-            message_key=message_key, sub_key=sub_key, language=language, **kwargs
-        )
-
-    def get_supported_languages(self) -> list[str]:
-        """Get list of supported languages.
-
-        :returns: List of supported language codes
-        :rtype: list[str]
-        """
-        return get_supported_languages()
-
     def cleanup(self) -> None:
-        """Clean up resources and close connections.
+        """Cleanup resources and close connections.
 
         This method should be called when shutting down the application
-        to properly close database connections and other resources.
+        to properly close database connections and cleanup resources.
 
         :returns: None
         """
-        if hasattr(self.user_service, "close"):
-            self.user_service.close()
+        DatabaseManager().close()
 
-        # Note: NotificationScheduler is initialized separately in application.py
-        # as it requires the Application instance
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Reset the singleton instance (mainly for testing).
+
+        :returns: None
+        """
+        with cls._lock:
+            if cls._instance:
+                cls._instance.cleanup()
+            cls._instance = None
+            cls._initialized = False
+            DatabaseManager.reset_instance()

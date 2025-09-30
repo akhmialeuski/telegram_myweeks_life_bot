@@ -15,10 +15,8 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from ...core.messages import (
-    generate_message_cancel_error,
-    generate_message_cancel_success,
-)
+from src.i18n import use_locale
+
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -117,9 +115,17 @@ class CancelHandler(BaseHandler):
         cmd_context = self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
-        user_lang = cmd_context.language
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling command")
+
+        # Resolve language from DB profile or Telegram fallback
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
 
         try:
             # First remove user from notification scheduler
@@ -146,19 +152,23 @@ class CancelHandler(BaseHandler):
             # Send success confirmation message
             await self.send_message(
                 update=update,
-                message_text=generate_message_cancel_success(
-                    user_info=user, language=user_lang
-                ),
+                message_text=pgettext(
+                    "cancel.success",
+                    "✅ %(first_name)s, all your data has been successfully deleted.\n"
+                    "Use /start for re-registration.",
+                )
+                % {"first_name": user.first_name},
             )
 
-        except Exception as error:
+        except Exception:
             # Handle all errors with a single error message
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=generate_message_cancel_error(
-                    user_info=user,
-                    error_message=str(error),
+                error_message=pgettext(
+                    "cancel.error",
+                    "❌ An error occurred while deleting your data.\n"
+                    "Please try again or contact the administrator.",
                 ),
             )
 

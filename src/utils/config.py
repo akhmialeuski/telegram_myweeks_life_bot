@@ -4,6 +4,9 @@ import os
 
 from dotenv import load_dotenv
 
+# Use enum values for language constants
+from ..core.enums import SupportedLanguage
+
 # Load environment variables
 load_dotenv()
 
@@ -15,7 +18,7 @@ CHAT_ID: str = os.getenv("CHAT_ID")  # User's Telegram ID
 BOT_NAME: str = "LifeWeeksBot"
 
 # Localization
-DEFAULT_LANGUAGE: str = "ru"
+DEFAULT_LANGUAGE: str = SupportedLanguage.RU.value
 
 # Visualization Constants
 CELL_SIZE = 10

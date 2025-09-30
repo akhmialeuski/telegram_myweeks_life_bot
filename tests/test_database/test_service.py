@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from src.core.enums import SubscriptionType
+from src.core.enums import SubscriptionType, SupportedLanguage
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
@@ -33,7 +33,6 @@ from src.database.service import (
     UserSettingsUpdateError,
     UserSubscriptionUpdateError,
 )
-from src.utils.localization import SupportedLanguage
 
 
 class TestUserServiceExceptions:
@@ -229,7 +228,10 @@ class TestUserService:
         mock_settings_repository,
         mock_subscription_repository,
     ):
-        """Test service initialization.
+        """Test service initialization no-op behavior.
+
+        Current implementation initializes repositories in DatabaseManager
+        during UserService construction; initialize() is a no-op.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
@@ -238,9 +240,10 @@ class TestUserService:
         :returns: None
         """
         user_service.initialize()
-        mock_user_repository.initialize.assert_called_once()
-        mock_settings_repository.initialize.assert_called_once()
-        mock_subscription_repository.initialize.assert_called_once()
+        # initialize() should not call repository initialize methods
+        mock_user_repository.initialize.assert_not_called()
+        mock_settings_repository.initialize.assert_not_called()
+        mock_subscription_repository.initialize.assert_not_called()
 
     def test_close(
         self,
@@ -249,7 +252,9 @@ class TestUserService:
         mock_settings_repository,
         mock_subscription_repository,
     ):
-        """Test service closure.
+        """Test service close no-op behavior.
+
+        Current implementation closes repositories via DatabaseManager; close() is a no-op.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
@@ -258,9 +263,10 @@ class TestUserService:
         :returns: None
         """
         user_service.close()
-        mock_user_repository.close.assert_called_once()
-        mock_settings_repository.close.assert_called_once()
-        mock_subscription_repository.close.assert_called_once()
+        # close() should not call repository close methods
+        mock_user_repository.close.assert_not_called()
+        mock_settings_repository.close.assert_not_called()
+        mock_subscription_repository.close.assert_not_called()
 
     def test_create_user_profile_success(
         self,
@@ -549,7 +555,7 @@ class TestUserService:
         mock_settings_repository.get_user_settings.return_value = None
 
         result = user_service.get_user_profile(123456789)
-
+        # Service returns None if settings are missing
         assert result is None
 
     def test_get_user_profile_subscription_not_found(
@@ -576,7 +582,7 @@ class TestUserService:
         mock_subscription_repository.get_subscription.return_value = None
 
         result = user_service.get_user_profile(123456789)
-
+        # Service returns None if subscription is missing
         assert result is None
 
     def test_get_user_profile_exception(self, user_service, mock_user_repository):
@@ -591,58 +597,6 @@ class TestUserService:
         result = user_service.get_user_profile(123456789)
 
         assert result is None
-
-    def test_user_exists_true(self, user_service, sample_user):
-        """Test user_exists returns True when user exists.
-
-        :param user_service: UserService instance
-        :param sample_user: Sample user object
-        :returns: None
-        """
-        sample_user.settings = UserSettings(telegram_id=123456789)
-        user_service.get_user_profile = Mock(return_value=sample_user)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is True
-
-    def test_user_exists_false_no_user(self, user_service):
-        """Test user_exists returns False when user doesn't exist.
-
-        :param user_service: UserService instance
-        :returns: None
-        """
-        user_service.get_user_profile = Mock(return_value=None)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
-
-    def test_user_exists_false_no_settings(self, user_service, sample_user):
-        """Test user_exists returns False when user has no settings.
-
-        :param user_service: UserService instance
-        :param sample_user: Sample user object
-        :returns: None
-        """
-        sample_user.settings = None
-        user_service.get_user_profile = Mock(return_value=sample_user)
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
-
-    def test_user_exists_exception(self, user_service):
-        """Test user_exists with exception.
-
-        :param user_service: UserService instance
-        :returns: None
-        """
-        user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
-
-        result = user_service.user_exists(123456789)
-
-        assert result is False
 
     def test_is_valid_user_profile_true(
         self, user_service, mock_settings_repository, sample_settings
@@ -1125,7 +1079,7 @@ class TestUserServiceUpdateSettings:
         # Verify no fields were changed
         assert settings.birth_date == date(1990, 1, 1)
         assert settings.life_expectancy == 75
-        assert settings.language == "en"
+        assert settings.language == SupportedLanguage.EN.value
         user_service.settings_repository.update_user_settings.assert_called_once_with(
             settings
         )

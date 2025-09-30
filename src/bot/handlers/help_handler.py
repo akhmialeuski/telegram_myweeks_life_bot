@@ -16,7 +16,8 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ...core.messages import generate_message_help
+from src.i18n import use_locale
+
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -77,8 +78,34 @@ class HelpHandler(BaseHandler):
 
         logger.info(f"{self.command_name}: [{cmd_context.user_id}]: Handling command")
 
-        # Generate and send help message
+        # Resolve language from DB profile or Telegram fallback
+        profile = self.services.user_service.get_user_profile(
+            telegram_id=cmd_context.user_id
+        )
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (cmd_context.user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
         await self.send_message(
             update=update,
-            message_text=generate_message_help(user_info=cmd_context.user),
+            message_text=pgettext(
+                "help.text",
+                "🤖 LifeWeeksBot - Helps you track the weeks of your life\n\n"
+                "📋 Available commands:\n"
+                "• /start - Registration and settings\n"
+                "• /weeks - Show life weeks\n"
+                "• /visualize - Visualize life weeks\n"
+                "• /settings - Settings\n"
+                "• /subscription - Subscription\n"
+                "• /help - This help\n\n"
+                "💡 Fun facts:\n"
+                "• There are 52 weeks in a year\n"
+                "• Average life expectancy: 80 years\n"
+                "• That's about 4,160 weeks\n\n"
+                "🎯 The goal of the bot is to help you realize the value of time!",
+            ),
         )
+        return None

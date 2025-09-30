@@ -38,30 +38,26 @@ class TestSendWeeklyMessageToUser:
         mock_app: MagicMock,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
-        mock_generate_message: MagicMock,
     ) -> None:
-        """Verify that a weekly message is generated and sent if the user profile is found.
-
-        :param mock_app: Mocked Application instance
-        :type mock_app: MagicMock
-        :param mock_user_with_settings: Mocked user object
-        :type mock_user_with_settings: MagicMock
-        :param mock_user_service: Mocked user_service
-        :type mock_user_service: MagicMock
-        :param mock_generate_message: Mocked generate_message_week function
-        :type mock_generate_message: MagicMock
-        """
+        """Verify that a weekly message is generated and sent if the user profile is found."""
         mock_user_service.get_user_profile.return_value = mock_user_with_settings
         notification_scheduler = NotificationScheduler(mock_app)
 
-        await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
+        with patch("src.bot.scheduler.use_locale") as mock_use_locale, patch(
+            "src.bot.scheduler.LifeCalculatorEngine"
+        ) as mock_life_calculator:
+            mock_pgettext = MagicMock(return_value=TEST_MESSAGE)
+            mock_use_locale.return_value = (None, None, mock_pgettext)
+            mock_life_calculator.return_value = MagicMock()
 
-        mock_app.bot.send_message.assert_called_once_with(
-            chat_id=TEST_USER_ID,
-            text=TEST_MESSAGE,
-            parse_mode=ParseMode.HTML,
-        )
-        mock_generate_message.assert_called_once()
+            await notification_scheduler.send_weekly_message_to_user(TEST_USER_ID)
+
+            mock_app.bot.send_message.assert_called_once_with(
+                chat_id=TEST_USER_ID,
+                text=TEST_MESSAGE,
+                parse_mode=ParseMode.HTML,
+            )
+            mock_pgettext.assert_called()
 
     @pytest.mark.asyncio
     async def test_logs_warning_if_user_not_found(

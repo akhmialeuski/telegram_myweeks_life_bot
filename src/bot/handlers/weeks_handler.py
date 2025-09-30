@@ -14,10 +14,12 @@ The statistics include:
 
 from typing import Optional
 
+from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ...core.messages import generate_message_week
+from src.i18n import normalize_babel_locale, use_locale
+
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -101,9 +103,53 @@ class WeeksHandler(BaseHandler):
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
+        # Resolve language via DB profile or Telegram fallback
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
+        # Compute statistics
+        calc_engine = self.services.get_life_calculator()(user=profile)
+        stats = calc_engine.get_life_statistics()
+
+        message_text = pgettext(
+            "weeks.statistics",
+            "📊 <b>Your life statistics:</b>\n\n"
+            "🎂 <b>Age:</b> %(age)s years\n"
+            "📅 <b>Weeks lived:</b> %(weeks_lived)s\n"
+            "⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n"
+            "📈 <b>Life progress:</b> %(life_percentage)s\n"
+            "🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n"
+            "💡 Use /visualize to visualize your life weeks",
+        ) % {
+            "age": format_decimal(stats["age"], locale=normalize_babel_locale(lang)),
+            "weeks_lived": format_decimal(
+                stats["weeks_lived"],
+                locale=normalize_babel_locale(lang),
+                format="#,##0",
+            ),
+            "remaining_weeks": format_decimal(
+                stats["remaining_weeks"],
+                locale=normalize_babel_locale(lang),
+                format="#,##0",
+            ),
+            "life_percentage": format_percent(
+                stats["life_percentage"],
+                locale=normalize_babel_locale(lang),
+                format="#0.1%",
+            ),
+            "days_until_birthday": format_decimal(
+                stats["days_until_birthday"], locale=normalize_babel_locale(lang)
+            ),
+        }
+
         # Generate and send life statistics message
         await self.send_message(
             update=update,
-            message_text=generate_message_week(user_info=user),
+            message_text=message_text,
         )
         return None

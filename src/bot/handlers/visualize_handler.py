@@ -13,11 +13,13 @@ The visualization includes:
 
 from typing import Optional
 
+from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ...core.messages import generate_message_visualize
+from src.i18n import normalize_babel_locale, use_locale
+
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -107,10 +109,45 @@ class VisualizeHandler(BaseHandler):
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
+        # Resolve language via DB profile or Telegram fallback
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
+        # Compute statistics for caption
+        calc_engine = self.services.get_life_calculator()(user=profile)
+        stats = calc_engine.get_life_statistics()
+
+        caption = pgettext(
+            "visualize.info",
+            "📊 <b>Visualization of your life weeks</b>\n\n"
+            "🎂 Age: %(age)s years\n"
+            "📅 Weeks lived: %(weeks_lived)s\n"
+            "📈 Life progress: %(life_percentage)s\n\n"
+            "🟩 Green cells = weeks lived\n"
+            "⬜ White cells = future weeks",
+        ) % {
+            "age": format_decimal(stats["age"], locale=normalize_babel_locale(lang)),
+            "weeks_lived": format_decimal(
+                stats["weeks_lived"],
+                locale=normalize_babel_locale(lang),
+                format="#,##0",
+            ),
+            "life_percentage": format_percent(
+                stats["life_percentage"],
+                locale=normalize_babel_locale(lang),
+                format="#0.1%",
+            ),
+        }
+
         # Generate and send visual representation with caption
         await update.message.reply_photo(
             photo=generate_visualization(user_info=user),
-            caption=generate_message_visualize(user_info=user),
+            caption=caption,
             parse_mode=ParseMode.HTML,
         )
         return None

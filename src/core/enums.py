@@ -30,15 +30,6 @@ class SubscriptionType(StrEnum):
     TRIAL = auto()
 
     @classmethod
-    def get_choices(cls) -> list[tuple[str, str]]:
-        """Get subscription type choices as list of tuples.
-
-        :returns: List of tuples with (value, display_name) for each subscription type
-        :rtype: list[tuple[str, str]]
-        """
-        return [(member.value, member.value.capitalize()) for member in cls]
-
-    @classmethod
     def is_valid(cls, value: Any) -> bool:
         """Check if a value is a valid subscription type.
 
@@ -58,3 +49,12 @@ class SubscriptionType(StrEnum):
             return True
         except ValueError:
             return False
+
+
+class SupportedLanguage(StrEnum):
+    """Supported language enumeration."""
+
+    RU = "ru"
+    EN = "en"
+    UA = "ua"
+    BY = "by"
