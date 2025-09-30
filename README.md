@@ -10,9 +10,7 @@ Telegram bot that tracks and visualizes the number of weeks lived since birth wi
 - ⚙️ Personal settings and preferences management
 - 📢 Weekly notification system with customizable schedule
 - 👥 Multi-user support with individual profiles
-- 🎨 Beautiful visualizations with matplotlib and Pillow
-- 🔒 Race condition prevention with proper locking mechanisms
-- 🏗️ Modern architecture with dependency injection
+
 
 ## Requirements
 
