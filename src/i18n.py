@@ -28,7 +28,7 @@ def get_translator(lang: str):
 
 def use_locale(lang: str):
     translator = get_translator(lang)
-    translator.install()  # устанавливает `_`, `ngettext`, `pgettext` в builtins
+    translator.install()  # installs `_`, `ngettext`, `pgettext` into builtins
     return translator.gettext, translator.ngettext, translator.pgettext
 
 
