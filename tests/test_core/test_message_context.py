@@ -17,21 +17,38 @@ class TestMessageContext:
     including context creation, language resolution, and profile management.
     """
 
-    def setup_method(self):
-        """Set up test fixtures before each test method."""
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method.
+
+        Resets the global message context before each test to ensure
+        test isolation and prevent context leakage between tests.
+
+        :returns: None
+        :rtype: None
+        """
         # Reset context before each test
         _CURRENT_CTX.set(None)
 
-    def teardown_method(self):
-        """Clean up after each test method."""
+    def teardown_method(self) -> None:
+        """Clean up after each test method.
+
+        Resets the global message context after each test to ensure
+        clean state for subsequent tests.
+
+        :returns: None
+        :rtype: None
+        """
         # Reset context after each test
         _CURRENT_CTX.set(None)
 
-    def test_message_context_creation(self):
+    def test_message_context_creation(self) -> None:
         """Test MessageContext creation with all fields.
 
         This test verifies that MessageContext can be created with all
         required fields and stores them correctly.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -55,11 +72,14 @@ class TestMessageContext:
         assert context.user_profile == user_profile
         assert context.language == "en"
 
-    def test_message_context_without_profile(self):
+    def test_message_context_without_profile(self) -> None:
         """Test MessageContext creation without user profile.
 
         This test verifies that MessageContext can be created with None
         user_profile and handles it correctly.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -81,11 +101,16 @@ class TestMessageContext:
         assert context.language == "ru"
 
     @patch("src.services.container.ServiceContainer")
-    def test_from_user_with_fetch_profile_true(self, mock_container_class):
+    def test_from_user_with_fetch_profile_true(self, mock_container_class) -> None:
         """Test MessageContext.from_user with fetch_profile=True.
 
         This test verifies that from_user method fetches user profile
         when fetch_profile is True.
+
+        :param mock_container_class: Mocked ServiceContainer class
+        :type mock_container_class: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_container = Mock()
@@ -113,11 +138,16 @@ class TestMessageContext:
         assert context.user_id == 12345
 
     @patch("src.services.container.ServiceContainer")
-    def test_from_user_with_fetch_profile_false(self, mock_container_class):
+    def test_from_user_with_fetch_profile_false(self, mock_container_class) -> None:
         """Test MessageContext.from_user with fetch_profile=False.
 
         This test verifies that from_user method does not fetch user profile
         when fetch_profile is False.
+
+        :param mock_container_class: Mocked ServiceContainer class
+        :type mock_container_class: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_container = Mock()
@@ -136,11 +166,14 @@ class TestMessageContext:
         assert context.user_info == telegram_user
         assert context.user_id == 12345
 
-    def test_resolve_language_from_user_profile(self):
+    def test_resolve_language_from_user_profile(self) -> None:
         """Test language resolution from user profile.
 
         This test verifies that language is resolved from user profile
-        settings when available.
+        settings when available, taking priority over Telegram language.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -158,11 +191,14 @@ class TestMessageContext:
         # Verify language from profile is used
         assert language == "ru"
 
-    def test_resolve_language_from_telegram_user(self):
+    def test_resolve_language_from_telegram_user(self) -> None:
         """Test language resolution from Telegram user.
 
         This test verifies that language is resolved from Telegram user
         when user profile has no language setting.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -177,11 +213,14 @@ class TestMessageContext:
         # Verify language from Telegram user is used
         assert language == "uk"
 
-    def test_resolve_language_with_no_profile(self):
+    def test_resolve_language_with_no_profile(self) -> None:
         """Test language resolution with no user profile.
 
         This test verifies that language is resolved from Telegram user
         when no user profile is available.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -193,11 +232,14 @@ class TestMessageContext:
         # Verify language from Telegram user is used
         assert language == "be"
 
-    def test_resolve_language_with_no_telegram_language(self):
+    def test_resolve_language_with_no_telegram_language(self) -> None:
         """Test language resolution with no Telegram language code.
 
         This test verifies that default language is used when neither
         user profile nor Telegram user has language information.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -210,11 +252,16 @@ class TestMessageContext:
         assert language == "ru"  # DEFAULT_LANGUAGE
 
     @patch("src.services.container.ServiceContainer")
-    def test_ensure_profile_with_existing_profile(self, mock_container_class):
+    def test_ensure_profile_with_existing_profile(self, mock_container_class) -> None:
         """Test ensure_profile when profile already exists.
 
         This test verifies that ensure_profile returns existing profile
-        without fetching it again.
+        without fetching it again from the database.
+
+        :param mock_container_class: Mocked ServiceContainer class
+        :type mock_container_class: Mock
+        :returns: None
+        :rtype: None
         """
         # Create mock objects
         telegram_user = Mock(spec=TelegramUser)
@@ -239,11 +286,18 @@ class TestMessageContext:
         mock_container_class.assert_not_called()
 
     @patch("src.services.container.ServiceContainer")
-    def test_ensure_profile_with_none_profile_success(self, mock_container_class):
+    def test_ensure_profile_with_none_profile_success(
+        self, mock_container_class
+    ) -> None:
         """Test ensure_profile when profile is None but can be fetched.
 
         This test verifies that ensure_profile fetches and caches profile
         when it's not present but available in database.
+
+        :param mock_container_class: Mocked ServiceContainer class
+        :type mock_container_class: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_container = Mock()
@@ -275,11 +329,18 @@ class TestMessageContext:
         assert context.user_profile == user_profile
 
     @patch("src.services.container.ServiceContainer")
-    def test_ensure_profile_with_none_profile_not_found(self, mock_container_class):
+    def test_ensure_profile_with_none_profile_not_found(
+        self, mock_container_class
+    ) -> None:
         """Test ensure_profile when profile is None and cannot be fetched.
 
         This test verifies that ensure_profile raises ValueError when
         profile is not found in database.
+
+        :param mock_container_class: Mocked ServiceContainer class
+        :type mock_container_class: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_container = Mock()
@@ -311,25 +372,44 @@ class TestUseMessageContext:
     """Test class for use_message_context context manager.
 
     This class contains all tests for the use_message_context context manager,
-    including context setup and cleanup.
+    including context setup, cleanup, exception handling, and nested contexts.
     """
 
-    def setup_method(self):
-        """Set up test fixtures before each test method."""
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method.
+
+        Resets the global message context before each test to ensure
+        test isolation and prevent context leakage between tests.
+
+        :returns: None
+        :rtype: None
+        """
         # Reset context before each test
         _CURRENT_CTX.set(None)
 
-    def teardown_method(self):
-        """Clean up after each test method."""
+    def teardown_method(self) -> None:
+        """Clean up after each test method.
+
+        Resets the global message context after each test to ensure
+        clean state for subsequent tests.
+
+        :returns: None
+        :rtype: None
+        """
         # Reset context after each test
         _CURRENT_CTX.set(None)
 
     @patch("src.core.message_context.MessageContext.from_user")
-    def test_use_message_context_success(self, mock_from_user):
+    def test_use_message_context_success(self, mock_from_user) -> None:
         """Test use_message_context context manager success.
 
         This test verifies that use_message_context properly sets and
         cleans up the message context.
+
+        :param mock_from_user: Mocked MessageContext.from_user method
+        :type mock_from_user: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         telegram_user = Mock(spec=TelegramUser)
@@ -351,11 +431,16 @@ class TestUseMessageContext:
         assert _CURRENT_CTX.get() is None
 
     @patch("src.core.message_context.MessageContext.from_user")
-    def test_use_message_context_with_exception(self, mock_from_user):
+    def test_use_message_context_with_exception(self, mock_from_user) -> None:
         """Test use_message_context context manager with exception.
 
         This test verifies that use_message_context properly cleans up
-        context even when an exception occurs.
+        context even when an exception occurs inside the context.
+
+        :param mock_from_user: Mocked MessageContext.from_user method
+        :type mock_from_user: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         telegram_user = Mock(spec=TelegramUser)
@@ -375,11 +460,16 @@ class TestUseMessageContext:
         assert _CURRENT_CTX.get() is None
 
     @patch("src.core.message_context.MessageContext.from_user")
-    def test_use_message_context_nested_contexts(self, mock_from_user):
+    def test_use_message_context_nested_contexts(self, mock_from_user) -> None:
         """Test use_message_context with nested contexts.
 
         This test verifies that use_message_context properly handles
-        nested context usage.
+        nested context usage and restores the outer context correctly.
+
+        :param mock_from_user: Mocked MessageContext.from_user method
+        :type mock_from_user: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         telegram_user1 = Mock(spec=TelegramUser)

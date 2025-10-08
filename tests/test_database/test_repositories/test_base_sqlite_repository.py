@@ -14,6 +14,17 @@ from sqlalchemy.orm import Session
 
 from src.database.models.user import User
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
+from tests.conftest import (
+    TEST_FIRST_NAME,
+    TEST_FIRST_NAME_ALT,
+    TEST_LAST_NAME,
+    TEST_LAST_NAME_ALT,
+    TEST_USER_ID,
+    TEST_USER_ID_ALT,
+    TEST_USER_ID_NONEXISTENT,
+    TEST_USERNAME,
+    TEST_USERNAME_ALT,
+)
 
 
 class TestBaseSQLiteRepository:
@@ -54,86 +65,99 @@ class TestBaseSQLiteRepository:
         from datetime import UTC, datetime
 
         return User(
-            telegram_id=123456789,
-            username="testuser",
-            first_name="Test",
-            last_name="User",
+            telegram_id=TEST_USER_ID,
+            username=TEST_USERNAME,
+            first_name=TEST_FIRST_NAME,
+            last_name=TEST_LAST_NAME,
             created_at=datetime.now(UTC),
         )
 
-    def test_init_default_path(self):
+    def test_init_default_path(self) -> None:
         """Test repository initialization with default path.
 
         :returns: None
+        :rtype: None
         """
         repo = BaseSQLiteRepository()
         assert repo.db_path.name == "lifeweeks.db"
         assert repo.engine is None
         assert repo.SessionLocal is None
 
-    def test_init_custom_path(self, temp_db_path):
+    def test_init_custom_path(self, temp_db_path) -> None:
         """Test repository initialization with custom path.
 
         :param temp_db_path: Path to temporary database
+        :type temp_db_path: str
         :returns: None
+        :rtype: None
         """
         repo = BaseSQLiteRepository(temp_db_path)
         assert str(repo.db_path) == temp_db_path
         assert repo.engine is None
         assert repo.SessionLocal is None
 
-    def test_initialize_success(self, repository):
+    def test_initialize_success(self, repository) -> None:
         """Test successful repository initialization.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         assert repository.engine is not None
         assert repository.SessionLocal is not None
 
-    def test_initialize_failure(self):
+    def test_initialize_failure(self) -> None:
         """Test repository initialization failure.
 
         :returns: None
+        :rtype: None
         """
         repo = BaseSQLiteRepository("/invalid/path/db.db")
         with pytest.raises(SQLAlchemyError):
             repo.initialize()
 
-    def test_initialize_idempotent(self, repository):
+    def test_initialize_idempotent(self, repository) -> None:
         """Test that initialize can be called multiple times safely.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         original_engine = repository.engine
         repository.initialize()  # Call again
         assert repository.engine is original_engine  # Should not change
 
-    def test_close_success(self, repository):
+    def test_close_success(self, repository) -> None:
         """Test successful repository closure.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         repository.close()
         # Engine should be disposed
         assert getattr(repository, "engine", None) is None
 
-    def test_close_when_not_initialized(self):
+    def test_close_when_not_initialized(self) -> None:
         """Test closing repository that was never initialized.
 
         :returns: None
+        :rtype: None
         """
         repo = BaseSQLiteRepository("test.db")
         repo.close()  # Should not raise exception
         assert repo.engine is None
 
-    def test_session_context_manager_success(self, repository):
+    def test_session_context_manager_success(self, repository) -> None:
         """Test successful session context manager usage.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         from sqlalchemy import text
 
@@ -143,21 +167,24 @@ class TestBaseSQLiteRepository:
             result = session.execute(text("SELECT 1"))
             assert result.scalar() == 1
 
-    def test_session_not_initialized(self):
+    def test_session_not_initialized(self) -> None:
         """Test session usage when repository not initialized.
 
         :returns: None
+        :rtype: None
         """
         repo = BaseSQLiteRepository("test.db")
         with pytest.raises(RuntimeError, match="Repository not initialized"):
             with repo.session():
                 pass
 
-    def test_session_rollback_on_error(self, repository):
+    def test_session_rollback_on_error(self, repository) -> None:
         """Test that session rolls back on error.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         with patch.object(repository, "SessionLocal") as mock_session_local:
             mock_session = Mock()
@@ -171,11 +198,13 @@ class TestBaseSQLiteRepository:
             mock_session.rollback.assert_called_once()
             mock_session.close.assert_called_once()
 
-    def test_detach_instance_in_session(self, repository):
+    def test_detach_instance_in_session(self, repository) -> None:
         """Test detaching instance that is in session.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         mock_session = Mock()
         mock_instance = Mock()
@@ -184,11 +213,13 @@ class TestBaseSQLiteRepository:
         repository._detach_instance(mock_session, mock_instance)
         mock_session.expunge.assert_called_once_with(mock_instance)
 
-    def test_detach_instance_not_in_session(self, repository):
+    def test_detach_instance_not_in_session(self, repository) -> None:
         """Test detaching instance that is not in session.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         mock_session = Mock()
         mock_instance = Mock()
@@ -197,51 +228,61 @@ class TestBaseSQLiteRepository:
         repository._detach_instance(mock_session, mock_instance)
         mock_session.expunge.assert_not_called()
 
-    def test_detach_instance_none(self, repository):
+    def test_detach_instance_none(self, repository) -> None:
         """Test detaching None instance.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         mock_session = Mock()
         repository._detach_instance(mock_session, None)
         mock_session.expunge.assert_not_called()
 
-    def test_create_entity_success(self, repository, sample_user):
+    def test_create_entity_success(self, repository, sample_user) -> None:
         """Test successful entity creation.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         result = repository._create_entity(sample_user, "user 123456789")
         assert result is True
 
-    def test_create_entity_integrity_error(self, repository, sample_user):
+    def test_create_entity_integrity_error(self, repository, sample_user) -> None:
         """Test entity creation with integrity error.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         # Create user first time
-        repository._create_entity(sample_user, "user 123456789")
+        repository._create_entity(sample_user, f"user {TEST_USER_ID}")
 
         # Try to create duplicate
         duplicate_user = User(
-            telegram_id=123456789,  # Same ID
+            telegram_id=TEST_USER_ID,  # Same ID
             username="different",
             first_name="Different",
-            last_name="User",
+            last_name=TEST_LAST_NAME,
         )
-        result = repository._create_entity(duplicate_user, "user 123456789")
+        result = repository._create_entity(duplicate_user, f"user {TEST_USER_ID}")
         assert result is False
 
-    def test_create_entity_general_error(self, repository):
+    def test_create_entity_general_error(self, repository) -> None:
         """Test entity creation with general error.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
@@ -249,92 +290,117 @@ class TestBaseSQLiteRepository:
             result = repository._create_entity(Mock(), "test entity")
             assert result is False
 
-    def test_get_entity_by_telegram_id_success(self, repository, sample_user):
+    def test_get_entity_by_telegram_id_success(self, repository, sample_user) -> None:
         """Test successful entity retrieval by telegram_id.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         # Create user first
         repository._create_entity(sample_user, "user")
 
         # Get user
-        result = repository._get_entity_by_telegram_id(User, 123456789, "user")
+        result = repository._get_entity_by_telegram_id(User, TEST_USER_ID, "user")
         assert result is not None
-        assert result.telegram_id == 123456789
-        assert result.username == "testuser"
+        assert result.telegram_id == TEST_USER_ID
+        assert result.username == TEST_USERNAME
 
-    def test_get_entity_by_telegram_id_not_found(self, repository):
+    def test_get_entity_by_telegram_id_not_found(self, repository) -> None:
         """Test entity retrieval when not found.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
-        result = repository._get_entity_by_telegram_id(User, 999999, "user")
+        result = repository._get_entity_by_telegram_id(
+            User, TEST_USER_ID_NONEXISTENT, "user"
+        )
         assert result is None
 
-    def test_get_entity_by_telegram_id_error(self, repository):
+    def test_get_entity_by_telegram_id_error(self, repository) -> None:
         """Test entity retrieval with error.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
-            result = repository._get_entity_by_telegram_id(User, 123456789, "user")
+            result = repository._get_entity_by_telegram_id(User, TEST_USER_ID, "user")
             assert result is None
 
-    def test_delete_entity_by_telegram_id_success(self, repository, sample_user):
+    def test_delete_entity_by_telegram_id_success(
+        self, repository, sample_user
+    ) -> None:
         """Test successful entity deletion by telegram_id.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         # Create user first
         repository._create_entity(sample_user, "user")
 
         # Delete user
-        result = repository._delete_entity_by_telegram_id(User, 123456789, "user")
+        result = repository._delete_entity_by_telegram_id(User, TEST_USER_ID, "user")
         assert result is True
 
-    def test_delete_entity_by_telegram_id_not_found(self, repository):
+    def test_delete_entity_by_telegram_id_not_found(self, repository) -> None:
         """Test entity deletion when not found.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
-        result = repository._delete_entity_by_telegram_id(User, 999999, "user")
+        result = repository._delete_entity_by_telegram_id(
+            User, TEST_USER_ID_NONEXISTENT, "user"
+        )
         assert result is False
 
-    def test_delete_entity_by_telegram_id_error(self, repository):
+    def test_delete_entity_by_telegram_id_error(self, repository) -> None:
         """Test entity deletion with error.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
 
-            result = repository._delete_entity_by_telegram_id(User, 123456789, "user")
+            result = repository._delete_entity_by_telegram_id(
+                User, TEST_USER_ID, "user"
+            )
             assert result is False
 
-    def test_get_all_entities_success(self, repository, sample_user):
+    def test_get_all_entities_success(self, repository, sample_user) -> None:
         """Test successful retrieval of all entities.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         # Create multiple users
         user1 = sample_user
         user2 = User(
-            telegram_id=987654321,
-            username="testuser2",
-            first_name="Test2",
-            last_name="User2",
+            telegram_id=TEST_USER_ID_ALT,
+            username=TEST_USERNAME_ALT,
+            first_name=TEST_FIRST_NAME_ALT,
+            last_name=TEST_LAST_NAME_ALT,
         )
 
         repository._create_entity(user1, "user1")
@@ -344,23 +410,27 @@ class TestBaseSQLiteRepository:
         results = repository._get_all_entities(User, "users")
         assert len(results) == 2
         telegram_ids = [user.telegram_id for user in results]
-        assert 123456789 in telegram_ids
-        assert 987654321 in telegram_ids
+        assert TEST_USER_ID in telegram_ids
+        assert TEST_USER_ID_ALT in telegram_ids
 
-    def test_get_all_entities_empty(self, repository):
+    def test_get_all_entities_empty(self, repository) -> None:
         """Test retrieval of all entities when none exist.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         results = repository._get_all_entities(User, "users")
         assert results == []
 
-    def test_get_all_entities_error(self, repository):
+    def test_get_all_entities_error(self, repository) -> None:
         """Test retrieval of all entities with error.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         with patch.object(repository, "session") as mock_session:
             mock_session.side_effect = Exception("Test error")
@@ -368,12 +438,15 @@ class TestBaseSQLiteRepository:
             results = repository._get_all_entities(User, "users")
             assert results == []
 
-    def test_get_all_entities_detach_instances(self, repository, sample_user):
+    def test_get_all_entities_detach_instances(self, repository, sample_user) -> None:
         """Test that all entities are properly detached from session.
 
         :param repository: Repository instance
-        :param sample_user: Sample user object
+        :type repository: BaseSQLiteRepository
+        :param sample_user: Sample user data
+        :type sample_user: User
         :returns: None
+        :rtype: None
         """
         repository._create_entity(sample_user, "user")
 
@@ -383,11 +456,13 @@ class TestBaseSQLiteRepository:
             # Should be called once for each entity
             assert mock_detach.call_count == len(results)
 
-    def test_session_expire_on_commit_false(self, repository):
+    def test_session_expire_on_commit_false(self, repository) -> None:
         """Test that session is configured with expire_on_commit=False.
 
         :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
         :returns: None
+        :rtype: None
         """
         # Check the session configuration
         assert repository.SessionLocal is not None
@@ -397,11 +472,11 @@ class TestBaseSQLiteRepository:
         finally:
             session.close()
 
-    def test_model_type_generic(self, repository):
+    def test_model_type_generic(self) -> None:
         """Test that ModelType generic works correctly.
 
-        :param repository: Repository instance
         :returns: None
+        :rtype: None
         """
         from src.database.models.base import Base
         from src.database.repositories.sqlite.base_repository import ModelType
@@ -409,10 +484,11 @@ class TestBaseSQLiteRepository:
         # Test that ModelType is bound to Base
         assert ModelType.__bound__ == Base
 
-    def test_initialize_with_sqlalchemy_error(self):
+    def test_initialize_with_sqlalchemy_error(self) -> None:
         """Test initialize method handles SQLAlchemyError during engine creation.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -444,10 +520,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_initialize_with_dispose_error(self):
+    def test_initialize_with_dispose_error(self) -> None:
         """Test initialize method handles dispose errors during cleanup.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -488,10 +565,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_close_with_dispose_error(self):
+    def test_close_with_dispose_error(self) -> None:
         """Test close method handles dispose errors gracefully.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -529,10 +607,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_reset_instances_with_dispose_errors(self):
+    def test_reset_instances_with_dispose_errors(self) -> None:
         """Test reset_instances method handles dispose errors and continues cleanup.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -570,10 +649,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_multiple_repositories_same_path(self):
+    def test_multiple_repositories_same_path(self) -> None:
         """Test multiple repositories with same path share engine and session.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -604,10 +684,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_repository_initialization_flag(self):
+    def test_repository_initialization_flag(self) -> None:
         """Test repository initialization flag behavior.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -637,10 +718,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_repository_with_nonexistent_path(self):
+    def test_repository_with_nonexistent_path(self) -> None:
         """Test repository creates database file for non-existent paths.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path
@@ -666,10 +748,11 @@ class TestBaseSQLiteRepository:
                 db_path.unlink()
             Path(temp_dir).rmdir()
 
-    def test_repository_thread_safety(self):
+    def test_repository_thread_safety(self) -> None:
         """Test repository thread safety for concurrent access.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         import threading
@@ -713,10 +796,11 @@ class TestBaseSQLiteRepository:
             if temp_path.exists():
                 temp_path.unlink()
 
-    def test_repository_path_resolution(self):
+    def test_repository_path_resolution(self) -> None:
         """Test repository properly resolves relative paths.
 
         :returns: None
+        :rtype: None
         """
         import os
         import tempfile
@@ -744,10 +828,11 @@ class TestBaseSQLiteRepository:
                 # Restore original working directory
                 os.chdir(original_cwd)
 
-    def test_repository_cleanup_on_error(self):
+    def test_repository_cleanup_on_error(self) -> None:
         """Test repository cleanup when initialization fails.
 
         :returns: None
+        :rtype: None
         """
         import tempfile
         from pathlib import Path

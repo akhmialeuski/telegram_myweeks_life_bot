@@ -36,57 +36,67 @@ from src.database.service import (
 
 
 class TestUserServiceExceptions:
-    """Test suite for UserService exception classes."""
+    """Test suite for UserService exception classes.
 
-    def test_user_service_error_inheritance(self):
+    This test class contains all tests for UserService exception hierarchy
+    and ensures proper inheritance and error message handling.
+    """
+
+    def test_user_service_error_inheritance(self) -> None:
         """Test UserServiceError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserServiceError("Test error")
         assert isinstance(error, Exception)
         assert str(error) == "Test error"
 
-    def test_user_not_found_error_inheritance(self):
+    def test_user_not_found_error_inheritance(self) -> None:
         """Test UserNotFoundError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserNotFoundError("User not found")
         assert isinstance(error, UserServiceError)
         assert str(error) == "User not found"
 
-    def test_user_deletion_error_inheritance(self):
+    def test_user_deletion_error_inheritance(self) -> None:
         """Test UserDeletionError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserDeletionError("Deletion failed")
         assert isinstance(error, UserServiceError)
         assert str(error) == "Deletion failed"
 
-    def test_user_profile_error_inheritance(self):
+    def test_user_profile_error_inheritance(self) -> None:
         """Test UserProfileError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserProfileError("Profile error")
         assert isinstance(error, UserServiceError)
         assert str(error) == "Profile error"
 
-    def test_user_registration_error_inheritance(self):
+    def test_user_registration_error_inheritance(self) -> None:
         """Test UserRegistrationError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserRegistrationError("Registration failed")
         assert isinstance(error, UserServiceError)
         assert str(error) == "Registration failed"
 
-    def test_user_already_exists_error_inheritance(self):
+    def test_user_already_exists_error_inheritance(self) -> None:
         """Test UserAlreadyExistsError inheritance.
 
         :returns: None
+        :rtype: None
         """
         error = UserAlreadyExistsError("User exists")
         assert isinstance(error, UserServiceError)
@@ -187,10 +197,11 @@ class TestUserService:
             updated_at=datetime.now(UTC),
         )
 
-    def test_init_with_default_repositories(self):
+    def test_init_with_default_repositories(self) -> None:
         """Test UserService initialization with default repositories.
 
         :returns: None
+        :rtype: None
         """
         service = UserService()
         assert isinstance(service.user_repository, SQLiteUserRepository)
@@ -211,6 +222,7 @@ class TestUserService:
         :param mock_settings_repository: Mock settings repository
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
+        :rtype: None
         """
         service = UserService(
             user_repository=mock_user_repository,
@@ -286,6 +298,7 @@ class TestUserService:
         :param sample_user: Sample user object
         :param sample_settings: Sample settings object
         :returns: None
+        :rtype: None
         """
         # Mock get_user_profile to return None (user doesn't exist)
         user_service.get_user_profile = Mock(return_value=None)
@@ -323,12 +336,13 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_called_once()
 
-    def test_create_user_profile_user_exists(self, user_service, sample_user):
+    def test_create_user_profile_user_exists(self, user_service, sample_user) -> None:
         """Test user creation when user already exists.
 
         :param user_service: UserService instance
         :param sample_user: Sample user object
         :returns: None
+        :rtype: None
         """
         user_service.get_user_profile = Mock(return_value=sample_user)
 
@@ -465,11 +479,12 @@ class TestUserService:
         mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
         mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_create_user_profile_exception(self, user_service):
+    def test_create_user_profile_exception(self, user_service) -> None:
         """Test user creation with exception.
 
         :param user_service: UserService instance
         :returns: None
+        :rtype: None
         """
         user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
 
@@ -527,12 +542,15 @@ class TestUserService:
         mock_settings_repository.get_user_settings.assert_called_once_with(123456789)
         mock_subscription_repository.get_subscription.assert_called_once_with(123456789)
 
-    def test_get_user_profile_user_not_found(self, user_service, mock_user_repository):
+    def test_get_user_profile_user_not_found(
+        self, user_service, mock_user_repository
+    ) -> None:
         """Test user profile retrieval when user not found.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :returns: None
+        :rtype: None
         """
         mock_user_repository.get_user.return_value = None
 
@@ -550,6 +568,7 @@ class TestUserService:
         :param mock_settings_repository: Mock settings repository
         :param sample_user: Sample user object
         :returns: None
+        :rtype: None
         """
         mock_user_repository.get_user.return_value = sample_user
         mock_settings_repository.get_user_settings.return_value = None
@@ -576,6 +595,7 @@ class TestUserService:
         :param sample_user: Sample user object
         :param sample_settings: Sample settings object
         :returns: None
+        :rtype: None
         """
         mock_user_repository.get_user.return_value = sample_user
         mock_settings_repository.get_user_settings.return_value = sample_settings
@@ -585,12 +605,15 @@ class TestUserService:
         # Service returns None if subscription is missing
         assert result is None
 
-    def test_get_user_profile_exception(self, user_service, mock_user_repository):
+    def test_get_user_profile_exception(
+        self, user_service, mock_user_repository
+    ) -> None:
         """Test user profile retrieval with exception.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :returns: None
+        :rtype: None
         """
         mock_user_repository.get_user.side_effect = Exception("Test error")
 
@@ -607,6 +630,7 @@ class TestUserService:
         :param mock_settings_repository: Mock settings repository
         :param sample_settings: Sample settings object
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.get_user_settings.return_value = sample_settings
 
@@ -622,6 +646,7 @@ class TestUserService:
         :param user_service: UserService instance
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.get_user_settings.return_value = None
 
@@ -653,6 +678,7 @@ class TestUserService:
         :param user_service: UserService instance
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.get_user_settings.side_effect = Exception("Test error")
 
@@ -660,12 +686,13 @@ class TestUserService:
 
         assert result is False
 
-    def test_delete_user_success(self, user_service, mock_user_repository):
+    def test_delete_user_success(self, user_service, mock_user_repository) -> None:
         """Test successful user deletion.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :returns: None
+        :rtype: None
         """
         mock_user_repository.delete_user.return_value = True
 
@@ -674,12 +701,13 @@ class TestUserService:
         assert result is True
         mock_user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_failure(self, user_service, mock_user_repository):
+    def test_delete_user_failure(self, user_service, mock_user_repository) -> None:
         """Test failed user deletion.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :returns: None
+        :rtype: None
         """
         mock_user_repository.delete_user.return_value = False
 
@@ -687,12 +715,13 @@ class TestUserService:
 
         assert result is False
 
-    def test_delete_user_exception(self, user_service, mock_user_repository):
+    def test_delete_user_exception(self, user_service, mock_user_repository) -> None:
         """Test user deletion with exception.
 
         :param user_service: UserService instance
         :param mock_user_repository: Mock user repository
         :returns: None
+        :rtype: None
         """
         mock_user_repository.delete_user.side_effect = Exception("Test error")
 
@@ -709,6 +738,7 @@ class TestUserService:
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.delete_user_settings.return_value = True
         mock_user_repository.delete_user.return_value = True
@@ -727,6 +757,7 @@ class TestUserService:
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.delete_user_settings.return_value = False
         mock_user_repository.delete_user.return_value = True
@@ -745,6 +776,7 @@ class TestUserService:
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.delete_user_settings.return_value = True
         mock_user_repository.delete_user.return_value = False
@@ -764,6 +796,7 @@ class TestUserService:
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.delete_user_settings.side_effect = UserDeletionError(
             "Test error"
@@ -781,6 +814,7 @@ class TestUserService:
         :param mock_user_repository: Mock user repository
         :param mock_settings_repository: Mock settings repository
         :returns: None
+        :rtype: None
         """
         mock_settings_repository.delete_user_settings.side_effect = Exception(
             "Test error"
@@ -800,7 +834,7 @@ class TestUserServiceUpdateSubscription:
     including success and error scenarios.
     """
 
-    def test_update_user_subscription_success(self):
+    def test_update_user_subscription_success(self) -> None:
         """Test successful subscription type update.
 
         This test verifies that update_user_subscription correctly
@@ -825,7 +859,7 @@ class TestUserServiceUpdateSubscription:
             subscription
         )
 
-    def test_update_user_subscription_not_found(self):
+    def test_update_user_subscription_not_found(self) -> None:
         """Test update_user_subscription when subscription not found.
 
         This test verifies that UserNotFoundError is raised when
@@ -840,7 +874,7 @@ class TestUserServiceUpdateSubscription:
         ):
             user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
 
-    def test_update_user_subscription_update_fails(self):
+    def test_update_user_subscription_update_fails(self) -> None:
         """Test update_user_subscription when repository update fails.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -862,7 +896,7 @@ class TestUserServiceUpdateSubscription:
         ):
             user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
 
-    def test_update_user_subscription_repository_exception(self):
+    def test_update_user_subscription_repository_exception(self) -> None:
         """Test update_user_subscription when repository raises exception.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -885,7 +919,7 @@ class TestUserServiceUpdateSubscription:
         ):
             user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
 
-    def test_update_user_subscription_get_subscription_exception(self):
+    def test_update_user_subscription_get_subscription_exception(self) -> None:
         """Test update_user_subscription when get_subscription raises exception.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -911,7 +945,7 @@ class TestUserServiceUpdateSettings:
     including success and error scenarios.
     """
 
-    def test_update_user_settings_success_all_fields(self):
+    def test_update_user_settings_success_all_fields(self) -> None:
         """Test successful settings update with all fields.
 
         This test verifies that update_user_settings correctly
@@ -947,7 +981,7 @@ class TestUserServiceUpdateSettings:
             settings
         )
 
-    def test_update_user_settings_success_partial_fields(self):
+    def test_update_user_settings_success_partial_fields(self) -> None:
         """Test successful settings update with partial fields.
 
         This test verifies that update_user_settings correctly
@@ -976,7 +1010,7 @@ class TestUserServiceUpdateSettings:
             settings
         )
 
-    def test_update_user_settings_not_found(self):
+    def test_update_user_settings_not_found(self) -> None:
         """Test update_user_settings when settings not found.
 
         This test verifies that UserNotFoundError is raised when
@@ -993,7 +1027,7 @@ class TestUserServiceUpdateSettings:
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_update_fails(self):
+    def test_update_user_settings_update_fails(self) -> None:
         """Test update_user_settings when repository update fails.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1014,7 +1048,7 @@ class TestUserServiceUpdateSettings:
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_repository_exception(self):
+    def test_update_user_settings_repository_exception(self) -> None:
         """Test update_user_settings when repository raises exception.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1037,7 +1071,7 @@ class TestUserServiceUpdateSettings:
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_get_settings_exception(self):
+    def test_update_user_settings_get_settings_exception(self) -> None:
         """Test update_user_settings when get_user_settings raises exception.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1057,7 +1091,7 @@ class TestUserServiceUpdateSettings:
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_no_fields_provided(self):
+    def test_update_user_settings_no_fields_provided(self) -> None:
         """Test update_user_settings when no fields are provided.
 
         This test verifies that the method works correctly when
@@ -1092,7 +1126,7 @@ class TestUserServiceDeleteUserProfile:
     including success and error scenarios.
     """
 
-    def test_delete_user_profile_success_all_components(self):
+    def test_delete_user_profile_success_all_components(self) -> None:
         """Test successful deletion of complete user profile.
 
         This test verifies that delete_user_profile correctly
@@ -1119,7 +1153,7 @@ class TestUserServiceDeleteUserProfile:
         )
         user_service.user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_profile_success_missing_settings(self):
+    def test_delete_user_profile_success_missing_settings(self) -> None:
         """Test successful deletion when settings don't exist.
 
         This test verifies that delete_user_profile works correctly
@@ -1146,7 +1180,7 @@ class TestUserServiceDeleteUserProfile:
         )
         user_service.user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_profile_success_missing_subscription(self):
+    def test_delete_user_profile_success_missing_subscription(self) -> None:
         """Test successful deletion when subscription doesn't exist.
 
         This test verifies that delete_user_profile works correctly
@@ -1173,7 +1207,7 @@ class TestUserServiceDeleteUserProfile:
         )
         user_service.user_repository.delete_user.assert_called_once_with(123456789)
 
-    def test_delete_user_profile_user_not_found(self):
+    def test_delete_user_profile_user_not_found(self) -> None:
         """Test delete_user_profile when user doesn't exist.
 
         This test verifies that UserDeletionError is raised when
@@ -1191,7 +1225,7 @@ class TestUserServiceDeleteUserProfile:
         with pytest.raises(UserDeletionError, match="User 123456789 not found"):
             user_service.delete_user_profile(123456789)
 
-    def test_delete_user_profile_general_exception(self):
+    def test_delete_user_profile_general_exception(self) -> None:
         """Test delete_user_profile when an unexpected exception occurs.
 
         This test verifies that UserDeletionError is raised when
@@ -1217,7 +1251,7 @@ class TestUserServiceGetAllUsers:
     focusing on edge cases and error scenarios.
     """
 
-    def test_get_all_users_with_incomplete_profiles(self):
+    def test_get_all_users_with_incomplete_profiles(self) -> None:
         """Test get_all_users when some users have incomplete profiles.
 
         This test verifies that get_all_users skips users with
@@ -1276,7 +1310,7 @@ class TestUserServiceGetAllUsers:
         assert result[0].settings is not None
         assert result[1].settings is None
 
-    def test_get_all_users_repository_exception(self):
+    def test_get_all_users_repository_exception(self) -> None:
         """Test get_all_users when repository raises exception.
 
         This test verifies that get_all_users returns empty list when
@@ -1292,7 +1326,7 @@ class TestUserServiceGetAllUsers:
 
         assert result == []
 
-    def test_get_all_users_profile_building_exception(self):
+    def test_get_all_users_profile_building_exception(self) -> None:
         """Test get_all_users when profile building raises exception.
 
         This test verifies that get_all_users skips users where

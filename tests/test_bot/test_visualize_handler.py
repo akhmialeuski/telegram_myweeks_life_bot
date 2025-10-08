@@ -1,6 +1,7 @@
 """Unit tests for VisualizeHandler.
 
-Tests the VisualizeHandler class which handles /visualize command.
+This module contains tests for the VisualizeHandler class which handles
+the /visualize command and generates life grid visualizations.
 """
 
 from unittest.mock import MagicMock, Mock, patch
@@ -12,13 +13,18 @@ from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestVisualizeHandler:
-    """Test suite for VisualizeHandler class."""
+    """Test suite for VisualizeHandler class.
+
+    This class contains tests verifying that the VisualizeHandler correctly
+    generates and sends life grid visualizations to registered users and
+    handles unregistered users appropriately.
+    """
 
     @pytest.fixture
     def handler(self) -> VisualizeHandler:
-        """Create VisualizeHandler instance.
+        """Create VisualizeHandler instance for testing.
 
-        :returns: VisualizeHandler instance
+        :returns: Configured VisualizeHandler with fake service container
         :rtype: VisualizeHandler
         """
         services = FakeServiceContainer()
@@ -26,7 +32,16 @@ class TestVisualizeHandler:
 
     @pytest.fixture(autouse=True)
     def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+        """Mock use_locale function to control translation behavior.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: Pytest mocker fixture
+        :type mocker: MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.visualize_handler.use_locale",
@@ -35,10 +50,15 @@ class TestVisualizeHandler:
         return mock_pgettext
 
     def test_handler_creation(self, handler: VisualizeHandler) -> None:
-        """Test VisualizeHandler creation.
+        """Test that VisualizeHandler is created with correct command name.
+
+        This test verifies that the handler is properly initialized
+        with the /visualize command name.
 
         :param handler: VisualizeHandler instance
+        :type handler: VisualizeHandler
         :returns: None
+        :rtype: None
         """
         assert handler.command_name == "/visualize"
 
@@ -46,7 +66,20 @@ class TestVisualizeHandler:
     async def test_handle_success(
         self, handler: VisualizeHandler, mock_update: Mock, mock_context: Mock
     ) -> None:
-        """Test handle method with successful visualization."""
+        """Test successful visualization generation and sending.
+
+        This test verifies that the handle method correctly generates
+        a life grid visualization and sends it as a photo with caption.
+
+        :param handler: VisualizeHandler instance
+        :type handler: VisualizeHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: Mock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: Mock
+        :returns: None
+        :rtype: None
+        """
         with patch(
             "src.bot.handlers.visualize_handler.generate_visualization"
         ) as mock_generate_visualization:
@@ -69,14 +102,27 @@ class TestVisualizeHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with unregistered user."""
+        """Test handling of /visualize command from unregistered user.
+
+        This test verifies that the handler correctly identifies unregistered
+        users and returns None while sending appropriate message through wrapper.
+
+        :param handler: VisualizeHandler instance
+        :type handler: VisualizeHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = False
 
         result = await handler.handle(mock_update, mock_context)
 
         assert result is None
+        # The specific message is checked within the base handler wrapper
         mock_update.message.reply_text.assert_called_once()
-        # The specific message is checked within the wrapper, here we just check the call
 
     @pytest.mark.asyncio
     async def test_handle_visualize_returns_none(
@@ -86,10 +132,27 @@ class TestVisualizeHandler:
         mock_context: MagicMock,
         mock_user_profile: MagicMock,
     ) -> None:
-        """Test handle method when visualization returns None."""
+        """Test visualization generation with mocked image data.
+
+        This test verifies that the handler correctly processes visualization
+        generation and sends the image with proper caption when image data
+        is returned.
+
+        :param handler: VisualizeHandler instance
+        :type handler: VisualizeHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :param mock_user_profile: Mocked user profile with settings
+        :type mock_user_profile: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
-        # Mock the user profile to have proper settings
+
+        # Ensure mock user profile has proper settings structure
         if not getattr(mock_user_profile, "settings", None):
             mock_user_profile.settings = MagicMock()
         mock_user_profile.settings.language = "en"

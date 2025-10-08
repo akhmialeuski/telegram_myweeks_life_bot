@@ -9,22 +9,34 @@ from src.core.enums import SupportedLanguage
 class TestConfig:
     """Test configuration settings and constants."""
 
-    def test_bot_name_constant(self):
-        """Test that BOT_NAME is defined correctly."""
+    def test_bot_name_constant(self) -> None:
+        """Test that BOT_NAME is defined correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import BOT_NAME
 
         assert BOT_NAME == "LifeWeeksBot"
         assert isinstance(BOT_NAME, str)
 
-    def test_default_language_constant(self):
-        """Test that DEFAULT_LANGUAGE is defined correctly."""
+    def test_default_language_constant(self) -> None:
+        """Test that DEFAULT_LANGUAGE is defined correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import DEFAULT_LANGUAGE
 
         assert DEFAULT_LANGUAGE == SupportedLanguage.RU.value
         assert isinstance(DEFAULT_LANGUAGE, str)
 
-    def test_visualization_constants(self):
-        """Test visualization constants are defined correctly."""
+    def test_visualization_constants(self) -> None:
+        """Test visualization constants are defined correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import (
             CELL_SIZE,
             FONT_SIZE,
@@ -39,8 +51,12 @@ class TestConfig:
         assert MAX_YEARS == 90
         assert WEEKS_PER_YEAR == 52
 
-    def test_colors_constant(self):
-        """Test that COLORS dictionary is defined correctly."""
+    def test_colors_constant(self) -> None:
+        """Test that COLORS dictionary is defined correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import COLORS
 
         assert isinstance(COLORS, dict)
@@ -58,8 +74,12 @@ class TestConfig:
                 assert isinstance(component, int)
                 assert 0 <= component <= 255
 
-    def test_scheduler_configuration(self):
-        """Test scheduler configuration constants."""
+    def test_scheduler_configuration(self) -> None:
+        """Test scheduler configuration constants.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import (
             WEEKLY_NOTIFICATION_DAY,
             WEEKLY_NOTIFICATION_HOUR,
@@ -73,8 +93,12 @@ class TestConfig:
     @patch.dict(
         os.environ, {"BUYMEACOFFEE_URL": "https://test.buymeacoffee.com/testuser"}
     )
-    def test_buymeacoffee_url_from_env(self):
-        """Test that BUYMEACOFFEE_URL is loaded from environment variable."""
+    def test_buymeacoffee_url_from_env(self) -> None:
+        """Test that BUYMEACOFFEE_URL is loaded from environment variable.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -87,8 +111,12 @@ class TestConfig:
         assert BUYMEACOFFEE_URL == "https://test.buymeacoffee.com/testuser"
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_buymeacoffee_url_default_value(self):
-        """Test that BUYMEACOFFEE_URL has default value when not set in env."""
+    def test_buymeacoffee_url_default_value(self) -> None:
+        """Test that BUYMEACOFFEE_URL has default value when not set in env.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -103,8 +131,12 @@ class TestConfig:
         assert "buymeacoffee.com" in BUYMEACOFFEE_URL or "coff.ee" in BUYMEACOFFEE_URL
 
     @patch.dict(os.environ, {"BUYMEACOFFEE_URL": ""})
-    def test_buymeacoffee_url_empty_env(self):
-        """Test that BUYMEACOFFEE_URL uses default when env is empty."""
+    def test_buymeacoffee_url_empty_env(self) -> None:
+        """Test that BUYMEACOFFEE_URL uses default when env is empty.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -120,8 +152,12 @@ class TestConfig:
     @patch.dict(
         os.environ, {"BUYMEACOFFEE_URL": "https://custom.buymeacoffee.com/customuser"}
     )
-    def test_buymeacoffee_url_custom_value(self):
-        """Test that BUYMEACOFFEE_URL accepts custom values."""
+    def test_buymeacoffee_url_custom_value(self) -> None:
+        """Test that BUYMEACOFFEE_URL accepts custom values.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -133,36 +169,56 @@ class TestConfig:
 
         assert BUYMEACOFFEE_URL == "https://custom.buymeacoffee.com/customuser"
 
-    def test_buymeacoffee_url_type(self):
-        """Test that BUYMEACOFFEE_URL is always a string."""
+    def test_buymeacoffee_url_type(self) -> None:
+        """Test that BUYMEACOFFEE_URL is always a string.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import BUYMEACOFFEE_URL
 
         assert isinstance(BUYMEACOFFEE_URL, str)
         assert len(BUYMEACOFFEE_URL) > 0
 
-    def test_buymeacoffee_url_format(self):
-        """Test that BUYMEACOFFEE_URL has correct format."""
+    def test_buymeacoffee_url_format(self) -> None:
+        """Test that BUYMEACOFFEE_URL has correct format.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import BUYMEACOFFEE_URL
 
         assert BUYMEACOFFEE_URL.startswith("https://")
         assert "buymeacoffee.com" in BUYMEACOFFEE_URL or "coff.ee" in BUYMEACOFFEE_URL
 
-    def test_token_loading(self):
-        """Test that TOKEN is loaded from environment."""
+    def test_token_loading(self) -> None:
+        """Test that TOKEN is loaded from environment.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import TOKEN
 
         # TOKEN can be None if not set in environment
         assert TOKEN is None or isinstance(TOKEN, str)
 
-    def test_chat_id_loading(self):
-        """Test that CHAT_ID is loaded from environment."""
+    def test_chat_id_loading(self) -> None:
+        """Test that CHAT_ID is loaded from environment.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import CHAT_ID
 
         # CHAT_ID can be None if not set in environment
         assert CHAT_ID is None or isinstance(CHAT_ID, str)
 
-    def test_config_module_imports(self):
-        """Test that all required constants are imported correctly."""
+    def test_config_module_imports(self) -> None:
+        """Test that all required constants are imported correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import (
             BOT_NAME,
             COLORS,
@@ -188,8 +244,12 @@ class TestConfig:
         assert WEEKLY_NOTIFICATION_HOUR is not None
         assert WEEKLY_NOTIFICATION_MINUTE is not None
 
-    def test_config_constants_immutability(self):
-        """Test that configuration constants are not accidentally mutable."""
+    def test_config_constants_immutability(self) -> None:
+        """Test that configuration constants are not accidentally mutable.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import COLORS
 
         # Test that COLORS is a proper dictionary, not a mutable reference
@@ -205,8 +265,12 @@ class TestConfig:
     @patch.dict(
         os.environ, {"BUYMEACOFFEE_URL": "https://test.buymeacoffee.com/testuser"}
     )
-    def test_buymeacoffee_url_reload_behavior(self):
-        """Test that BUYMEACOFFEE_URL is properly reloaded when environment changes."""
+    def test_buymeacoffee_url_reload_behavior(self) -> None:
+        """Test that BUYMEACOFFEE_URL is properly reloaded when environment changes.
+
+        :returns: None
+        :rtype: None
+        """
         # First load with default
         import importlib
 
@@ -218,30 +282,46 @@ class TestConfig:
 
         assert BUYMEACOFFEE_URL == "https://test.buymeacoffee.com/testuser"
 
-    def test_config_documentation(self):
-        """Test that config module has proper documentation."""
+    def test_config_documentation(self) -> None:
+        """Test that config module has proper documentation.
+
+        :returns: None
+        :rtype: None
+        """
         import src.utils.config
 
         assert src.utils.config.__doc__ is not None
         assert len(src.utils.config.__doc__) > 0
 
-    def test_subscription_message_probability_default(self):
-        """Test that DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY is set correctly."""
+    def test_subscription_message_probability_default(self) -> None:
+        """Test that DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY is set correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY
 
         assert DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY == 20
         assert isinstance(DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY, int)
 
-    def test_subscription_message_probability_constant(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is defined correctly."""
+    def test_subscription_message_probability_constant(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is defined correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
 
         assert isinstance(SUBSCRIPTION_MESSAGE_PROBABILITY, int)
         assert 0 <= SUBSCRIPTION_MESSAGE_PROBABILITY <= 100
 
     @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "30"})
-    def test_subscription_message_probability_from_env(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is loaded from environment variable."""
+    def test_subscription_message_probability_from_env(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is loaded from environment variable.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -254,8 +334,12 @@ class TestConfig:
         assert SUBSCRIPTION_MESSAGE_PROBABILITY == 30
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_subscription_message_probability_default_value(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY has default value when not set in env."""
+    def test_subscription_message_probability_default_value(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY has default value when not set in env.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -268,8 +352,12 @@ class TestConfig:
         assert SUBSCRIPTION_MESSAGE_PROBABILITY == 20
 
     @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "invalid"})
-    def test_subscription_message_probability_invalid_env(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY uses default when env is invalid."""
+    def test_subscription_message_probability_invalid_env(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY uses default when env is invalid.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -283,8 +371,12 @@ class TestConfig:
         assert SUBSCRIPTION_MESSAGE_PROBABILITY == 20
 
     @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "0"})
-    def test_subscription_message_probability_zero(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts zero value."""
+    def test_subscription_message_probability_zero(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts zero value.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -297,8 +389,12 @@ class TestConfig:
         assert SUBSCRIPTION_MESSAGE_PROBABILITY == 0
 
     @patch.dict(os.environ, {"SUBSCRIPTION_MESSAGE_PROBABILITY": "100"})
-    def test_subscription_message_probability_hundred(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts 100 value."""
+    def test_subscription_message_probability_hundred(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY accepts 100 value.
+
+        :returns: None
+        :rtype: None
+        """
         # Reload config to pick up the environment variable
         import importlib
 
@@ -310,14 +406,22 @@ class TestConfig:
 
         assert SUBSCRIPTION_MESSAGE_PROBABILITY == 100
 
-    def test_subscription_message_probability_range(self):
-        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is within valid range."""
+    def test_subscription_message_probability_range(self) -> None:
+        """Test that SUBSCRIPTION_MESSAGE_PROBABILITY is within valid range.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import SUBSCRIPTION_MESSAGE_PROBABILITY
 
         assert 0 <= SUBSCRIPTION_MESSAGE_PROBABILITY <= 100
 
-    def test_config_module_imports_with_probability(self):
-        """Test that subscription message probability constants are imported correctly."""
+    def test_config_module_imports_with_probability(self) -> None:
+        """Test that subscription message probability constants are imported correctly.
+
+        :returns: None
+        :rtype: None
+        """
         from src.utils.config import (
             DEFAULT_SUBSCRIPTION_MESSAGE_PROBABILITY,
             SUBSCRIPTION_MESSAGE_PROBABILITY,

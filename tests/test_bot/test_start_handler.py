@@ -10,22 +10,41 @@ import pytest
 
 from src.bot.constants import COMMAND_START
 from src.bot.handlers.start_handler import StartHandler
+from src.bot.scheduler import SchedulerOperationError
 from src.database.service import UserRegistrationError, UserServiceError
 from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestStartHandler:
-    """Test suite for StartHandler class."""
+    """Test suite for StartHandler class.
+
+    This test class contains all tests for StartHandler functionality,
+    including user registration flow, birth date validation, existing
+    user handling, and error scenarios during registration.
+    """
 
     @pytest.fixture
     def handler(self) -> StartHandler:
-        """Create StartHandler instance."""
+        """Create StartHandler instance for testing.
+
+        :returns: Configured StartHandler instance with fake service container
+        :rtype: StartHandler
+        """
         services = FakeServiceContainer()
         return StartHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+    def mock_use_locale(self, mocker) -> MagicMock:
+        """Mock use_locale to control translations.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: pytest-mock fixture for creating mocks
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.start_handler.use_locale",
@@ -34,7 +53,16 @@ class TestStartHandler:
         return mock_pgettext
 
     def test_handler_creation(self, handler: StartHandler) -> None:
-        """Test StartHandler creation."""
+        """Test that StartHandler is created with correct command name.
+
+        This test verifies that the handler is properly initialized with
+        the /start command name constant.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :returns: None
+        :rtype: None
+        """
         assert handler.command_name == f"/{COMMAND_START}"
 
     @pytest.mark.asyncio
@@ -44,7 +72,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with existing user."""
+        """Test start handler response for existing user.
+
+        This test verifies that when an existing user executes /start,
+        they receive a welcome back message without registration flow.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
 
         await handler.handle(mock_update, mock_context)
@@ -60,7 +101,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with new user."""
+        """Test start handler initiation of registration for new user.
+
+        This test verifies that when a new user executes /start, they
+        receive a welcome message and are prompted for their birth date.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = False
 
         await handler.handle(mock_update, mock_context)
@@ -77,7 +131,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with valid birth date."""
+        """Test successful user registration with valid birth date.
+
+        This test verifies that a valid birth date successfully registers
+        the user, adds them to the scheduler, and sends a success message.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
         birth_date = date(1990, 3, 15)
@@ -111,7 +178,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with future date."""
+        """Test registration rejection with future birth date.
+
+        This test verifies that birth dates in the future are rejected
+        during registration with an appropriate error message.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.2030"
 
@@ -128,7 +208,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with too old date."""
+        """Test registration rejection with unrealistically old birth date.
+
+        This test verifies that birth dates before 1900 are rejected
+        during registration with an appropriate error message.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1800"
 
@@ -145,7 +238,20 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with invalid format."""
+        """Test registration rejection with invalid date format.
+
+        This test verifies that invalid date formats are rejected during
+        registration with a format error message.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "invalid-date"
 
@@ -162,7 +268,21 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with registration error."""
+        """Test registration handling when user creation fails.
+
+        This test verifies that when the user profile creation fails
+        with a UserRegistrationError, an appropriate error message is
+        sent and the waiting state is cleared.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
         handler.services.user_service.create_user_profile.side_effect = (
@@ -184,7 +304,21 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with service error."""
+        """Test registration handling when service encounters an error.
+
+        This test verifies that when a generic UserServiceError occurs
+        during registration, an appropriate error message is sent and
+        the waiting state is cleared.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
         handler.services.user_service.create_user_profile.side_effect = (
@@ -206,7 +340,21 @@ class TestStartHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input with scheduler exception."""
+        """Test registration handling when scheduler operation fails.
+
+        This test verifies that even when adding the user to the scheduler
+        fails with a SchedulerOperationError, the user profile is still
+        created and a response is sent.
+
+        :param handler: StartHandler instance from fixture
+        :type handler: StartHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
         birth_date = date(1990, 3, 15)
@@ -215,7 +363,11 @@ class TestStartHandler:
             "src.bot.handlers.start_handler.add_user_to_scheduler"
         ) as mock_add_user_to_scheduler:
             mock_datetime.strptime.return_value.date.return_value = birth_date
-            mock_add_user_to_scheduler.side_effect = Exception("Scheduler error")
+            mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
+                message="Scheduler error",
+                user_id=mock_update.effective_user.id,
+                operation="add_user",
+            )
 
             await handler.handle_birth_date_input(mock_update, mock_context)
 
@@ -224,6 +376,5 @@ class TestStartHandler:
         )
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args
-        # The test should expect the success message, but if there's an error, it should still pass
         assert "pgettext_registration" in call_args.kwargs["text"]
         assert "waiting_for" not in mock_context.user_data

@@ -18,25 +18,37 @@ class TestI18nConstants:
     This class contains tests for module-level constants and configuration.
     """
 
-    def test_domain_constant(self):
+    def test_domain_constant(self) -> None:
         """Test DOMAIN constant value.
 
         This test verifies that DOMAIN constant has the expected value.
+
+        :returns: None
+        :rtype: None
         """
         assert DOMAIN == "messages"
 
-    def test_locale_dir_constant(self):
+    def test_locale_dir_constant(self) -> None:
         """Test LOCALE_DIR constant value.
 
         This test verifies that LOCALE_DIR constant points to the correct
         locales directory relative to the module.
+
+        :returns: None
+        :rtype: None
         """
         # Verify LOCALE_DIR is a Path object
         assert isinstance(LOCALE_DIR, Path)
 
         # Verify it points to the locales directory
         assert LOCALE_DIR.name == "locales"
-        assert LOCALE_DIR.exists() or not LOCALE_DIR.exists()  # May or may not exist
+
+        # If locales directory exists, verify it's a directory
+        # Note: In CI environments, the locales directory may not exist
+        if LOCALE_DIR.exists():
+            assert (
+                LOCALE_DIR.is_dir()
+            ), "LOCALE_DIR should be a directory when it exists"
 
 
 class TestGetTranslator:
@@ -47,11 +59,16 @@ class TestGetTranslator:
     """
 
     @patch("src.i18n.gettext.translation")
-    def test_get_translator_success(self, mock_translation):
+    def test_get_translator_success(self, mock_translation) -> None:
         """Test get_translator with successful translation loading.
 
         This test verifies that get_translator successfully loads
         translation for a supported language.
+
+        :param mock_translation: Mocked gettext.translation function
+        :type mock_translation: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_translator = Mock()
@@ -69,11 +86,16 @@ class TestGetTranslator:
         assert result == mock_translator
 
     @patch("src.i18n.gettext.translation")
-    def test_get_translator_with_fallback(self, mock_translation):
+    def test_get_translator_with_fallback(self, mock_translation) -> None:
         """Test get_translator with fallback to English.
 
         This test verifies that get_translator falls back to English
         when the requested language is not available.
+
+        :param mock_translation: Mocked gettext.translation function
+        :type mock_translation: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock to raise OSError for first call, succeed for second
         mock_translator = Mock()
@@ -101,11 +123,16 @@ class TestGetTranslator:
         assert result == mock_translator
 
     @patch("src.i18n.gettext.translation")
-    def test_get_translator_with_english(self, mock_translation):
+    def test_get_translator_with_english(self, mock_translation) -> None:
         """Test get_translator with English language.
 
         This test verifies that get_translator works correctly
         when English is requested.
+
+        :param mock_translation: Mocked gettext.translation function
+        :type mock_translation: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_translator = Mock()
@@ -123,11 +150,16 @@ class TestGetTranslator:
         assert result == mock_translator
 
     @patch("src.i18n.gettext.translation")
-    def test_get_translator_with_ukrainian(self, mock_translation):
+    def test_get_translator_with_ukrainian(self, mock_translation) -> None:
         """Test get_translator with Ukrainian language.
 
         This test verifies that get_translator works correctly
         when Ukrainian is requested.
+
+        :param mock_translation: Mocked gettext.translation function
+        :type mock_translation: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_translator = Mock()
@@ -153,11 +185,16 @@ class TestUseLocale:
     """
 
     @patch("src.i18n.get_translator")
-    def test_use_locale_success(self, mock_get_translator):
+    def test_use_locale_success(self, mock_get_translator) -> None:
         """Test use_locale with successful translator installation.
 
         This test verifies that use_locale properly installs translator
         and returns the expected functions.
+
+        :param mock_get_translator: Mocked get_translator function
+        :type mock_get_translator: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock translator
         mock_translator = Mock()
@@ -186,11 +223,16 @@ class TestUseLocale:
         assert pgettext_func == mock_pgettext
 
     @patch("src.i18n.get_translator")
-    def test_use_locale_with_different_language(self, mock_get_translator):
+    def test_use_locale_with_different_language(self, mock_get_translator) -> None:
         """Test use_locale with different language.
 
         This test verifies that use_locale works correctly
         with different language codes.
+
+        :param mock_get_translator: Mocked get_translator function
+        :type mock_get_translator: Mock
+        :returns: None
+        :rtype: None
         """
         # Setup mock translator
         mock_translator = Mock()
@@ -226,102 +268,138 @@ class TestNormalizeBabelLocale:
     including various language code mappings and edge cases.
     """
 
-    def test_normalize_ukrainian_language(self):
+    def test_normalize_ukrainian_language(self) -> None:
         """Test normalize_babel_locale with Ukrainian language code.
 
         This test verifies that 'ua' is correctly mapped to 'uk'.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("ua")
         assert result == "uk"
 
-    def test_normalize_belarusian_language(self):
+    def test_normalize_belarusian_language(self) -> None:
         """Test normalize_babel_locale with Belarusian language code.
 
         This test verifies that 'by' is correctly mapped to 'be'.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("by")
         assert result == "be"
 
-    def test_normalize_russian_language(self):
+    def test_normalize_russian_language(self) -> None:
         """Test normalize_babel_locale with Russian language code.
 
         This test verifies that 'ru' remains unchanged.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("ru")
         assert result == "ru"
 
-    def test_normalize_english_language(self):
+    def test_normalize_english_language(self) -> None:
         """Test normalize_babel_locale with English language code.
 
         This test verifies that 'en' remains unchanged.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("en")
         assert result == "en"
 
-    def test_normalize_uppercase_language(self):
+    def test_normalize_uppercase_language(self) -> None:
         """Test normalize_babel_locale with uppercase language code.
 
         This test verifies that uppercase language codes are normalized
         to lowercase before mapping.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("UA")
         assert result == "uk"
 
-    def test_normalize_mixed_case_language(self):
+    def test_normalize_mixed_case_language(self) -> None:
         """Test normalize_babel_locale with mixed case language code.
 
         This test verifies that mixed case language codes are normalized
         to lowercase before mapping.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("By")
         assert result == "be"
 
-    def test_normalize_unknown_language(self):
+    def test_normalize_unknown_language(self) -> None:
         """Test normalize_babel_locale with unknown language code.
 
         This test verifies that unknown language codes are returned
         as-is in lowercase.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("fr")
         assert result == "fr"
 
-    def test_normalize_unknown_language_uppercase(self):
+    def test_normalize_unknown_language_uppercase(self) -> None:
         """Test normalize_babel_locale with unknown uppercase language code.
 
         This test verifies that unknown uppercase language codes are
         returned in lowercase.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("FR")
         assert result == "fr"
 
-    def test_normalize_none_language(self):
+    def test_normalize_none_language(self) -> None:
         """Test normalize_babel_locale with None language.
 
         This test verifies that None language code defaults to 'en'.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale(None)
         assert result == "en"
 
-    def test_normalize_empty_string_language(self):
+    def test_normalize_empty_string_language(self) -> None:
         """Test normalize_babel_locale with empty string language.
 
         This test verifies that empty string language code defaults to 'en'.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("")
         assert result == "en"
 
-    def test_normalize_whitespace_language(self):
+    def test_normalize_whitespace_language(self) -> None:
         """Test normalize_babel_locale with whitespace language.
 
         This test verifies that whitespace-only language code is returned as-is.
+
+        :returns: None
+        :rtype: None
         """
         result = normalize_babel_locale("   ")
         assert result == "   "  # Whitespace is preserved
 
-    def test_normalize_all_mapped_languages(self):
+    def test_normalize_all_mapped_languages(self) -> None:
         """Test normalize_babel_locale with all mapped languages.
 
         This test verifies all language mappings work correctly.
+
+        :returns: None
+        :rtype: None
         """
         test_cases = [
             ("ua", "uk"),
@@ -334,10 +412,13 @@ class TestNormalizeBabelLocale:
             result = normalize_babel_locale(input_lang)
             assert result == expected_output, f"Failed for {input_lang}"
 
-    def test_normalize_edge_cases(self):
+    def test_normalize_edge_cases(self) -> None:
         """Test normalize_babel_locale with edge cases.
 
         This test verifies edge cases are handled correctly.
+
+        :returns: None
+        :rtype: None
         """
         test_cases = [
             ("de", "de"),  # German - not mapped, should return as-is

@@ -16,13 +16,29 @@ from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestBaseHandler:
-    """Test suite for BaseHandler class."""
+    """Test suite for BaseHandler class.
+
+    This test class contains all tests for BaseHandler functionality,
+    including initialization, registration requirements, message editing,
+    and command context extraction.
+    """
 
     class ConcreteHandler(BaseHandler):
-        """Concrete implementation of BaseHandler for testing."""
+        """Concrete implementation of BaseHandler for testing.
+
+        This is a minimal concrete subclass used to test the abstract
+        BaseHandler class functionality.
+        """
 
         async def handle(self, update, context):
-            """Test implementation of handle method."""
+            """Test implementation of handle method.
+
+            Minimal implementation required by BaseHandler abstract class.
+
+            :param update: Telegram update object
+            :param context: Telegram context object
+            :returns: None
+            """
             return None
 
     @pytest.fixture
@@ -149,7 +165,18 @@ class TestBaseHandler:
         handler: ConcreteHandler,
         mock_update: MagicMock,
     ) -> None:
-        """Test _extract_command_context method."""
+        """Test command context extraction from update object.
+
+        This test verifies that _extract_command_context correctly extracts
+        user information, profile, and language from an update object.
+
+        :param handler: ConcreteHandler instance
+        :type handler: ConcreteHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = MagicMock()
         mock_user_profile.settings.language = SupportedLanguage.EN.value
         handler.services.user_service.get_user_profile.return_value = mock_user_profile

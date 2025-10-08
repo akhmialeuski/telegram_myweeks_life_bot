@@ -30,7 +30,11 @@ SCHEDULER_ERROR = "Scheduler error"
 
 
 class TestSendWeeklyMessageToUser:
-    """Tests for the send_weekly_message_to_user method."""
+    """Tests for the send_weekly_message_to_user method.
+
+    This test class contains all tests for the send_weekly_message_to_user
+    functionality, including successful message sending and error handling.
+    """
 
     @pytest.mark.asyncio
     async def test_sends_message_if_user_found(
@@ -39,7 +43,17 @@ class TestSendWeeklyMessageToUser:
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
     ) -> None:
-        """Verify that a weekly message is generated and sent if the user profile is found."""
+        """Verify that a weekly message is generated and sent if the user profile is found.
+
+        :param mock_app: Mocked Application instance
+        :type mock_app: MagicMock
+        :param mock_user_with_settings: Mocked user with settings
+        :type mock_user_with_settings: MagicMock
+        :param mock_user_service: Mocked user service
+        :type mock_user_service: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_user_service.get_user_profile.return_value = mock_user_with_settings
         notification_scheduler = NotificationScheduler(mock_app)
 
@@ -74,6 +88,8 @@ class TestSendWeeklyMessageToUser:
         :type mock_user_service: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         mock_user_service.get_user_profile.return_value = None
         notification_scheduler = NotificationScheduler(mock_app)
@@ -100,6 +116,8 @@ class TestSendWeeklyMessageToUser:
         :type mock_user_service: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         mock_user_service.get_user_profile.side_effect = Exception(DB_ERROR)
         notification_scheduler = NotificationScheduler(mock_app)
@@ -112,7 +130,11 @@ class TestSendWeeklyMessageToUser:
 
 
 class TestCreateUserNotificationJob:
-    """Tests for the private _create_user_notification_job method."""
+    """Tests for the private _create_user_notification_job method.
+
+    This test class contains all tests for job creation functionality,
+    including valid settings, missing settings, and error scenarios.
+    """
 
     def test_creates_job_if_settings_are_valid(
         self,
@@ -131,6 +153,8 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
         notification_scheduler._create_user_notification_job(mock_user_with_settings)
@@ -153,6 +177,8 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         user_no_settings = MagicMock(telegram_id=TEST_USER_ID, settings=None)
         notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)
@@ -178,6 +204,8 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         user_disabled = MagicMock(telegram_id=TEST_USER_ID)
         user_disabled.settings.notifications = False
@@ -212,6 +240,8 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         user = MagicMock(telegram_id=TEST_USER_ID)
         user.settings.notifications = True
@@ -251,6 +281,8 @@ class TestCreateUserNotificationJob:
         :type mock_scheduler: MagicMock
         :param mock_scheduler_logger: Mocked logger for scheduler module
         :type mock_scheduler_logger: MagicMock
+        :returns: None
+        :rtype: None
         """
         mock_scheduler.add_job.side_effect = Exception(SCHEDULER_ERROR)
         notification_scheduler = NotificationScheduler(mock_app, mock_scheduler)

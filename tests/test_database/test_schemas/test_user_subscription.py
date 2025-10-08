@@ -31,11 +31,14 @@ class TestUserSubscriptionBase:
     including validation and field assignment.
     """
 
-    def test_user_subscription_base_creation_with_required_fields(self):
+    def test_user_subscription_base_creation_with_required_fields(self) -> None:
         """Test UserSubscriptionBase creation with only required fields.
 
         This test verifies that UserSubscriptionBase can be created with
         only the telegram_id field (required field).
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionBase(telegram_id=TELEGRAM_ID)
 
@@ -43,11 +46,14 @@ class TestUserSubscriptionBase:
         assert subscription.is_active is True  # Default value
         assert subscription.expires_at is None
 
-    def test_user_subscription_base_creation_with_all_fields(self):
+    def test_user_subscription_base_creation_with_all_fields(self) -> None:
         """Test UserSubscriptionBase creation with all fields provided.
 
         This test verifies that UserSubscriptionBase can be created with
         all fields and they are properly assigned.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionBase(
             telegram_id=TELEGRAM_ID,
@@ -59,19 +65,25 @@ class TestUserSubscriptionBase:
         assert subscription.is_active == IS_ACTIVE
         assert subscription.expires_at == EXPIRES_AT
 
-    def test_user_subscription_base_telegram_id_required(self):
+    def test_user_subscription_base_telegram_id_required(self) -> None:
         """Test that telegram_id is required for UserSubscriptionBase.
 
         This test verifies that UserSubscriptionBase raises ValidationError
         when telegram_id is not provided.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionBase()
 
-    def test_user_subscription_base_telegram_id_validation(self):
+    def test_user_subscription_base_telegram_id_validation(self) -> None:
         """Test telegram_id field validation.
 
         This test verifies that telegram_id must be an integer.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionBase(telegram_id="not_an_int")
@@ -79,10 +91,13 @@ class TestUserSubscriptionBase:
         with pytest.raises(ValidationError):
             UserSubscriptionBase(telegram_id=None)
 
-    def test_user_subscription_base_is_active_validation(self):
+    def test_user_subscription_base_is_active_validation(self) -> None:
         """Test is_active field validation.
 
         This test verifies that is_active must be a boolean.
+
+        :returns: None
+        :rtype: None
         """
         # Valid boolean should work
         subscription = UserSubscriptionBase(
@@ -98,10 +113,13 @@ class TestUserSubscriptionBase:
                 is_active="not_a_bool",
             )
 
-    def test_user_subscription_base_expires_at_validation(self):
+    def test_user_subscription_base_expires_at_validation(self) -> None:
         """Test expires_at field validation.
 
         This test verifies that expires_at must be a datetime object when provided.
+
+        :returns: None
+        :rtype: None
         """
         # Valid datetime should work
         subscription = UserSubscriptionBase(
@@ -117,20 +135,26 @@ class TestUserSubscriptionBase:
                 expires_at="not_a_datetime",
             )
 
-    def test_user_subscription_base_default_is_active(self):
+    def test_user_subscription_base_default_is_active(self) -> None:
         """Test that is_active has default value True.
 
         This test verifies that is_active field defaults to True
         when not explicitly provided.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionBase(telegram_id=TELEGRAM_ID)
         assert subscription.is_active is True
 
-    def test_user_subscription_base_expires_at_none(self):
+    def test_user_subscription_base_expires_at_none(self) -> None:
         """Test that expires_at can be None.
 
         This test verifies that expires_at field can be None
         for subscriptions without expiration.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionBase(
             telegram_id=TELEGRAM_ID,
@@ -146,21 +170,27 @@ class TestUserSubscriptionCreate:
     which inherits from UserSubscriptionBase.
     """
 
-    def test_user_subscription_create_inherits_from_base(self):
+    def test_user_subscription_create_inherits_from_base(self) -> None:
         """Test that UserSubscriptionCreate inherits from UserSubscriptionBase.
 
         This test verifies that UserSubscriptionCreate is a subclass of UserSubscriptionBase
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionCreate(telegram_id=TELEGRAM_ID)
 
         assert isinstance(subscription, UserSubscriptionBase)
         assert subscription.telegram_id == TELEGRAM_ID
 
-    def test_user_subscription_create_with_all_fields(self):
+    def test_user_subscription_create_with_all_fields(self) -> None:
         """Test UserSubscriptionCreate with all fields.
 
         This test verifies that UserSubscriptionCreate works with all available fields.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionCreate(
             telegram_id=TELEGRAM_ID,
@@ -180,11 +210,14 @@ class TestUserSubscriptionUpdate:
     which is used for updating user subscription data.
     """
 
-    def test_user_subscription_update_all_fields_optional(self):
+    def test_user_subscription_update_all_fields_optional(self) -> None:
         """Test that all fields in UserSubscriptionUpdate are optional.
 
         This test verifies that UserSubscriptionUpdate can be created
         without any fields (all are optional for updates).
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionUpdate()
 
@@ -194,11 +227,14 @@ class TestUserSubscriptionUpdate:
         assert subscription.is_active is None
         assert subscription.expires_at is None
 
-    def test_user_subscription_update_with_some_fields(self):
+    def test_user_subscription_update_with_some_fields(self) -> None:
         """Test UserSubscriptionUpdate with some fields provided.
 
         This test verifies that UserSubscriptionUpdate can be created with
         only some fields for partial updates.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionUpdate(
             is_active=False,
@@ -207,11 +243,14 @@ class TestUserSubscriptionUpdate:
         assert subscription.is_active is False
         assert subscription.expires_at is None
 
-    def test_user_subscription_update_with_all_fields(self):
+    def test_user_subscription_update_with_all_fields(self) -> None:
         """Test UserSubscriptionUpdate with all fields provided.
 
         This test verifies that UserSubscriptionUpdate can be created with
         all available fields.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionUpdate(
             is_active=IS_ACTIVE,
@@ -221,11 +260,14 @@ class TestUserSubscriptionUpdate:
         assert subscription.is_active == IS_ACTIVE
         assert subscription.expires_at == EXPIRES_AT
 
-    def test_user_subscription_update_expires_at_none(self):
+    def test_user_subscription_update_expires_at_none(self) -> None:
         """Test UserSubscriptionUpdate with expires_at set to None.
 
         This test verifies that UserSubscriptionUpdate can handle
         expires_at being explicitly set to None.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionUpdate(
             is_active=True,
@@ -243,11 +285,14 @@ class TestUserSubscriptionInDB:
     which represents user subscription data as stored in the database.
     """
 
-    def test_user_subscription_in_db_creation_with_required_fields(self):
+    def test_user_subscription_in_db_creation_with_required_fields(self) -> None:
         """Test UserSubscriptionInDB creation with required fields.
 
         This test verifies that UserSubscriptionInDB can be created with
         telegram_id, id, and created_at fields.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionInDB(
             id=1,
@@ -261,11 +306,14 @@ class TestUserSubscriptionInDB:
         assert subscription.is_active is True  # Default value
         assert subscription.expires_at is None
 
-    def test_user_subscription_in_db_creation_with_all_fields(self):
+    def test_user_subscription_in_db_creation_with_all_fields(self) -> None:
         """Test UserSubscriptionInDB creation with all fields.
 
         This test verifies that UserSubscriptionInDB can be created with
         all fields including database-specific ones.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionInDB(
             id=1,
@@ -281,11 +329,14 @@ class TestUserSubscriptionInDB:
         assert subscription.expires_at == EXPIRES_AT
         assert subscription.created_at == CREATED_AT
 
-    def test_user_subscription_in_db_id_required(self):
+    def test_user_subscription_in_db_id_required(self) -> None:
         """Test that id is required for UserSubscriptionInDB.
 
         This test verifies that UserSubscriptionInDB raises ValidationError
         when id is not provided.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionInDB(
@@ -293,11 +344,14 @@ class TestUserSubscriptionInDB:
                 created_at=CREATED_AT,
             )
 
-    def test_user_subscription_in_db_created_at_required(self):
+    def test_user_subscription_in_db_created_at_required(self) -> None:
         """Test that created_at is required for UserSubscriptionInDB.
 
         This test verifies that UserSubscriptionInDB raises ValidationError
         when created_at is not provided.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionInDB(
@@ -305,10 +359,13 @@ class TestUserSubscriptionInDB:
                 telegram_id=TELEGRAM_ID,
             )
 
-    def test_user_subscription_in_db_id_validation(self):
+    def test_user_subscription_in_db_id_validation(self) -> None:
         """Test id field validation.
 
         This test verifies that id must be an integer.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionInDB(
@@ -317,10 +374,13 @@ class TestUserSubscriptionInDB:
                 created_at=CREATED_AT,
             )
 
-    def test_user_subscription_in_db_created_at_validation(self):
+    def test_user_subscription_in_db_created_at_validation(self) -> None:
         """Test created_at field validation.
 
         This test verifies that created_at must be a datetime object.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserSubscriptionInDB(
@@ -329,11 +389,14 @@ class TestUserSubscriptionInDB:
                 created_at="not_a_datetime",
             )
 
-    def test_user_subscription_in_db_inherits_from_base(self):
+    def test_user_subscription_in_db_inherits_from_base(self) -> None:
         """Test that UserSubscriptionInDB inherits from UserSubscriptionBase.
 
         This test verifies that UserSubscriptionInDB is a subclass of UserSubscriptionBase
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionInDB(
             id=1,
@@ -351,11 +414,14 @@ class TestUserSubscriptionResponse:
     which is used for API responses.
     """
 
-    def test_user_subscription_response_inherits_from_in_db(self):
+    def test_user_subscription_response_inherits_from_in_db(self) -> None:
         """Test that UserSubscriptionResponse inherits from UserSubscriptionInDB.
 
         This test verifies that UserSubscriptionResponse is a subclass of UserSubscriptionInDB
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionResponse(
             id=1,
@@ -369,10 +435,13 @@ class TestUserSubscriptionResponse:
         assert subscription.telegram_id == TELEGRAM_ID
         assert subscription.created_at == CREATED_AT
 
-    def test_user_subscription_response_with_all_fields(self):
+    def test_user_subscription_response_with_all_fields(self) -> None:
         """Test UserSubscriptionResponse with all fields.
 
         This test verifies that UserSubscriptionResponse works with all available fields.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionResponse(
             id=1,
@@ -396,11 +465,14 @@ class TestUserSubscriptionSchemaIntegration:
     testing JSON serialization and cross-schema compatibility.
     """
 
-    def test_user_subscription_schema_json_serialization(self):
+    def test_user_subscription_schema_json_serialization(self) -> None:
         """Test JSON serialization of user subscription schemas.
 
         This test verifies that user subscription schemas can be properly
         serialized to and from JSON.
+
+        :returns: None
+        :rtype: None
         """
         subscription_data = {
             "id": 1,
@@ -422,11 +494,14 @@ class TestUserSubscriptionSchemaIntegration:
         assert serialized["expires_at"] == EXPIRES_AT.isoformat()
         assert serialized["created_at"] == CREATED_AT.isoformat()
 
-    def test_user_subscription_base_to_create_compatibility(self):
+    def test_user_subscription_base_to_create_compatibility(self) -> None:
         """Test compatibility between UserSubscriptionBase and UserSubscriptionCreate.
 
         This test verifies that data from UserSubscriptionBase can be used
         to create UserSubscriptionCreate instances.
+
+        :returns: None
+        :rtype: None
         """
         base_data = {
             "telegram_id": TELEGRAM_ID,
@@ -441,11 +516,14 @@ class TestUserSubscriptionSchemaIntegration:
         assert subscription_create.is_active == subscription_base.is_active
         assert subscription_create.expires_at == subscription_base.expires_at
 
-    def test_user_subscription_update_partial_data(self):
+    def test_user_subscription_update_partial_data(self) -> None:
         """Test UserSubscriptionUpdate with partial data.
 
         This test verifies that UserSubscriptionUpdate can handle partial
         updates with only some fields provided.
+
+        :returns: None
+        :rtype: None
         """
         partial_data = {
             "is_active": False,
@@ -455,11 +533,14 @@ class TestUserSubscriptionSchemaIntegration:
         assert subscription_update.is_active is False
         assert subscription_update.expires_at is None
 
-    def test_user_subscription_schema_datetime_handling(self):
+    def test_user_subscription_schema_datetime_handling(self) -> None:
         """Test datetime handling in user subscription schemas.
 
         This test verifies that datetime fields are properly handled
         in serialization and deserialization.
+
+        :returns: None
+        :rtype: None
         """
         subscription = UserSubscriptionInDB(
             id=1,

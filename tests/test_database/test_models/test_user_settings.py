@@ -13,10 +13,11 @@ from src.database.models.user_settings import UserSettings
 class TestUserSettings:
     """Test suite for UserSettings model."""
 
-    def test_user_settings_creation_basic(self):
+    def test_user_settings_creation_basic(self) -> None:
         """Test basic UserSettings creation.
 
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(
             telegram_id=123456789, birth_date=date(1990, 1, 1), notifications=True
@@ -30,10 +31,11 @@ class TestUserSettings:
         # notifications_day has no default value in the model
         assert settings.notifications_day is None
 
-    def test_user_settings_creation_with_all_fields(self):
+    def test_user_settings_creation_with_all_fields(self) -> None:
         """Test UserSettings creation with all fields specified.
 
         :returns: None
+        :rtype: None
         """
         updated_at = datetime.now(UTC)
         settings = UserSettings(
@@ -52,10 +54,11 @@ class TestUserSettings:
         assert settings.notifications_day == WeekDay.FRIDAY
         assert settings.updated_at == updated_at
 
-    def test_user_settings_default_values(self):
+    def test_user_settings_default_values(self) -> None:
         """Test UserSettings default values.
 
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(telegram_id=123456789, birth_date=date(1990, 1, 1))
 
@@ -65,10 +68,11 @@ class TestUserSettings:
         assert settings.notifications is None
         assert settings.notifications_day is None
 
-    def test_user_settings_week_day_enum_values(self):
+    def test_user_settings_week_day_enum_values(self) -> None:
         """Test all WeekDay enum values work correctly.
 
         :returns: None
+        :rtype: None
         """
         for day in WeekDay:
             settings = UserSettings(
@@ -78,10 +82,11 @@ class TestUserSettings:
             )
             assert settings.notifications_day == day
 
-    def test_user_settings_life_expectancy_validation(self):
+    def test_user_settings_life_expectancy_validation(self) -> None:
         """Test life expectancy validation.
 
         :returns: None
+        :rtype: None
         """
         # Test valid values
         for age in [50, 75, 80, 90, 100, 120]:
@@ -90,10 +95,11 @@ class TestUserSettings:
             )
             assert settings.life_expectancy == age
 
-    def test_user_settings_birth_date_validation(self):
+    def test_user_settings_birth_date_validation(self) -> None:
         """Test birth date validation.
 
         :returns: None
+        :rtype: None
         """
         # Test valid dates
         valid_dates = [
@@ -108,10 +114,11 @@ class TestUserSettings:
             settings = UserSettings(telegram_id=123456789, birth_date=birth_date)
             assert settings.birth_date == birth_date
 
-    def test_user_settings_notifications_boolean(self):
+    def test_user_settings_notifications_boolean(self) -> None:
         """Test notifications field accepts boolean values.
 
         :returns: None
+        :rtype: None
         """
         # Test True
         settings_true = UserSettings(
@@ -125,10 +132,11 @@ class TestUserSettings:
         )
         assert settings_false.notifications is False
 
-    def test_user_settings_repr(self):
+    def test_user_settings_repr(self) -> None:
         """Test UserSettings string representation.
 
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(
             telegram_id=123456789,
@@ -143,10 +151,11 @@ class TestUserSettings:
         assert isinstance(repr_str, str)
         assert len(repr_str) > 0
 
-    def test_user_settings_str(self):
+    def test_user_settings_str(self) -> None:
         """Test UserSettings string conversion.
 
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(
             telegram_id=123456789,
@@ -160,10 +169,11 @@ class TestUserSettings:
         assert isinstance(str_repr, str)
         assert len(str_repr) > 0
 
-    def test_user_settings_equality(self):
+    def test_user_settings_equality(self) -> None:
         """Test UserSettings equality comparison.
 
         :returns: None
+        :rtype: None
         """
         settings1 = UserSettings(
             telegram_id=123456789, birth_date=date(1990, 1, 1), life_expectancy=80
@@ -184,10 +194,11 @@ class TestUserSettings:
         # Different telegram_id should not be equal
         assert settings1.telegram_id != settings3.telegram_id
 
-    def test_week_day_enum_values(self):
+    def test_week_day_enum_values(self) -> None:
         """Test WeekDay enum has all expected values.
 
         :returns: None
+        :rtype: None
         """
         expected_days = {
             "MONDAY",
@@ -202,10 +213,11 @@ class TestUserSettings:
         actual_days = {day.name for day in WeekDay}
         assert actual_days == expected_days
 
-    def test_week_day_enum_ordering(self):
+    def test_week_day_enum_ordering(self) -> None:
         """Test WeekDay enum ordering is correct.
 
         :returns: None
+        :rtype: None
         """
         days_in_order = [
             WeekDay.MONDAY,
@@ -221,10 +233,11 @@ class TestUserSettings:
             # WeekDay enum uses auto() values
             assert day.value == day.name.lower()
 
-    def test_user_settings_updated_at_auto_population(self):
+    def test_user_settings_updated_at_auto_population(self) -> None:
         """Test that updated_at can be manually set.
 
         :returns: None
+        :rtype: None
         """
         custom_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         settings = UserSettings(
@@ -233,10 +246,11 @@ class TestUserSettings:
 
         assert settings.updated_at == custom_time
 
-    def test_user_settings_none_birth_date(self):
+    def test_user_settings_none_birth_date(self) -> None:
         """Test UserSettings with None birth date.
 
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(
             telegram_id=123456789,
@@ -246,10 +260,11 @@ class TestUserSettings:
         assert settings.birth_date is None
         assert settings.telegram_id == 123456789
 
-    def test_user_settings_extreme_life_expectancy_values(self):
+    def test_user_settings_extreme_life_expectancy_values(self) -> None:
         """Test UserSettings with extreme life expectancy values.
 
         :returns: None
+        :rtype: None
         """
         # Test very low value
         settings_low = UserSettings(

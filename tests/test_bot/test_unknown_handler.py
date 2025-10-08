@@ -1,6 +1,7 @@
 """Unit tests for UnknownHandler.
 
-Tests the UnknownHandler class which handles unknown messages.
+This module contains tests for the UnknownHandler class which handles
+messages and commands that the bot does not recognize.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -13,17 +14,35 @@ from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestUnknownHandler:
-    """Test suite for UnknownHandler class."""
+    """Test suite for UnknownHandler class.
+
+    This class contains tests verifying that the UnknownHandler correctly
+    processes unrecognized commands and messages, providing appropriate
+    feedback to users through the MessageContext system.
+    """
 
     @pytest.fixture
     def handler(self) -> UnknownHandler:
-        """Create UnknownHandler instance."""
+        """Create UnknownHandler instance for testing.
+
+        :returns: Configured UnknownHandler with fake service container
+        :rtype: UnknownHandler
+        """
         services = FakeServiceContainer()
         return UnknownHandler(services)
 
     @pytest.fixture(autouse=True)
     def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+        """Mock use_locale function to control translation behavior.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: Pytest mocker fixture
+        :type mocker: MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.unknown_handler.use_locale",
@@ -32,7 +51,16 @@ class TestUnknownHandler:
         return mock_pgettext
 
     def test_handler_creation(self, handler: UnknownHandler) -> None:
-        """Test UnknownHandler creation."""
+        """Test that UnknownHandler is created with correct command identifier.
+
+        This test verifies that the handler is properly initialized
+        with the unknown command identifier constant.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :returns: None
+        :rtype: None
+        """
         assert handler.command_name == f"/{COMMAND_UNKNOWN}"
 
     @pytest.mark.asyncio
@@ -42,7 +70,21 @@ class TestUnknownHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with successful unknown message handling."""
+        """Test successful handling of unknown command or message.
+
+        This test verifies that the handle method correctly processes
+        unrecognized input and sends an appropriate response message
+        to inform the user.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         await handler.handle(mock_update, mock_context)
 
         mock_update.message.reply_text.assert_called_once()
@@ -56,7 +98,21 @@ class TestUnknownHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test that handle method properly uses MessageContext."""
+        """Test that handle method properly uses MessageContext for localization.
+
+        This test verifies that the handler correctly utilizes the
+        MessageContext system to determine user language and send
+        localized messages.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.send_message = AsyncMock()
         mock_update.effective_user.language_code = "en"
 

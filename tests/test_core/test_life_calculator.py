@@ -13,14 +13,22 @@ from src.core.life_calculator import LifeCalculatorEngine
 
 
 class TestLifeCalculatorEngine:
-    """Test suite for LifeCalculatorEngine class."""
+    """Test suite for LifeCalculatorEngine class.
+
+    This test class contains all tests for life calculation functionality,
+    including age calculation, time calculations (days/weeks/months/years),
+    percentage calculations, birthday calculations, and life statistics generation.
+    """
 
     @pytest.fixture
     def sample_user_with_settings(self):
         """Create a sample User with settings for testing.
 
+        Creates a mock user with birth date March 15, 1990 and life
+        expectancy of 80 years for consistent test calculations.
+
         :returns: Sample User with settings
-        :rtype: User
+        :rtype: Mock
         """
         user = Mock()
         user.settings = Mock()
@@ -30,17 +38,23 @@ class TestLifeCalculatorEngine:
 
     @pytest.fixture
     def calculator(self, sample_user_with_settings):
-        """Create LifeCalculatorEngine instance.
+        """Create LifeCalculatorEngine instance for testing.
 
+        :param sample_user_with_settings: Mock user with settings
+        :type sample_user_with_settings: Mock
         :returns: LifeCalculatorEngine instance
         :rtype: LifeCalculatorEngine
         """
         return LifeCalculatorEngine(sample_user_with_settings)
 
-    def test_calculate_age_exact_birthday(self):
-        """Test calculating age on exact birthday.
+    def test_calculate_age_exact_birthday(self) -> None:
+        """Test age calculation when today is exactly the birthday.
+
+        This test verifies that the age is correctly calculated when
+        the current date matches the birth month and day.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()
@@ -55,10 +69,14 @@ class TestLifeCalculatorEngine:
 
             assert age == 34
 
-    def test_calculate_age_before_birthday(self):
-        """Test calculating age before birthday this year.
+    def test_calculate_age_before_birthday(self) -> None:
+        """Test age calculation before birthday occurs this year.
+
+        This test verifies that the age is one less than the birth year
+        difference when the birthday hasn't occurred yet in the current year.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()
@@ -73,10 +91,14 @@ class TestLifeCalculatorEngine:
 
             assert age == 33
 
-    def test_calculate_age_after_birthday(self):
-        """Test calculating age after birthday this year.
+    def test_calculate_age_after_birthday(self) -> None:
+        """Test age calculation after birthday occurred this year.
+
+        This test verifies that the age matches the birth year difference
+        when the birthday has already occurred in the current year.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()
@@ -91,29 +113,40 @@ class TestLifeCalculatorEngine:
 
             assert age == 34
 
-    def test_calculate_days_lived(self, calculator):
-        """Test calculating total days lived.
+    def test_calculate_days_lived(self, calculator) -> None:
+        """Test calculation of total days lived.
+
+        This test verifies that the calculator correctly computes the
+        number of days from birth date to current date, accounting for
+        leap years.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
             mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
 
             # Birth date is 1990-03-15, today is 2024-03-15
-            # So exactly 34 years = 34 * 365 + leap days
+            # Exactly 34 years = 34 * 365 + leap days
             days = calculator.calculate_days_lived()
 
             assert isinstance(days, int)
             assert days > 12000  # More than 30 years
             assert days < 15000  # Less than 40 years
 
-    def test_calculate_weeks_lived(self, calculator):
-        """Test calculating total weeks lived.
+    def test_calculate_weeks_lived(self, calculator) -> None:
+        """Test calculation of total weeks lived.
+
+        This test verifies that the calculator correctly computes the
+        number of complete weeks from birth date to current date.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -125,11 +158,16 @@ class TestLifeCalculatorEngine:
             assert weeks > 1700  # More than 30 years worth of weeks
             assert weeks < 2200  # Less than 40 years worth of weeks
 
-    def test_calculate_months_lived(self, calculator):
-        """Test calculating total months lived.
+    def test_calculate_months_lived(self, calculator) -> None:
+        """Test calculation of total months lived.
+
+        This test verifies that the calculator correctly computes the
+        number of months from birth date to current date.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -141,11 +179,16 @@ class TestLifeCalculatorEngine:
             assert months > 400  # More than 30 years worth of months
             assert months < 600  # Less than 40 years worth of months
 
-    def test_calculate_years_and_remaining_weeks(self, calculator):
-        """Test calculating years and remaining weeks.
+    def test_calculate_years_and_remaining_weeks(self, calculator) -> None:
+        """Test calculation of complete years and remaining weeks.
+
+        This test verifies that the calculator correctly splits the total
+        time lived into complete years and remaining weeks.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -159,11 +202,16 @@ class TestLifeCalculatorEngine:
             assert years < 40
             assert 0 <= remaining_weeks < 52
 
-    def test_calculate_remaining_weeks(self, calculator):
-        """Test calculating remaining weeks until life expectancy.
+    def test_calculate_remaining_weeks(self, calculator) -> None:
+        """Test calculation of weeks remaining until life expectancy.
+
+        This test verifies that the calculator correctly computes the
+        number of weeks left until the expected end of life.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -175,11 +223,16 @@ class TestLifeCalculatorEngine:
             assert remaining > 2000  # More than 40 years left
             assert remaining < 3000  # Less than 60 years left
 
-    def test_calculate_life_percentage(self, calculator):
-        """Test calculating percentage of life lived.
+    def test_calculate_life_percentage(self, calculator) -> None:
+        """Test calculation of percentage of life lived.
+
+        This test verifies that the calculator correctly computes the
+        proportion of life already lived as a decimal between 0 and 1.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -191,11 +244,16 @@ class TestLifeCalculatorEngine:
             assert 0.0 <= percentage <= 1.0
             assert 0.4 < percentage < 0.5  # Around 42-45%
 
-    def test_get_next_birthday_same_year(self, calculator):
-        """Test getting next birthday when it's later this year.
+    def test_get_next_birthday_same_year(self, calculator) -> None:
+        """Test getting next birthday when it occurs later this year.
+
+        This test verifies that when the birthday hasn't occurred yet
+        this year, the next birthday is in the current year.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         # Manually override the today attribute on the calculator instance
         calculator.today = date(2024, 1, 15)
@@ -204,11 +262,16 @@ class TestLifeCalculatorEngine:
 
         assert next_birthday == date(2024, 3, 15)
 
-    def test_get_next_birthday_next_year(self, calculator):
-        """Test getting next birthday when it's next year.
+    def test_get_next_birthday_next_year(self, calculator) -> None:
+        """Test getting next birthday when it will be next year.
+
+        This test verifies that when the birthday has already occurred
+        this year, the next birthday is in the following year.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         # Manually override the today attribute on the calculator instance
         calculator.today = date(2024, 6, 15)
@@ -217,11 +280,16 @@ class TestLifeCalculatorEngine:
 
         assert next_birthday == date(2025, 3, 15)
 
-    def test_days_until_next_birthday(self, calculator):
-        """Test calculating days until next birthday.
+    def test_days_until_next_birthday(self, calculator) -> None:
+        """Test calculation of days until next birthday.
+
+        This test verifies that the calculator correctly computes
+        the number of days from today until the next birthday.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         # Manually override the today attribute on the calculator instance
         calculator.today = date(2024, 3, 14)
@@ -230,11 +298,13 @@ class TestLifeCalculatorEngine:
 
         assert days == 1
 
-    def test_get_life_statistics(self, calculator):
+    def test_get_life_statistics(self, calculator) -> None:
         """Test getting comprehensive life statistics.
 
         :param calculator: LifeCalculatorEngine instance
+        :type calculator: LifeCalculatorEngine
         :returns: None
+        :rtype: None
         """
         with patch("src.core.life_calculator.date") as mock_date:
             mock_date.today.return_value = date(2024, 3, 15)
@@ -252,10 +322,11 @@ class TestLifeCalculatorEngine:
             assert "next_birthday" in stats
             assert "days_until_birthday" in stats
 
-    def test_edge_case_newborn(self):
+    def test_edge_case_newborn(self) -> None:
         """Test edge case for newborn (born today).
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()
@@ -271,10 +342,11 @@ class TestLifeCalculatorEngine:
             assert calculator.calculate_days_lived() == 0
             assert calculator.calculate_weeks_lived() == 0
 
-    def test_edge_case_elderly(self):
+    def test_edge_case_elderly(self) -> None:
         """Test edge case for elderly person over life expectancy.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()
@@ -294,10 +366,11 @@ class TestLifeCalculatorEngine:
             percentage = calculator.calculate_life_percentage(80)
             assert percentage == 1.0
 
-    def test_invalid_user_no_birth_date(self):
+    def test_invalid_user_no_birth_date(self) -> None:
         """Test error handling for user without birth date.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = None
@@ -305,10 +378,11 @@ class TestLifeCalculatorEngine:
         with pytest.raises(ValueError, match="User must have a valid birth date"):
             LifeCalculatorEngine(user)
 
-    def test_invalid_user_no_settings(self):
+    def test_invalid_user_no_settings(self) -> None:
         """Test error handling for user without settings.
 
         :returns: None
+        :rtype: None
         """
         user = Mock()
         user.settings = Mock()

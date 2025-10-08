@@ -15,11 +15,14 @@ class TestSchemasPackageInit:
     testing imports and exports.
     """
 
-    def test_schemas_package_imports(self):
+    def test_schemas_package_imports(self) -> None:
         """Test that all schemas can be imported from the package.
 
         This test verifies that all schema classes can be imported
         from the schemas package __init__.py file.
+
+        :returns: None
+        :rtype: None
         """
         # Test BaseSchema import
         assert hasattr(schemas, "BaseSchema")
@@ -90,11 +93,14 @@ class TestSchemasPackageInit:
         assert schemas.UserSubscriptionInDB is UserSubscriptionInDB
         assert schemas.UserSubscriptionResponse is UserSubscriptionResponse
 
-    def test_schemas_package_all_export(self):
+    def test_schemas_package_all_export(self) -> None:
         """Test that __all__ export list contains all expected items.
 
         This test verifies that the __all__ list in __init__.py
         contains all the expected schema class names.
+
+        :returns: None
+        :rtype: None
         """
         expected_exports = [
             # Base
@@ -132,11 +138,14 @@ class TestSchemasPackageInit:
         # Check that we have the correct number of exports
         assert len(actual_exports) == len(expected_exports)
 
-    def test_schemas_can_instantiate_classes(self):
+    def test_schemas_can_instantiate_classes(self) -> None:
         """Test that schema classes can be instantiated from package imports.
 
         This test verifies that schema classes imported from the package
         can be properly instantiated and used.
+
+        :returns: None
+        :rtype: None
         """
         from datetime import datetime
 
@@ -182,11 +191,14 @@ class TestSchemasPackageInit:
         assert subscription_in_db.telegram_id == 123456789
         assert subscription_in_db.created_at == datetime(2023, 1, 1)
 
-    def test_schemas_package_no_extra_exports(self):
+    def test_schemas_package_no_extra_exports(self) -> None:
         """Test that the package doesn't export unexpected items.
 
         This test verifies that the package only exports the items
         listed in __all__ and doesn't have unexpected public exports.
+
+        :returns: None
+        :rtype: None
         """
         # Get all public attributes (not starting with _)
         public_attrs = [attr for attr in dir(schemas) if not attr.startswith("_")]
@@ -202,11 +214,14 @@ class TestSchemasPackageInit:
             len(unexpected_exports) == 0
         ), f"Unexpected exports found: {unexpected_exports}"
 
-    def test_schemas_package_module_docstring(self):
+    def test_schemas_package_module_docstring(self) -> None:
         """Test that the schemas package has proper documentation.
 
         This test verifies that the schemas package __init__.py
         has a proper module-level docstring.
+
+        :returns: None
+        :rtype: None
         """
         # Check that the module has a docstring
         assert schemas.__doc__ is not None

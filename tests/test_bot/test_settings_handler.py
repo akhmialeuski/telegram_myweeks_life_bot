@@ -20,12 +20,18 @@ TEST_BIRTH_DATE = "15.03.1990"
 
 
 class TestSettingsHandler:
-    """Test suite for SettingsHandler class."""
+    """Test suite for SettingsHandler class.
+
+    This test class contains all tests for SettingsHandler functionality,
+    including settings display, user input processing, birth date and
+    life expectancy updates, language changes, and error handling.
+    """
 
     @pytest.fixture
     def handler(self) -> SettingsHandler:
-        """Create SettingsHandler instance.
-        :returns: SettingsHandler instance
+        """Create SettingsHandler instance for testing.
+
+        :returns: Configured SettingsHandler instance with fake service container
         :rtype: SettingsHandler
         """
         from tests.utils.fake_container import FakeServiceContainer
@@ -34,8 +40,17 @@ class TestSettingsHandler:
         return SettingsHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+    def mock_use_locale(self, mocker) -> MagicMock:
+        """Mock use_locale to control translations.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: pytest-mock fixture for creating mocks
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.settings_handler.use_locale",
@@ -44,24 +59,36 @@ class TestSettingsHandler:
         return mock_pgettext
 
     def test_handler_creation(self, handler: SettingsHandler) -> None:
-        """Test SettingsHandler creation.
-        :param handler: SettingsHandler instance
+        """Test that SettingsHandler is created with correct command name.
+
+        This test verifies that the handler is properly initialized with
+        the /settings command name constant.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
         :returns: None
+        :rtype: None
         """
         assert handler.command_name == f"/{COMMAND_SETTINGS}"
 
     def test_set_waiting_state(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _set_waiting_state method.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test setting waiting state for user input.
+
+        This test verifies that _set_waiting_state correctly stores the
+        waiting state, timestamp, and state ID in user data for tracking
+        user input sequences.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Execute
         handler._set_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert mock_context.user_data["waiting_for"] == "test_state"
         assert "waiting_timestamp" in mock_context.user_data
         assert "waiting_state_id" in mock_context.user_data
@@ -71,12 +98,18 @@ class TestSettingsHandler:
     def test_is_valid_waiting_state_valid(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _is_valid_waiting_state method with valid state.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test waiting state validation with valid state data.
+
+        This test verifies that _is_valid_waiting_state returns True
+        when the waiting state matches, timestamp is recent, and state ID exists.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         current_time = time.time()
         mock_context.user_data = {
             "waiting_for": "test_state",
@@ -84,21 +117,25 @@ class TestSettingsHandler:
             "waiting_state_id": "test-id",
         }
 
-        # Execute
         result = handler._is_valid_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert result is True
 
     def test_is_valid_waiting_state_invalid_state(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _is_valid_waiting_state method with invalid state.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test waiting state validation with mismatched state.
+
+        This test verifies that _is_valid_waiting_state returns False
+        when the waiting state doesn't match the expected state.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         current_time = time.time()
         mock_context.user_data = {
             "waiting_for": "wrong_state",
@@ -106,21 +143,26 @@ class TestSettingsHandler:
             "waiting_state_id": "test-id",
         }
 
-        # Execute
         result = handler._is_valid_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert result is False
 
     def test_is_valid_waiting_state_expired(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _is_valid_waiting_state method with expired state.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test waiting state validation with expired timestamp.
+
+        This test verifies that _is_valid_waiting_state returns False
+        when the waiting state timestamp is too old (> 5 minutes).
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup - timestamp from 10 minutes ago
+        # Timestamp from 10 minutes ago should be considered expired
         old_time = time.time() - 600
         mock_context.user_data = {
             "waiting_for": "test_state",
@@ -128,72 +170,82 @@ class TestSettingsHandler:
             "waiting_state_id": "test-id",
         }
 
-        # Execute
         result = handler._is_valid_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert result is False
 
     def test_is_valid_waiting_state_missing_timestamp(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _is_valid_waiting_state method with missing timestamp.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test waiting state validation with missing timestamp.
+
+        This test verifies that _is_valid_waiting_state returns False
+        when the timestamp field is missing from user data.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_state_id": "test-id",
         }
 
-        # Execute
         result = handler._is_valid_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert result is False
 
     def test_is_valid_waiting_state_missing_state_id(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _is_valid_waiting_state method with missing state_id.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test waiting state validation with missing state ID.
+
+        This test verifies that _is_valid_waiting_state returns False
+        when the state_id field is missing from user data.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         current_time = time.time()
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_timestamp": current_time,
         }
 
-        # Execute
         result = handler._is_valid_waiting_state(mock_context, "test_state")
 
-        # Assert
         assert result is False
 
     def test_clear_waiting_state(
         self, handler: SettingsHandler, mock_context: MagicMock
     ) -> None:
-        """Test _clear_waiting_state method.
-        :param handler: SettingsHandler instance
-        :param mock_context: Mock ContextTypes object
+        """Test clearing waiting state from user data.
+
+        This test verifies that _clear_waiting_state removes all
+        waiting-related fields from user data.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
         :returns: None
+        :rtype: None
         """
-        # Setup
         mock_context.user_data = {
             "waiting_for": "test_state",
             "waiting_timestamp": time.time(),
             "waiting_state_id": "test-id",
         }
 
-        # Execute
         handler._clear_waiting_state(mock_context)
 
-        # Assert
         assert "waiting_for" not in mock_context.user_data
         assert "waiting_timestamp" not in mock_context.user_data
         assert "waiting_state_id" not in mock_context.user_data
@@ -206,10 +258,25 @@ class TestSettingsHandler:
         mock_context: MagicMock,
         make_mock_user_profile,
     ) -> None:
-        """Test handle method with premium user."""
+        """Test settings handler invocation for premium user.
+
+        This test verifies that the handle method correctly invokes
+        the internal _handle_settings method for a premium user profile.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
 
-        # Bypass internal implementation; verify wrapper wiring
+        # Verify wrapper wiring to internal handler
         async def _noop(update, context):
             return None
 
@@ -225,7 +292,22 @@ class TestSettingsHandler:
         mock_context: MagicMock,
         make_mock_user_profile,
     ) -> None:
-        """Test handle method with basic user."""
+        """Test settings handler invocation for basic user.
+
+        This test verifies that the handle method correctly invokes
+        the internal _handle_settings method for a basic user profile.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
 
         async def _noop(update, context):
@@ -243,7 +325,22 @@ class TestSettingsHandler:
         mock_context: MagicMock,
         mock_use_locale: MagicMock,
     ) -> None:
-        """Test handle method when user profile not found."""
+        """Test settings handler when user profile is not found.
+
+        This test verifies that the handler sends an appropriate error
+        message when the user profile doesn't exist in the database.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param mock_use_locale: Mocked use_locale function
+        :type mock_use_locale: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = False
         mock_update.effective_user.language_code = "en"
 
@@ -259,19 +356,31 @@ class TestSettingsHandler:
         mock_context: MagicMock,
         make_mock_user_profile,
     ) -> None:
-        """Test handle method with exception."""
-        # Setup mock to return valid profile for context extraction, then fail
+        """Test settings handler exception handling.
+
+        This test verifies that exceptions raised in the internal
+        handler are caught and handled by the base handler wrapper.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
         mock_profile = MagicMock()
         mock_profile.settings.language = "en"
         handler.services.user_service.get_user_profile.return_value = mock_profile
         handler.services.user_service.is_valid_user_profile.return_value = True
 
-        # Mock the internal handler method to raise exception
         with patch.object(
             handler, "_handle_settings", side_effect=Exception("Test exception")
         ):
             await handler.handle(mock_update, mock_context)
-            # Exception should be caught and handled by base handler
 
     @pytest.mark.asyncio
     async def test_handle_settings_callback_birth_date(
@@ -280,7 +389,20 @@ class TestSettingsHandler:
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_settings_callback method with birth date callback."""
+        """Test settings callback for birth date change.
+
+        This test verifies that selecting the birth date option prompts
+        the user with instructions and sets the waiting state correctly.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update_with_callback: Mocked Telegram update with callback query
+        :type mock_update_with_callback: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update_with_callback.callback_query.data = "settings_birth_date"
         handler.services.user_service.get_user_profile.return_value = MagicMock(
             birth_date=date(2000, 1, 1), settings=MagicMock(language="en")
@@ -304,7 +426,20 @@ class TestSettingsHandler:
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_settings_callback method with language callback."""
+        """Test settings callback for language change.
+
+        This test verifies that selecting the language option displays
+        the language selection menu to the user.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update_with_callback: Mocked Telegram update with callback query
+        :type mock_update_with_callback: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update_with_callback.callback_query.data = "settings_language"
 
         with patch.object(handler, "edit_message") as mock_edit_message:
@@ -324,16 +459,28 @@ class TestSettingsHandler:
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_language_callback method with invalid language."""
+        """Test language callback handling with invalid language code.
+
+        This test verifies that an invalid language code in the callback
+        is handled gracefully without crashing.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update_with_callback: Mocked Telegram update with callback query
+        :type mock_update_with_callback: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update_with_callback.callback_query.data = "language_invalid"
 
-        # Test will catch exception in production code's except block
+        # UnboundLocalError expected due to pgettext scope issue in error handler
         try:
             await handler.handle_language_callback(
                 mock_update_with_callback, mock_context
             )
         except UnboundLocalError:
-            # Expected due to pgettext scope issue - acceptable for tests
             pass
 
     @pytest.mark.asyncio
@@ -343,19 +490,31 @@ class TestSettingsHandler:
         mock_update_with_callback: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_language_callback method with database error."""
+        """Test language callback handling when database update fails.
+
+        This test verifies that database errors during language update
+        are caught and handled appropriately.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update_with_callback: Mocked Telegram update with callback query
+        :type mock_update_with_callback: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update_with_callback.callback_query.data = "language_en"
         handler.services.user_service.update_user_settings.side_effect = (
             UserNotFoundError("User not found")
         )
 
-        # Test will catch exception in production code's except block
+        # UnboundLocalError expected due to pgettext scope issue in error handler
         try:
             await handler.handle_language_callback(
                 mock_update_with_callback, mock_context
             )
         except UnboundLocalError:
-            # Expected due to pgettext scope issue - acceptable for tests
             pass
 
     @pytest.mark.asyncio
@@ -365,7 +524,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_settings_input method with birth date input."""
+        """Test settings input routing for birth date.
+
+        This test verifies that when the handler is waiting for a birth
+        date input, it correctly routes the message to the birth date handler.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {
             "waiting_for": "settings_birth_date",
@@ -386,7 +558,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_settings_input method with life expectancy input."""
+        """Test settings input routing for life expectancy.
+
+        This test verifies that when the handler is waiting for a life
+        expectancy input, it correctly routes the message to the life expectancy handler.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_update.message.text = str(DEFAULT_LIFE_EXPECTANCY)
         mock_context.user_data = {
             "waiting_for": "settings_life_expectancy",
@@ -411,7 +596,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input method with future birth date."""
+        """Test birth date validation with future date.
+
+        This test verifies that birth dates in the future are rejected
+        with an appropriate error message.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         future_date = date(2025, 1, 1)
 
         with patch(
@@ -440,7 +638,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input method with too old birth date."""
+        """Test birth date validation with unrealistically old date.
+
+        This test verifies that birth dates before 1900 are rejected
+        with an appropriate error message.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         old_date = date(1800, 1, 1)
 
         with patch(
@@ -464,7 +675,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input method with database error."""
+        """Test birth date update handling when database error occurs.
+
+        This test verifies that database errors during birth date update
+        are caught and reported to the user.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         test_birth_date = date(1990, 3, 15)
         handler.services.user_service.update_user_settings.side_effect = (
             UserNotFoundError("User not found")
@@ -492,7 +716,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_birth_date_input method with invalid date format."""
+        """Test birth date parsing with invalid format.
+
+        This test verifies that invalid date formats are rejected
+        with a format error message.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         with patch(
             "src.bot.handlers.settings_handler.datetime"
         ) as mock_datetime, patch.object(
@@ -515,9 +752,21 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_life_expectancy_input method with valid input."""
+        """Test life expectancy update with valid input.
+
+        This test verifies that a valid life expectancy value is accepted,
+        stored in the database, and confirmed to the user.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
-        # Mock the user profile to have proper settings
         mock_user_profile = MagicMock()
         mock_user_profile.settings = MagicMock(language="en")
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
@@ -544,7 +793,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_life_expectancy_input method with invalid range."""
+        """Test life expectancy validation with out-of-range value.
+
+        This test verifies that life expectancy values outside the valid
+        range (40-120) are rejected with an error message.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         with patch.object(handler, "send_message") as mock_send_message:
             await handler.handle_life_expectancy_input(mock_update, mock_context, "30")
 
@@ -561,7 +823,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_life_expectancy_input method with database error."""
+        """Test life expectancy update handling when database error occurs.
+
+        This test verifies that database errors during life expectancy
+        update are caught and reported to the user.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.update_user_settings.side_effect = (
             UserSettingsUpdateError("Update failed")
         )
@@ -582,7 +857,20 @@ class TestSettingsHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle_life_expectancy_input method with invalid format."""
+        """Test life expectancy parsing with invalid format.
+
+        This test verifies that non-numeric values are rejected with
+        an appropriate error message.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         with patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle_life_expectancy_input(
                 mock_update, mock_context, "not-a-number"

@@ -7,7 +7,11 @@ from src.services.container import ServiceContainer
 
 
 class TestServiceContainer:
-    """Test suite for ServiceContainer class."""
+    """Test suite for ServiceContainer class.
+
+    This test class contains all tests for ServiceContainer functionality,
+    including singleton pattern, service initialization, cleanup, and thread safety.
+    """
 
     def test_container_creation(self) -> None:
         """Test ServiceContainer creation.
@@ -16,6 +20,7 @@ class TestServiceContainer:
         and all services are properly initialized.
 
         :returns: None
+        :rtype: None
         """
         container = ServiceContainer()
 
@@ -38,6 +43,7 @@ class TestServiceContainer:
         returns the correct user service instance.
 
         :returns: None
+        :rtype: None
         """
         container = ServiceContainer()
         user_service = container.get_user_service()
@@ -52,6 +58,7 @@ class TestServiceContainer:
         returns the correct life calculator class.
 
         :returns: None
+        :rtype: None
         """
         container = ServiceContainer()
         life_calculator = container.get_life_calculator()
@@ -66,6 +73,7 @@ class TestServiceContainer:
         are initialized after their dependencies.
 
         :returns: None
+        :rtype: None
         """
         container = ServiceContainer()
 
@@ -78,10 +86,11 @@ class TestServiceContainer:
         assert hasattr(container.user_service, "initialize")
         assert hasattr(container.user_service, "close")
 
-    def test_cleanup_method(self):
+    def test_cleanup_method(self) -> None:
         """Test cleanup method closes database connections and cleans up resources.
 
         :returns: None
+        :rtype: None
         """
         from unittest.mock import Mock, patch
 
@@ -98,10 +107,11 @@ class TestServiceContainer:
             # Verify database close was called
             mock_db_instance.close.assert_called_once()
 
-    def test_reset_instance_with_existing_instance(self):
+    def test_reset_instance_with_existing_instance(self) -> None:
         """Test reset_instance properly cleans up existing instance and resets state.
 
         :returns: None
+        :rtype: None
         """
         from unittest.mock import patch
 
@@ -120,10 +130,11 @@ class TestServiceContainer:
             assert ServiceContainer._instance is None
             assert not ServiceContainer._initialized
 
-    def test_reset_instance_without_existing_instance(self):
+    def test_reset_instance_without_existing_instance(self) -> None:
         """Test reset_instance works when no instance exists.
 
         :returns: None
+        :rtype: None
         """
         # Reset instance first
         ServiceContainer.reset_instance()
@@ -137,10 +148,11 @@ class TestServiceContainer:
         assert ServiceContainer._instance is None
         assert not ServiceContainer._initialized
 
-    def test_singleton_behavior_multiple_calls(self):
+    def test_singleton_behavior_multiple_calls(self) -> None:
         """Test singleton behavior with multiple get_instance calls.
 
         :returns: None
+        :rtype: None
         """
         # Reset first
         ServiceContainer.reset_instance()
@@ -153,10 +165,11 @@ class TestServiceContainer:
         assert container1 is container2
         assert ServiceContainer._instance is container1
 
-    def test_singleton_thread_safety(self):
+    def test_singleton_thread_safety(self) -> None:
         """Test singleton thread safety.
 
         :returns: None
+        :rtype: None
         """
         import threading
         import time
@@ -191,10 +204,11 @@ class TestServiceContainer:
         for container in results[1:]:
             assert container is results[0]
 
-    def test_initialization_flag_behavior(self):
+    def test_initialization_flag_behavior(self) -> None:
         """Test initialization flag behavior.
 
         :returns: None
+        :rtype: None
         """
         # Initially not initialized
         assert not ServiceContainer._initialized

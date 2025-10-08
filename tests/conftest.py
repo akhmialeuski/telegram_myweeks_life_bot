@@ -13,6 +13,14 @@ from telegram.ext import Application, ContextTypes
 
 import src.core.life_calculator as _lc
 from src.bot.application import LifeWeeksBot
+from src.constants import (
+    DEFAULT_LIFE_EXPECTANCY,
+    DEFAULT_NOTIFICATIONS_DAY,
+    DEFAULT_NOTIFICATIONS_ENABLED,
+    DEFAULT_NOTIFICATIONS_TIME,
+    DEFAULT_TIMEZONE,
+    DEFAULT_USER_FIRST_NAME,
+)
 from src.core.enums import SubscriptionType, SupportedLanguage, WeekDay
 
 sys.modules.setdefault("core", types.ModuleType("core"))
@@ -49,7 +57,41 @@ def mocker() -> Iterator[MockerFixture]:
 
 
 # --- Test Constants ---
+
+# Re-export production defaults for use in tests
+__all__ = [
+    "DEFAULT_LIFE_EXPECTANCY",
+    "DEFAULT_NOTIFICATIONS_DAY",
+    "DEFAULT_NOTIFICATIONS_ENABLED",
+    "DEFAULT_NOTIFICATIONS_TIME",
+    "DEFAULT_TIMEZONE",
+    "DEFAULT_USER_FIRST_NAME",
+    "WeekDay",
+    "SubscriptionType",
+    "SupportedLanguage",
+]
+
+# Test user IDs
 TEST_USER_ID = 123456789
+TEST_USER_ID_ALT = 987654321
+TEST_USER_ID_NONEXISTENT = 999999
+
+# Test numeric values
+TEST_LIFE_EXPECTANCY_ALT = 85
+TEST_BIRTH_YEAR = 1990
+TEST_BIRTH_MONTH = 3
+TEST_BIRTH_DAY = 15
+
+# Test string values
+TEST_USERNAME = "testuser"
+TEST_USERNAME_ALT = "testuser2"
+TEST_FIRST_NAME = "Test"
+TEST_FIRST_NAME_ALT = "Test2"
+TEST_LAST_NAME = "User"
+TEST_LAST_NAME_ALT = "User2"
+TEST_TIMEZONE_EST = "EST"
+
+# Test scheduler and message values
 TEST_JOB_ID = f"weekly_notification_user_{TEST_USER_ID}"
 TEST_MESSAGE = "Test weekly message"
 DB_ERROR = "Database error"
@@ -370,7 +412,7 @@ def mock_user_profile() -> MagicMock:
     user.telegram_id = TEST_USER_ID
     user.birth_date = "15.03.1990"
     user.language = SupportedLanguage.EN.value
-    user.life_expectancy = 80
+    user.life_expectancy = DEFAULT_LIFE_EXPECTANCY
     user.subscription_type = SubscriptionType.BASIC
     return user
 
@@ -386,7 +428,7 @@ def mock_premium_user_profile() -> MagicMock:
     user.telegram_id = TEST_USER_ID
     user.birth_date = "15.03.1990"
     user.language = SupportedLanguage.EN.value
-    user.life_expectancy = 80
+    user.life_expectancy = DEFAULT_LIFE_EXPECTANCY
     user.subscription_type = SubscriptionType.PREMIUM
     return user
 

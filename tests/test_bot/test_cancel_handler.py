@@ -15,17 +15,35 @@ from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestCancelHandler:
-    """Test suite for CancelHandler class."""
+    """Test suite for CancelHandler class.
+
+    This test class contains all tests for CancelHandler functionality,
+    including successful cancellation, error handling for deletion failures,
+    service errors, and scheduler removal failures.
+    """
 
     @pytest.fixture
     def handler(self) -> CancelHandler:
-        """Create CancelHandler instance."""
+        """Create CancelHandler instance for testing.
+
+        :returns: Configured CancelHandler instance with fake service container
+        :rtype: CancelHandler
+        """
         services = FakeServiceContainer()
         return CancelHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+    def mock_use_locale(self, mocker) -> MagicMock:
+        """Mock use_locale to control translations.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: pytest-mock fixture for creating mocks
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.cancel_handler.use_locale",
@@ -34,7 +52,16 @@ class TestCancelHandler:
         return mock_pgettext
 
     def test_handler_creation(self, handler: CancelHandler) -> None:
-        """Test CancelHandler creation."""
+        """Test that CancelHandler is created with correct command name.
+
+        This test verifies that the handler is properly initialized with
+        the /cancel command name constant.
+
+        :param handler: CancelHandler instance from fixture
+        :type handler: CancelHandler
+        :returns: None
+        :rtype: None
+        """
         assert handler.command_name == f"/{COMMAND_CANCEL}"
 
     @pytest.mark.asyncio
@@ -44,7 +71,21 @@ class TestCancelHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with successful cancellation."""
+        """Test successful user cancellation and profile deletion.
+
+        This test verifies that when a user cancels their registration,
+        the handler correctly removes them from the scheduler, deletes
+        their profile, and sends a success message.
+
+        :param handler: CancelHandler instance from fixture
+        :type handler: CancelHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = MagicMock()
         handler.services.user_service.is_valid_user_profile.return_value = True
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
@@ -74,7 +115,21 @@ class TestCancelHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with user deletion error."""
+        """Test cancellation handling when user deletion fails.
+
+        This test verifies that when the delete_user_profile operation
+        raises a UserDeletionError, the handler catches it and sends
+        an appropriate error message to the user.
+
+        :param handler: CancelHandler instance from fixture
+        :type handler: CancelHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
         handler.services.user_service.delete_user_profile.side_effect = (
             UserDeletionError("Delete failed")
@@ -94,7 +149,21 @@ class TestCancelHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with user service error."""
+        """Test cancellation handling when user service encounters an error.
+
+        This test verifies that when the user service raises a generic
+        UserServiceError during deletion, the handler catches it and
+        sends an appropriate error message to the user.
+
+        :param handler: CancelHandler instance from fixture
+        :type handler: CancelHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
         handler.services.user_service.delete_user_profile.side_effect = (
             UserServiceError("Service error")
@@ -114,7 +183,21 @@ class TestCancelHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with scheduler removal failure."""
+        """Test cancellation handling when scheduler removal fails.
+
+        This test verifies that when removing the user from the scheduler
+        fails with a SchedulerOperationError, the handler catches it and
+        sends an appropriate error message to the user.
+
+        :param handler: CancelHandler instance from fixture
+        :type handler: CancelHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = True
         from src.bot.scheduler import SchedulerOperationError
 

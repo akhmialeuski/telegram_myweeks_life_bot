@@ -14,19 +14,37 @@ from src.database.service import UserSubscriptionUpdateError
 
 
 class TestSubscriptionHandler:
-    """Test suite for SubscriptionHandler class."""
+    """Test suite for SubscriptionHandler class.
+
+    This test class contains all tests for SubscriptionHandler functionality,
+    including subscription management, subscription type changes, error
+    handling, and callback query processing.
+    """
 
     @pytest.fixture
     def handler(self) -> SubscriptionHandler:
-        """Create SubscriptionHandler instance."""
+        """Create SubscriptionHandler instance for testing.
+
+        :returns: Configured SubscriptionHandler instance with fake service container
+        :rtype: SubscriptionHandler
+        """
         from tests.utils.fake_container import FakeServiceContainer
 
         services = FakeServiceContainer()
         return SubscriptionHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker):
-        """Mock use_locale to control translations."""
+    def mock_use_locale(self, mocker) -> MagicMock:
+        """Mock use_locale to control translations.
+
+        This fixture automatically mocks the use_locale function to return
+        predictable translation strings for testing purposes.
+
+        :param mocker: pytest-mock fixture for creating mocks
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
             "src.bot.handlers.subscription_handler.use_locale",
@@ -36,6 +54,15 @@ class TestSubscriptionHandler:
 
     @pytest.fixture
     def make_mock_callback_query(self):
+        """Create mock callback query for subscription selection.
+
+        This fixture provides a factory function for creating mock callback
+        queries with specific subscription types.
+
+        :returns: Factory function that creates mock callback queries
+        :rtype: callable
+        """
+
         def _make(update, subscription_key: str):
             query = MagicMock()
             query.data = f"subscription_{subscription_key}"
@@ -47,7 +74,16 @@ class TestSubscriptionHandler:
         return _make
 
     def test_handler_creation(self, handler: SubscriptionHandler) -> None:
-        """Test SubscriptionHandler creation."""
+        """Test that SubscriptionHandler is created with correct command name.
+
+        This test verifies that the handler is properly initialized with
+        the /subscription command name constant.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :returns: None
+        :rtype: None
+        """
         assert handler.command_name == f"/{COMMAND_SUBSCRIPTION}"
 
     @pytest.mark.asyncio
@@ -58,9 +94,23 @@ class TestSubscriptionHandler:
         mock_context: MagicMock,
         make_mock_user_profile,
     ) -> None:
-        """Test handle method with successful subscription info."""
+        """Test successful subscription information display.
+
+        This test verifies that when a registered user executes /subscription,
+        they receive their current subscription information with management options.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        # Mock user profile attributes
         mock_user_profile.settings = MagicMock()
         mock_user_profile.settings.language = "en"
         mock_user_profile.subscription = MagicMock()
@@ -82,7 +132,20 @@ class TestSubscriptionHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method when user profile not found."""
+        """Test subscription handler when user profile is not found.
+
+        This test verifies that the handler sends an appropriate error
+        message when the user profile doesn't exist in the database.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         handler.services.user_service.is_valid_user_profile.return_value = False
         await handler.handle(mock_update, mock_context)
         mock_update.message.reply_text.assert_called_once()
@@ -94,19 +157,29 @@ class TestSubscriptionHandler:
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test handle method with exception."""
-        # Setup mock to return valid profile for context extraction, then fail
+        """Test subscription handler exception handling.
+
+        This test verifies that exceptions raised in the internal
+        handler are caught and handled by the base handler wrapper.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
         mock_profile = MagicMock()
         mock_profile.settings.language = "en"
         handler.services.user_service.get_user_profile.return_value = mock_profile
         handler.services.user_service.is_valid_user_profile.return_value = True
 
-        # Mock the internal handler method to raise exception
         with patch.object(
             handler, "_handle_subscription", side_effect=Exception("Test exception")
         ):
             await handler.handle(mock_update, mock_context)
-            # Exception should be caught and handled by base handler
 
     @pytest.mark.asyncio
     async def test_handle_subscription_callback_same_subscription(
@@ -117,9 +190,29 @@ class TestSubscriptionHandler:
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback when user selects same subscription."""
+        """Test subscription callback when user selects current subscription.
+
+        This test verifies that when a user tries to switch to their
+        currently active subscription type, they receive an appropriate
+        message indicating the subscription is already active.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query(mock_update, "basic")
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.BASIC.value
+        )
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
         with patch.object(handler, "edit_message") as mock_edit_message:
@@ -141,9 +234,28 @@ class TestSubscriptionHandler:
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with successful subscription change."""
+        """Test successful subscription type change.
+
+        This test verifies that a user can successfully change their
+        subscription type and receive a confirmation message.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.PREMIUM.value
+        )
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
         handler.services.user_service.update_user_subscription.return_value = None
 
@@ -169,9 +281,29 @@ class TestSubscriptionHandler:
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with UserSubscriptionUpdateError."""
+        """Test subscription callback handling when update fails.
+
+        This test verifies that when the subscription update operation
+        fails with a UserSubscriptionUpdateError, an appropriate error
+        message is sent to the user.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.PREMIUM.value
+        )
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
         handler.services.user_service.update_user_subscription.side_effect = (
             UserSubscriptionUpdateError("Update failed")
@@ -195,9 +327,28 @@ class TestSubscriptionHandler:
         make_mock_user_profile,
         make_mock_callback_query,
     ) -> None:
-        """Test handle_subscription_callback with general exception."""
+        """Test subscription callback handling with general exception.
+
+        This test verifies that when a general exception occurs during
+        subscription update, an appropriate error message is sent.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
         mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
-        mock_callback_query = make_mock_callback_query(mock_update, "premium")
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.PREMIUM.value
+        )
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
         handler.services.user_service.update_user_subscription.side_effect = Exception(
             "General error"

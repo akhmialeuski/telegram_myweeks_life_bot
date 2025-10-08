@@ -10,7 +10,11 @@ from tests.utils.fake_container import FakeServiceContainer
 
 
 class TestFakeServiceContainer:
-    """Test suite for FakeServiceContainer class."""
+    """Test suite for FakeServiceContainer class.
+
+    This test class contains all tests for FakeServiceContainer functionality,
+    including mock creation, behaviors, interface compatibility, and cleanup.
+    """
 
     def test_fake_container_creation(self) -> None:
         """Test FakeServiceContainer creation.
@@ -19,6 +23,7 @@ class TestFakeServiceContainer:
         and all mock services are properly initialized.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 
@@ -39,6 +44,7 @@ class TestFakeServiceContainer:
         default return values and behaviors.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 
@@ -78,6 +84,7 @@ class TestFakeServiceContainer:
         returns the correct mock user service.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
         user_service = container.get_user_service()
@@ -92,6 +99,7 @@ class TestFakeServiceContainer:
         returns the correct mock life calculator.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
         life_calculator = container.get_life_calculator()
@@ -106,6 +114,7 @@ class TestFakeServiceContainer:
         returns a properly formatted mock message.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 
@@ -125,6 +134,7 @@ class TestFakeServiceContainer:
         resets all mocks to their initial state.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 
@@ -150,6 +160,7 @@ class TestFakeServiceContainer:
         with custom behaviors for specific test scenarios.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 
@@ -170,6 +181,7 @@ class TestFakeServiceContainer:
         as a drop-in replacement for ServiceContainer in tests.
 
         :returns: None
+        :rtype: None
         """
         container = FakeServiceContainer()
 

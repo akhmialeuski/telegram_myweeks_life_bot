@@ -28,11 +28,14 @@ class TestCalculateGridDimensions:
     @patch("src.visualization.grid.CELL_SIZE", 10)
     @patch("src.visualization.grid.MAX_YEARS", 80)
     @patch("src.visualization.grid.PADDING", 20)
-    def test_calculate_grid_dimensions_default(self):
+    def test_calculate_grid_dimensions_default(self) -> None:
         """Test calculate_grid_dimensions with default configuration.
 
         This test verifies that grid dimensions are calculated correctly
         using default configuration values.
+
+        :returns: None
+        :rtype: None
         """
         width, height = calculate_grid_dimensions()
 
@@ -46,11 +49,14 @@ class TestCalculateGridDimensions:
     @patch("src.visualization.grid.CELL_SIZE", 15)
     @patch("src.visualization.grid.MAX_YEARS", 100)
     @patch("src.visualization.grid.PADDING", 30)
-    def test_calculate_grid_dimensions_custom(self):
+    def test_calculate_grid_dimensions_custom(self) -> None:
         """Test calculate_grid_dimensions with custom configuration.
 
         This test verifies that grid dimensions are calculated correctly
         with custom configuration values.
+
+        :returns: None
+        :rtype: None
         """
         width, height = calculate_grid_dimensions()
 
@@ -64,11 +70,14 @@ class TestCalculateGridDimensions:
     @patch("src.visualization.grid.CELL_SIZE", 1)
     @patch("src.visualization.grid.MAX_YEARS", 1)
     @patch("src.visualization.grid.PADDING", 0)
-    def test_calculate_grid_dimensions_minimal(self):
+    def test_calculate_grid_dimensions_minimal(self) -> None:
         """Test calculate_grid_dimensions with minimal configuration.
 
         This test verifies that grid dimensions work correctly
         with minimal configuration values.
+
+        :returns: None
+        :rtype: None
         """
         width, height = calculate_grid_dimensions()
 
@@ -84,8 +93,12 @@ class TestGenerateVisualization:
     including various input types and error scenarios.
     """
 
-    def setup_method(self):
-        """Set up test fixtures before each test method."""
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method.
+
+        :returns: None
+        :rtype: None
+        """
         # Create mock user profile
         self.mock_user_settings = Mock(spec=UserSettings)
         self.mock_user_settings.language = "en"
@@ -113,11 +126,14 @@ class TestGenerateVisualization:
         mock_image,
         mock_calculator,
         mock_user_service,
-    ):
+    ) -> None:
         """Test generate_visualization with database User object.
 
         This test verifies that visualization is generated correctly
         when provided with a database User object.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_user_service.get_user_profile.return_value = self.mock_user_profile
@@ -180,11 +196,14 @@ class TestGenerateVisualization:
         mock_image,
         mock_calculator,
         mock_user_service,
-    ):
+    ) -> None:
         """Test generate_visualization with Telegram User object.
 
         This test verifies that visualization is generated correctly
         when provided with a Telegram User object.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_user_service.get_user_profile.return_value = self.mock_user_profile
@@ -245,11 +264,14 @@ class TestGenerateVisualization:
         mock_image,
         mock_calculator,
         mock_user_service,
-    ):
+    ) -> None:
         """Test generate_visualization with integer user ID.
 
         This test verifies that visualization is generated correctly
         when provided with an integer user ID.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mocks
         mock_user_service.get_user_profile.return_value = self.mock_user_profile
@@ -288,11 +310,14 @@ class TestGenerateVisualization:
         # Verify user service was called with correct telegram_id
         mock_user_service.get_user_profile.assert_called_once_with(telegram_id=11111)
 
-    def test_generate_visualization_with_unsupported_type(self):
+    def test_generate_visualization_with_unsupported_type(self) -> None:
         """Test generate_visualization with unsupported input type.
 
         This test verifies that TypeError is raised when provided
         with an unsupported input type.
+
+        :returns: None
+        :rtype: None
         """
         # Test with unsupported type
         with pytest.raises(TypeError) as exc_info:
@@ -304,11 +329,14 @@ class TestGenerateVisualization:
             in str(exc_info.value)
         )
 
-    def test_generate_visualization_with_unsupported_object(self):
+    def test_generate_visualization_with_unsupported_object(self) -> None:
         """Test generate_visualization with object without required attributes.
 
         This test verifies that TypeError is raised when provided
         with an object that doesn't have required attributes.
+
+        :returns: None
+        :rtype: None
         """
         # Create mock object without required attributes
         mock_object = Mock()
@@ -326,11 +354,14 @@ class TestGenerateVisualization:
         )
 
     @patch("src.visualization.grid.user_service")
-    def test_generate_visualization_user_not_found(self, mock_user_service):
+    def test_generate_visualization_user_not_found(self, mock_user_service) -> None:
         """Test generate_visualization when user profile is not found.
 
         This test verifies that ValueError is raised when user profile
         cannot be found in the database.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mock to return None (user not found)
         mock_user_service.get_user_profile.return_value = None
@@ -358,11 +389,14 @@ class TestGenerateVisualization:
         mock_image,
         mock_calculator,
         mock_user_service,
-    ):
+    ) -> None:
         """Test generate_visualization when user has no language setting.
 
         This test verifies that visualization works correctly when user
         has no language setting (uses default language).
+
+        :returns: None
+        :rtype: None
         """
         # Setup user profile without language setting
         mock_user_settings_no_lang = Mock(spec=UserSettings)
@@ -418,21 +452,27 @@ class TestSelectFontPath:
     """
 
     @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_select_font_path_no_fonts_found(self, mock_open):
+    def test_select_font_path_no_fonts_found(self, mock_open) -> None:
         """Test _select_font_path when no fonts are found.
 
         This test verifies that None is returned when no font files
         are found in the expected locations.
+
+        :returns: None
+        :rtype: None
         """
         result = _select_font_path()
         assert result is None
 
     @patch("builtins.open", mock_open(read_data=b"font_data"))
-    def test_select_font_path_first_font_found(self):
+    def test_select_font_path_first_font_found(self) -> None:
         """Test _select_font_path when first font is found.
 
         This test verifies that the first available font path is returned
         when found in the candidate paths.
+
+        :returns: None
+        :rtype: None
         """
         result = _select_font_path()
         assert result == "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -441,11 +481,14 @@ class TestSelectFontPath:
         "builtins.open",
         side_effect=[FileNotFoundError, mock_open(read_data=b"font_data").return_value],
     )
-    def test_select_font_path_second_font_found(self, mock_open):
+    def test_select_font_path_second_font_found(self, mock_open) -> None:
         """Test _select_font_path when second font is found.
 
         This test verifies that the second available font path is returned
         when the first one is not found.
+
+        :returns: None
+        :rtype: None
         """
         result = _select_font_path()
         assert (
@@ -461,21 +504,27 @@ class TestSelectFontPath:
             mock_open(read_data=b"font_data").return_value,
         ],
     )
-    def test_select_font_path_last_font_found(self, mock_open):
+    def test_select_font_path_last_font_found(self, mock_open) -> None:
         """Test _select_font_path when last font is found.
 
         This test verifies that the last available font path is returned
         when only the last one is found.
+
+        :returns: None
+        :rtype: None
         """
         result = _select_font_path()
         assert result == "/usr/local/share/fonts/DejaVuSans.ttf"
 
     @patch("builtins.open", side_effect=PermissionError)
-    def test_select_font_path_permission_error(self, mock_open):
+    def test_select_font_path_permission_error(self, mock_open) -> None:
         """Test _select_font_path with permission error.
 
         This test verifies that None is returned when permission error
         occurs while trying to access font files.
+
+        :returns: None
+        :rtype: None
         """
         result = _select_font_path()
         assert result is None
@@ -490,10 +539,13 @@ class TestLoadFont:
 
     @patch("src.visualization.grid._select_font_path")
     @patch("src.visualization.grid.ImageFont.truetype")
-    def test_load_font_with_custom_font(self, mock_truetype, mock_select_path):
+    def test_load_font_with_custom_font(self, mock_truetype, mock_select_path) -> None:
         """Test _load_font with custom font path.
 
         This test verifies that custom font is loaded when available.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_select_path.return_value = "/custom/font.ttf"
@@ -511,11 +563,14 @@ class TestLoadFont:
     @patch("src.visualization.grid.ImageFont.truetype")
     def test_load_font_with_custom_font_error_fallback_to_arial(
         self, mock_truetype, mock_select_path
-    ):
+    ) -> None:
         """Test _load_font fallback to Arial when custom font fails.
 
         This test verifies that Arial font is loaded as fallback when
         custom font loading fails.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_select_path.return_value = "/custom/font.ttf"
@@ -538,11 +593,14 @@ class TestLoadFont:
     @patch("src.visualization.grid.ImageFont.load_default")
     def test_load_font_all_fonts_fail_fallback_to_default(
         self, mock_load_default, mock_truetype, mock_select_path
-    ):
+    ) -> None:
         """Test _load_font fallback to default font when all fonts fail.
 
         This test verifies that default font is loaded when all other
         font loading attempts fail.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_select_path.return_value = "/custom/font.ttf"
@@ -564,11 +622,14 @@ class TestLoadFont:
     @patch("src.visualization.grid.ImageFont.load_default")
     def test_load_font_no_custom_font_fallback_to_arial(
         self, mock_load_default, mock_truetype, mock_select_path
-    ):
+    ) -> None:
         """Test _load_font fallback to Arial when no custom font is found.
 
         This test verifies that Arial font is loaded when no custom
         font path is available.
+
+        :returns: None
+        :rtype: None
         """
         # Setup mock
         mock_select_path.return_value = None
@@ -590,11 +651,14 @@ class TestParseLegendLabels:
     including various legend formats and edge cases.
     """
 
-    def test_parse_legend_labels_with_pipe_separator(self):
+    def test_parse_legend_labels_with_pipe_separator(self) -> None:
         """Test _parse_legend_labels with pipe separator.
 
         This test verifies that legend labels are parsed correctly
         when separated by pipe character.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟩 Lived weeks | ⬜ Future weeks"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -602,11 +666,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_with_emoji(self):
+    def test_parse_legend_labels_with_emoji(self) -> None:
         """Test _parse_legend_labels with emoji markers.
 
         This test verifies that emoji markers are stripped correctly
         from legend labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟢 Lived weeks | 🔲 Future weeks"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -614,11 +681,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_with_symbols(self):
+    def test_parse_legend_labels_with_symbols(self) -> None:
         """Test _parse_legend_labels with various symbols.
 
         This test verifies that various symbols are stripped correctly
         from legend labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "■ Lived weeks | □ Future weeks"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -626,11 +696,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_without_pipe_separator(self):
+    def test_parse_legend_labels_without_pipe_separator(self) -> None:
         """Test _parse_legend_labels without pipe separator.
 
         This test verifies that legend labels are parsed correctly
         when no pipe separator is present.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟩 Lived weeks"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -638,11 +711,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_empty_parts(self):
+    def test_parse_legend_labels_empty_parts(self) -> None:
         """Test _parse_legend_labels with empty parts.
 
         This test verifies that empty parts are handled correctly
         with default labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟩 | ⬜"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -650,11 +726,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_whitespace_handling(self):
+    def test_parse_legend_labels_whitespace_handling(self) -> None:
         """Test _parse_legend_labels with whitespace handling.
 
         This test verifies that whitespace is handled correctly
         in legend parsing.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "  🟩   Lived weeks   |   ⬜   Future weeks   "
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -662,11 +741,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_complex_symbols(self):
+    def test_parse_legend_labels_complex_symbols(self) -> None:
         """Test _parse_legend_labels with complex symbols.
 
         This test verifies that complex symbols are stripped correctly
         from legend labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🔴🟩⭐ Lived weeks | 🔵⬜✨ Future weeks"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -674,11 +756,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_multiple_pipes(self):
+    def test_parse_legend_labels_multiple_pipes(self) -> None:
         """Test _parse_legend_labels with multiple pipe separators.
 
         This test verifies that only the first pipe separator is used
         for splitting legend labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟩 Lived weeks | ⬜ Future weeks | Extra part"
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -686,11 +771,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_empty_string(self):
+    def test_parse_legend_labels_empty_string(self) -> None:
         """Test _parse_legend_labels with empty string.
 
         This test verifies that empty string is handled correctly
         with default labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = ""
         lived_label, future_label = _parse_legend_labels(legend_text)
@@ -698,11 +786,14 @@ class TestParseLegendLabels:
         assert lived_label == "Lived weeks"
         assert future_label == "Future weeks"
 
-    def test_parse_legend_labels_only_symbols(self):
+    def test_parse_legend_labels_only_symbols(self) -> None:
         """Test _parse_legend_labels with only symbols.
 
         This test verifies that labels with only symbols are handled
         correctly with default labels.
+
+        :returns: None
+        :rtype: None
         """
         legend_text = "🟩🟢■ | ⬜🔲□"
         lived_label, future_label = _parse_legend_labels(legend_text)

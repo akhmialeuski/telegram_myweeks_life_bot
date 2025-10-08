@@ -28,11 +28,14 @@ class TestBaseSchema:
     including configuration validation, serialization, and error handling.
     """
 
-    def test_base_schema_creation_success(self):
+    def test_base_schema_creation_success(self) -> None:
         """Test successful creation of schema instance with valid data.
 
         This test verifies that a schema instance can be created
         with valid data and all fields are properly assigned.
+
+        :returns: None
+        :rtype: None
         """
         test_datetime = datetime(2023, 1, 1, 12, 0, 0)
         schema = MockSchema(name="test", value=42, timestamp=test_datetime)
@@ -41,11 +44,14 @@ class TestBaseSchema:
         assert schema.value == 42
         assert schema.timestamp == test_datetime
 
-    def test_base_schema_from_attributes_true(self):
+    def test_base_schema_from_attributes_true(self) -> None:
         """Test schema creation from object attributes.
 
         This test verifies that the from_attributes=True configuration
         allows creating schema instances from objects with attributes.
+
+        :returns: None
+        :rtype: None
         """
 
         class MockObject:
@@ -61,11 +67,14 @@ class TestBaseSchema:
         assert schema.value == 100
         assert schema.timestamp == datetime(2023, 1, 1)
 
-    def test_base_schema_validate_assignment_true(self):
+    def test_base_schema_validate_assignment_true(self) -> None:
         """Test that assignment validation is enabled.
 
         This test verifies that the validate_assignment=True configuration
         validates data when fields are assigned after creation.
+
+        :returns: None
+        :rtype: None
         """
         schema = MockSchema(name="test", value=42, timestamp=datetime(2023, 1, 1))
 
@@ -77,11 +86,14 @@ class TestBaseSchema:
         with pytest.raises(ValidationError):
             schema.value = "invalid"
 
-    def test_base_schema_extra_forbid(self):
+    def test_base_schema_extra_forbid(self) -> None:
         """Test that extra fields are forbidden.
 
         This test verifies that the extra='forbid' configuration
         prevents creation of schema instances with extra fields.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError) as exc_info:
             MockSchema(
@@ -93,11 +105,14 @@ class TestBaseSchema:
 
         assert "extra_field" in str(exc_info.value)
 
-    def test_base_schema_json_serialization(self):
+    def test_base_schema_json_serialization(self) -> None:
         """Test complete JSON serialization and deserialization.
 
         This test verifies that schema instances can be properly
         serialized to JSON and deserialized back.
+
+        :returns: None
+        :rtype: None
         """
         test_datetime = datetime(2023, 1, 1, 12, 30, 45)
         original_schema = MockSchema(name="test", value=42, timestamp=test_datetime)
@@ -115,11 +130,14 @@ class TestBaseSchema:
         assert restored_schema.value == original_schema.value
         assert restored_schema.timestamp == original_schema.timestamp
 
-    def test_base_schema_validation_error_on_invalid_data(self):
+    def test_base_schema_validation_error_on_invalid_data(self) -> None:
         """Test that validation errors are raised for invalid data.
 
         This test verifies that the schema properly validates
         input data and raises appropriate errors for invalid values.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             MockSchema(
@@ -133,11 +151,14 @@ class TestBaseSchema:
                 timestamp=datetime(2023, 1, 1),
             )
 
-    def test_base_schema_model_config_attributes(self):
+    def test_base_schema_model_config_attributes(self) -> None:
         """Test that all expected model configuration attributes are set.
 
         This test verifies that the BaseSchema has all the expected
         configuration attributes with correct values.
+
+        :returns: None
+        :rtype: None
         """
         config = BaseSchema.model_config
 
@@ -145,11 +166,14 @@ class TestBaseSchema:
         assert config["validate_assignment"] is True
         assert config["extra"] == "forbid"
 
-    def test_base_schema_datetime_serializer(self):
+    def test_base_schema_datetime_serializer(self) -> None:
         """Test that datetime fields are properly serialized with custom serializer.
 
         This test verifies that the custom datetime serializer properly
         handles datetime objects and converts them to ISO format in JSON mode.
+
+        :returns: None
+        :rtype: None
         """
         test_datetime = datetime(2023, 1, 1, 12, 30, 45)
         schema = MockSchema(name="test", value=42, timestamp=test_datetime)
@@ -163,11 +187,14 @@ class TestBaseSchema:
         assert regular_data["timestamp"] == test_datetime
         assert isinstance(regular_data["timestamp"], datetime)
 
-    def test_base_schema_inheritance(self):
+    def test_base_schema_inheritance(self) -> None:
         """Test that BaseSchema can be properly inherited.
 
         This test verifies that custom schemas can inherit from BaseSchema
         and maintain all the base configuration settings.
+
+        :returns: None
+        :rtype: None
         """
         schema = MockSchema(
             name="inheritance_test", value=999, timestamp=datetime(2023, 12, 31)
@@ -179,10 +206,11 @@ class TestBaseSchema:
         assert schema.model_config["validate_assignment"] is True
         assert schema.model_config["extra"] == "forbid"
 
-    def test_serialize_model_with_datetime_conversion(self):
+    def test_serialize_model_with_datetime_conversion(self) -> None:
         """Test serialize_model properly converts datetime objects to ISO format.
 
         :returns: None
+        :rtype: None
         """
 
         # Create a test schema with datetime field
@@ -210,10 +238,11 @@ class TestBaseSchema:
         assert result["created_at"] == now.isoformat()
         assert result["updated_at"] == now.isoformat()
 
-    def test_serialize_model_without_datetime(self):
+    def test_serialize_model_without_datetime(self) -> None:
         """Test serialize_model with data that doesn't contain datetime objects.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -231,10 +260,11 @@ class TestBaseSchema:
         assert result["name"] == "test"
         assert result["value"] == 42
 
-    def test_serialize_model_with_mixed_data_types(self):
+    def test_serialize_model_with_mixed_data_types(self) -> None:
         """Test serialize_model with mixed data types including datetime.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -260,10 +290,11 @@ class TestBaseSchema:
         assert result["created_at"] == now.isoformat()
         assert result["value"] == 42
 
-    def test_serialize_model_with_none_values(self):
+    def test_serialize_model_with_none_values(self) -> None:
         """Test serialize_model with None values.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -282,10 +313,11 @@ class TestBaseSchema:
         assert result["name"] == "test"
         assert result["optional_field"] is None
 
-    def test_serialize_model_with_nested_datetime(self):
+    def test_serialize_model_with_nested_datetime(self) -> None:
         """Test serialize_model with nested datetime objects.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -309,10 +341,11 @@ class TestBaseSchema:
         assert result["metadata"]["updated_at"] == now
         assert result["metadata"]["info"] == "test info"
 
-    def test_serialize_model_with_empty_dict(self):
+    def test_serialize_model_with_empty_dict(self) -> None:
         """Test serialize_model with empty dictionary result.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -326,10 +359,11 @@ class TestBaseSchema:
         # Verify empty dict is returned
         assert result == {}
 
-    def test_serialize_model_with_non_dict_result(self):
+    def test_serialize_model_with_non_dict_result(self) -> None:
         """Test serialize_model with non-dictionary result.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -343,10 +377,11 @@ class TestBaseSchema:
         # Verify non-dict result is returned as-is
         assert result == "string result"
 
-    def test_serialize_model_with_complex_serializer(self):
+    def test_serialize_model_with_complex_serializer(self) -> None:
         """Test serialize_model with complex serializer function.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -370,10 +405,11 @@ class TestBaseSchema:
         assert result["data"]["user"]["created_at"] == now
         assert result["metadata"]["timestamp"] == now
 
-    def test_serialize_model_with_info_parameter(self):
+    def test_serialize_model_with_info_parameter(self) -> None:
         """Test serialize_model with info parameter.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):
@@ -400,10 +436,11 @@ class TestBaseSchema:
         assert result["name"] == "test"
         assert result["created_at"] == now.isoformat()
 
-    def test_base_schema_configuration(self):
+    def test_base_schema_configuration(self) -> None:
         """Test BaseSchema configuration settings.
 
         :returns: None
+        :rtype: None
         """
         # Test configuration is properly set
         config = BaseSchema.model_config
@@ -412,10 +449,11 @@ class TestBaseSchema:
         assert config["validate_assignment"] is True
         assert config["extra"] == "forbid"
 
-    def test_base_schema_validation(self):
+    def test_base_schema_validation(self) -> None:
         """Test BaseSchema validation behavior.
 
         :returns: None
+        :rtype: None
         """
 
         class TestSchema(BaseSchema):

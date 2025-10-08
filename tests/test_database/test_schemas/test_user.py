@@ -32,11 +32,14 @@ class TestUserBase:
     including validation and field assignment.
     """
 
-    def test_user_base_creation_with_required_fields(self):
+    def test_user_base_creation_with_required_fields(self) -> None:
         """Test UserBase creation with only required fields.
 
         This test verifies that UserBase can be created with
         only the telegram_id field (required field).
+
+        :returns: None
+        :rtype: None
         """
         user = UserBase(telegram_id=TELEGRAM_ID)
 
@@ -45,11 +48,14 @@ class TestUserBase:
         assert user.first_name is None
         assert user.last_name is None
 
-    def test_user_base_creation_with_all_fields(self):
+    def test_user_base_creation_with_all_fields(self) -> None:
         """Test UserBase creation with all fields provided.
 
         This test verifies that UserBase can be created with
         all fields and they are properly assigned.
+
+        :returns: None
+        :rtype: None
         """
         user = UserBase(
             telegram_id=TELEGRAM_ID,
@@ -63,19 +69,25 @@ class TestUserBase:
         assert user.first_name == FIRST_NAME
         assert user.last_name == LAST_NAME
 
-    def test_user_base_telegram_id_required(self):
+    def test_user_base_telegram_id_required(self) -> None:
         """Test that telegram_id is required for UserBase.
 
         This test verifies that UserBase raises ValidationError
         when telegram_id is not provided.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserBase()
 
-    def test_user_base_telegram_id_validation(self):
+    def test_user_base_telegram_id_validation(self) -> None:
         """Test telegram_id field validation.
 
         This test verifies that telegram_id must be an integer.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserBase(telegram_id="not_an_int")
@@ -83,11 +95,14 @@ class TestUserBase:
         with pytest.raises(ValidationError):
             UserBase(telegram_id=None)
 
-    def test_user_base_optional_fields_none(self):
+    def test_user_base_optional_fields_none(self) -> None:
         """Test that optional fields can be None.
 
         This test verifies that username, first_name, and last_name
         can be explicitly set to None.
+
+        :returns: None
+        :rtype: None
         """
         user = UserBase(
             telegram_id=TELEGRAM_ID,
@@ -109,21 +124,27 @@ class TestUserCreate:
     which inherits from UserBase.
     """
 
-    def test_user_create_inherits_from_user_base(self):
+    def test_user_create_inherits_from_user_base(self) -> None:
         """Test that UserCreate inherits from UserBase.
 
         This test verifies that UserCreate is a subclass of UserBase
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         user = UserCreate(telegram_id=TELEGRAM_ID)
 
         assert isinstance(user, UserBase)
         assert user.telegram_id == TELEGRAM_ID
 
-    def test_user_create_with_all_fields(self):
+    def test_user_create_with_all_fields(self) -> None:
         """Test UserCreate with all fields.
 
         This test verifies that UserCreate works with all available fields.
+
+        :returns: None
+        :rtype: None
         """
         user = UserCreate(
             telegram_id=TELEGRAM_ID,
@@ -145,11 +166,14 @@ class TestUserUpdate:
     which is used for updating user data.
     """
 
-    def test_user_update_all_fields_optional(self):
+    def test_user_update_all_fields_optional(self) -> None:
         """Test that all fields in UserUpdate are optional.
 
         This test verifies that UserUpdate can be created
         without any fields (all are optional for updates).
+
+        :returns: None
+        :rtype: None
         """
         user = UserUpdate()
 
@@ -158,11 +182,14 @@ class TestUserUpdate:
         assert user.first_name is None
         assert user.last_name is None
 
-    def test_user_update_with_some_fields(self):
+    def test_user_update_with_some_fields(self) -> None:
         """Test UserUpdate with some fields provided.
 
         This test verifies that UserUpdate can be created with
         only some fields for partial updates.
+
+        :returns: None
+        :rtype: None
         """
         user = UserUpdate(
             username="new_username",
@@ -173,11 +200,14 @@ class TestUserUpdate:
         assert user.first_name == "New Name"
         assert user.last_name is None
 
-    def test_user_update_with_all_fields(self):
+    def test_user_update_with_all_fields(self) -> None:
         """Test UserUpdate with all fields provided.
 
         This test verifies that UserUpdate can be created with
         all available fields.
+
+        :returns: None
+        :rtype: None
         """
         user = UserUpdate(
             username=USERNAME,
@@ -197,11 +227,14 @@ class TestUserInDB:
     which represents user data as stored in the database.
     """
 
-    def test_user_in_db_creation_with_required_fields(self):
+    def test_user_in_db_creation_with_required_fields(self) -> None:
         """Test UserInDB creation with required fields.
 
         This test verifies that UserInDB can be created with
         telegram_id and created_at fields.
+
+        :returns: None
+        :rtype: None
         """
         user = UserInDB(
             telegram_id=TELEGRAM_ID,
@@ -216,11 +249,14 @@ class TestUserInDB:
         assert user.settings is None
         assert user.subscription is None
 
-    def test_user_in_db_creation_with_all_fields(self):
+    def test_user_in_db_creation_with_all_fields(self) -> None:
         """Test UserInDB creation with all fields.
 
         This test verifies that UserInDB can be created with
         all fields including relationships.
+
+        :returns: None
+        :rtype: None
         """
         user = UserInDB(
             telegram_id=TELEGRAM_ID,
@@ -240,19 +276,25 @@ class TestUserInDB:
         assert user.settings is None
         assert user.subscription is None
 
-    def test_user_in_db_created_at_required(self):
+    def test_user_in_db_created_at_required(self) -> None:
         """Test that created_at is required for UserInDB.
 
         This test verifies that UserInDB raises ValidationError
         when created_at is not provided.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserInDB(telegram_id=TELEGRAM_ID)
 
-    def test_user_in_db_created_at_validation(self):
+    def test_user_in_db_created_at_validation(self) -> None:
         """Test created_at field validation.
 
         This test verifies that created_at must be a datetime object.
+
+        :returns: None
+        :rtype: None
         """
         with pytest.raises(ValidationError):
             UserInDB(
@@ -260,11 +302,14 @@ class TestUserInDB:
                 created_at="not_a_datetime",
             )
 
-    def test_user_in_db_inherits_from_user_base(self):
+    def test_user_in_db_inherits_from_user_base(self) -> None:
         """Test that UserInDB inherits from UserBase.
 
         This test verifies that UserInDB is a subclass of UserBase
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         user = UserInDB(
             telegram_id=TELEGRAM_ID,
@@ -281,11 +326,14 @@ class TestUserResponse:
     which is used for API responses.
     """
 
-    def test_user_response_inherits_from_user_in_db(self):
+    def test_user_response_inherits_from_user_in_db(self) -> None:
         """Test that UserResponse inherits from UserInDB.
 
         This test verifies that UserResponse is a subclass of UserInDB
         and inherits all its functionality.
+
+        :returns: None
+        :rtype: None
         """
         user = UserResponse(
             telegram_id=TELEGRAM_ID,
@@ -297,10 +345,13 @@ class TestUserResponse:
         assert user.telegram_id == TELEGRAM_ID
         assert user.created_at == CREATED_AT
 
-    def test_user_response_with_all_fields(self):
+    def test_user_response_with_all_fields(self) -> None:
         """Test UserResponse with all fields.
 
         This test verifies that UserResponse works with all available fields.
+
+        :returns: None
+        :rtype: None
         """
         user = UserResponse(
             telegram_id=TELEGRAM_ID,
@@ -328,11 +379,14 @@ class TestUserSchemaIntegration:
     testing JSON serialization and cross-schema compatibility.
     """
 
-    def test_user_schema_json_serialization(self):
+    def test_user_schema_json_serialization(self) -> None:
         """Test JSON serialization of user schemas.
 
         This test verifies that user schemas can be properly
         serialized to and from JSON.
+
+        :returns: None
+        :rtype: None
         """
         user_data = {
             "telegram_id": TELEGRAM_ID,
@@ -351,11 +405,14 @@ class TestUserSchemaIntegration:
         serialized = user_in_db.model_dump(mode="json")
         assert serialized["created_at"] == CREATED_AT.isoformat()
 
-    def test_user_base_to_user_create_compatibility(self):
+    def test_user_base_to_user_create_compatibility(self) -> None:
         """Test compatibility between UserBase and UserCreate.
 
         This test verifies that data from UserBase can be used
         to create UserCreate instances.
+
+        :returns: None
+        :rtype: None
         """
         base_data = {
             "telegram_id": TELEGRAM_ID,
@@ -372,11 +429,14 @@ class TestUserSchemaIntegration:
         assert user_create.first_name == user_base.first_name
         assert user_create.last_name == user_base.last_name
 
-    def test_user_update_partial_data(self):
+    def test_user_update_partial_data(self) -> None:
         """Test UserUpdate with partial data.
 
         This test verifies that UserUpdate can handle partial
         updates with only some fields provided.
+
+        :returns: None
+        :rtype: None
         """
         partial_data = {
             "username": "updated_username",

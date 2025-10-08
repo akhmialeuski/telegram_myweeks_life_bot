@@ -16,10 +16,11 @@ from src.database.models.user_subscription import (
 class TestUserSubscription:
     """Test suite for UserSubscription model."""
 
-    def test_user_subscription_creation_basic(self):
+    def test_user_subscription_creation_basic(self) -> None:
         """Test basic UserSubscription creation.
 
         :returns: None
+        :rtype: None
         """
         subscription = UserSubscription(
             telegram_id=123456789,
@@ -31,10 +32,11 @@ class TestUserSubscription:
         assert subscription.subscription_type == SubscriptionType.BASIC
         assert subscription.is_active is True
 
-    def test_user_subscription_creation_with_all_fields(self):
+    def test_user_subscription_creation_with_all_fields(self) -> None:
         """Test UserSubscription creation with all fields specified.
 
         :returns: None
+        :rtype: None
         """
         created_at = datetime.now(UTC)
         expires_at = created_at + timedelta(days=30)
@@ -53,10 +55,11 @@ class TestUserSubscription:
         assert subscription.created_at == created_at
         assert subscription.expires_at == expires_at
 
-    def test_subscription_type_enum_values(self):
+    def test_subscription_type_enum_values(self) -> None:
         """Test all SubscriptionType enum values work correctly.
 
         :returns: None
+        :rtype: None
         """
         for sub_type in SubscriptionType:
             subscription = UserSubscription(
