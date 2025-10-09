@@ -1,79 +1,120 @@
-# MyWeeks Life Bot
+# LifeWeeksBot
 
-A Telegram bot that tracks and visualizes the number of weeks lived since a specified birth date.
+**MyWeeksBot** is a public Telegram bot specifically designed for tracking the number of weeks lived and sending periodic notifications to users. The main function of the bot is to regularly send weekly messages displaying the exact number of weeks, months, and years lived. In addition to numerical data, the bot provides a visual representation in the form of a convenient table where lived weeks and remaining weeks are marked, allowing users to visually see the passage of time and better understand its flow.
+
+This project helps users better understand the passage of time and motivates more conscious life planning. The bot supports multiple languages and can work with an unlimited number of users simultaneously.
 
 ## Features
 
-- Calculates and reports the number of weeks lived since birth
-- Sends weekly notifications on Mondays
-- Provides monthly statistics
-- Generates a visual representation of weeks lived in a grid format
-  - Each cell represents one week
-  - Each row represents one year (52 weeks)
-  - Green cells show weeks lived
-  - Empty cells show weeks to come
-  - Years and weeks are labeled on axes
-  - Includes a legend for easy interpretation
+- 📅 Track weeks lived since birth with detailed statistics
+- 📊 Visualize life progress as an interactive grid
+- 🌍 Multi-language support (Russian, English, Ukrainian, Belarusian)
+- ⚙️ Personal settings and preferences management
+- 📢 Weekly notification system with customizable schedule
+- 👥 Multi-user support with individual profiles
 
-## Prerequisites
 
-- Python 3.13 or higher
-- A Telegram bot token (obtain from [@BotFather](https://t.me/botfather))
-- Your birth date
-- Your Telegram chat ID
+## Requirements
+
+- Python 3.12 or higher
+- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
 
 ## Installation
 
-1. Clone this repository
-2. Create a virtual environment:
-   ```bash
-   python3.12 -m venv venv
-   ```
-3. Activate the virtual environment:
-   - Windows: `venv\Scripts\activate`
-   - Unix/MacOS: `source venv/bin/activate`
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Create a `.env` file in the project root with the following variables:
-   ```
-   TELEGRAM_BOT_TOKEN=your_bot_token_here
-   DATE_OF_BIRTH=YYYY-MM-DD
-   CHAT_ID=your_telegram_chat_id
-   ```
+### 1. Clone the repository:
+```bash
+git clone <repository-url>
+cd telegram_myweeks_life_bot
+```
+
+### 2. Set up virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+### 3. Install dependencies:
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # For development
+```
+
+### 4. Configure environment variables:
+```bash
+cp env.example .env
+# Edit .env with your configuration
+```
+
+Required environment variables:
+- `TELEGRAM_BOT_TOKEN` - Your Telegram bot token from BotFather
+- `CHAT_ID` - Your Telegram user ID for notifications
+
+### 5. Set up the database:
+```bash
+python scripts/setup_database.py
+```
+
+## Database Setup
+
+The project uses SQLAlchemy 2.0 with Alembic for database migrations and SQLite as the default database.
+
+### Initial Setup
+
+Run the setup script to create the database and apply migrations:
+
+```bash
+python scripts/setup_database.py
+```
+
+### Manual Migration Commands
+
+If you need to manage migrations manually:
+
+```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply all pending migrations
+alembic upgrade head
+
+# Rollback to previous migration
+alembic downgrade -1
+
+# Check current migration status
+alembic current
+
+# View migration history
+alembic history
+```
+
+### Database Configuration
+
+Database settings can be configured via environment variables:
+
+- `DATABASE_URL` - Full database URL (overrides default SQLite)
+- `DATABASE_PATH` - Path to SQLite database file (default: `lifeweeks.db`)
 
 ## Usage
 
-1. Start the bot:
-   ```bash
-   python myweeks_life_bot.py
-   ```
-2. Available commands:
-   - `/weeks` - Display the current number of weeks and months lived
-   - `/visualize` - Generate and send a visual representation of weeks lived
+### Start the bot:
+```bash
+python main.py
+```
 
-## Technical Notes
+### In Telegram, use these commands:
 
-- Uses `python-telegram-bot` v20+ with async API
-- Implements APScheduler for weekly notifications
-- Uses Pillow for image generation
-- The visualization grid shows up to 90 years of life
-- Each row represents one year (52 weeks)
-- The grid includes labeled axes and a legend for easy interpretation
-
-## Visualization Details
-
-The visualization is generated as a grid where:
-- Each cell represents one week of life
-- Each row represents one year (52 weeks)
-- Green cells (🟩) indicate weeks that have been lived
-- Empty cells (⬜) represent weeks that are yet to come
-- The vertical axis shows years (0-90)
-- The horizontal axis shows weeks (1-52)
-- A legend is included at the bottom of the image
-- The grid is designed to be easily readable on mobile devices
+- `/start` - Initialize the bot and register
+- `/weeks` - Show detailed weeks lived statistics
+- `/visualize` - Generate life progress visualization
+- `/settings` - Configure personal preferences and language
+- `/subscription` - Manage notification subscriptions
+- `/help` - Show help information
+- `/cancel` - Cancel current operation
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+You can support this project at https://coff.ee/akhmelevskiy

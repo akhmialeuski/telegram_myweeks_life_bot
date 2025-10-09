@@ -1,0 +1,202 @@
+# Belarusian translations for LifeWeeksBot.
+# Copyright (C) 2024 ORGANIZATION
+# This file is distributed under the same license as the LifeWeeksBot project.
+msgid ""
+msgstr ""
+"Project-Id-Version: LifeWeeksBot 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-08-06 22:01+0200\n"
+"PO-Revision-Date: 2024-08-06 22:01+0200\n"
+"Last-Translator: \n"
+"Language-Team: by\n"
+"Language: by\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+# Dynamic key entries (context-as-key) for universal message lookup
+
+#: dynamic key: help.text
+msgctxt "help.text"
+msgid "🤖 LifeWeeksBot - Helps you track the weeks of your life\n\n📋 Available commands:\n• /start - Registration and settings\n• /weeks - Show life weeks\n• /visualize - Visualize life weeks\n• /settings - Settings\n• /subscription - Subscription\n• /help - This help\n\n💡 Fun facts:\n• There are 52 weeks in a year\n• Average life expectancy: 80 years\n• That's about 4,160 weeks\n\n🎯 The goal of the bot is to help you realize the value of time!"
+msgstr "🤖 LifeWeeksBot - Дапамагае адсочваць тыдні твайго жыцця\n\n📋 Даступныя каманды:\n• /start - Рэгістрацыя і наладжванне\n• /weeks - Паказаць тыдні жыцця\n• /visualize - Візуалізацыя тыдняў жыцця\n• /settings - Налады\n• /subscription - Падпіска\n• /help - Гэта даведка\n\n💡 Цікавыя факты:\n• У годзе 52 тыдні\n• Сярэдняя працягласць жыцця: 80 гадоў\n• Гэта прыблізна 4,160 тыдняў\n\n🎯 Мэта бота - дапамагчы табе ўсвядоміць каштоўнасць часу!"
+
+#: dynamic key: start.welcome_existing
+msgctxt "start.welcome_existing"
+msgid "👋 Hello, %(first_name)s! Welcome back to LifeWeeksBot!\n\nYou are already registered and ready to track your life weeks.\n\nUse /weeks to view your life weeks.\nUse /help for help."
+msgstr "👋 Прывітанне, %(first_name)s! Сардэчна запрашаем назад у LifeWeeksBot!\n\nТы ўжо зарэгістраваны і гатовы адсочваць тыдні свайго жыцця.\n\nВыкарыстоўвай /weeks каб паглядзець тыдні жыцця.\nВыкарыстоўвай /help для даведкі."
+
+#: dynamic key: start.welcome_new
+msgctxt "start.welcome_new"
+msgid "👋 Hello, %(first_name)s! Welcome to LifeWeeksBot!\n\nThis bot will help you track the weeks of your life.\n\n📅 Please enter your birth date in DD.MM.YYYY format\nFor example: 15.03.1990"
+msgstr "👋 Прывітанне, %(first_name)s! Сардэчна запрашаем у LifeWeeksBot!\n\nГэты бот дапаможа табе адсочваць тыдні твайго жыцця.\n\n📅 Калі ласка, увядзі дату нараджэння ў фармаце ДД.ММ.ГГГГ\nНапрыклад: 15.03.1990"
+
+#: dynamic key: registration.success
+msgctxt "registration.success"
+msgid "✅ Great! You have successfully registered!\n\n📅 Birth date: %(birth_date)s\n🎂 Age: %(age)s years\n📊 Weeks lived: %(weeks_lived)s\n⏳ Remaining weeks: %(remaining_weeks)s\n📈 Life progress: %(life_percentage)s\n\nNow you can use commands:\n• /weeks - show life weeks\n• /visualize - visualize weeks\n• /help - help"
+msgstr "✅ Выдатна! Ты паспяхова зарэгістраваны!\n\n📅 Дата нараджэння: %(birth_date)s\n🎂 Узрост: %(age)s гадоў\n📊 Тыдняў пражыта: %(weeks_lived)s\n⏳ Засталося тыдняў: %(remaining_weeks)s\n📈 Прагрэс жыцця: %(life_percentage)s\n\nЦяпер ты можаш выкарыстоўваць каманды:\n• /weeks - паказаць тыдні жыцця\n• /visualize - візуалізацыя тыдняў\n• /help - даведка"
+
+#: dynamic key: registration.error
+msgctxt "registration.error"
+msgid "❌ An error occurred during registration.\nTry again or contact the administrator."
+msgstr "❌ Адбылася памылка пры рэгістрацыі.\nПаспрабуй яшчэ раз або звярніся да адміністратара."
+
+#: dynamic key: birth_date.future_error
+msgctxt "birth_date.future_error"
+msgid "❌ Birth date cannot be in the future!\nPlease enter a valid date in DD.MM.YYYY format"
+msgstr "❌ Дата нараджэння не можа быць у будучыні!\nКалі ласка, увядзі карэктную дату ў фармаце ДД.ММ.ГГГГ"
+
+#: dynamic key: birth_date.old_error
+msgctxt "birth_date.old_error"
+msgid "❌ Birth date is too old!\nPlease enter a valid date in DD.MM.YYYY format"
+msgstr "❌ Дата нараджэння занадта старая!\nКалі ласка, увядзі карэктную дату ў фармаце ДД.ММ.ГГГГ"
+
+#: dynamic key: birth_date.format_error
+msgctxt "birth_date.format_error"
+msgid "❌ Invalid date format!\nPlease enter date in DD.MM.YYYY format\nFor example: 15.03.1990"
+msgstr "❌ Няправільны фармат даты!\nКалі ласка, увядзі дату ў фармаце ДД.ММ.ГГГГ\nНапрыклад: 15.03.1990"
+
+#: dynamic key: subscription.already_active
+msgctxt "subscription.already_active"
+msgid "ℹ️ You already have an active <b>{subscription_type}</b> subscription"
+msgstr "ℹ️ У вас ужо актыўная падпіска <b>{subscription_type}</b>"
+
+#: dynamic key: subscription.change_success
+msgctxt "subscription.change_success"
+msgid "✅ <b>Subscription successfully changed!</b>\n\nNew subscription: <b>{subscription_type}</b>\n{subscription_description}\n\nChanges took effect immediately."
+msgstr "✅ <b>Падпіска паспяхова зменена!</b>\n\nНовая падпіска: <b>{subscription_type}</b>\n{subscription_description}\n\nЗмены ўступілі ў сілу неадкладна."
+
+#: dynamic key: subscription.change_failed
+msgctxt "subscription.change_failed"
+msgid "❌ Failed to change subscription. Please try again later."
+msgstr "❌ Не ўдалося змяніць падпіску. Паспрабуйце пазней."
+
+#: dynamic key: subscription.change_error
+msgctxt "subscription.change_error"
+msgid "❌ An error occurred while changing subscription"
+msgstr "❌ Адбылася памылка пры змене падпіскі"
+
+#: dynamic key: settings.basic
+msgctxt "settings.basic"
+msgid "⚙️ <b>Profile Settings (Basic Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\nSelect what you want to change:"
+msgstr "⚙️ <b>Налады профілю (Базавая падпіска)</b>\n\n📅 <b>Дата нараджэння:</b> {birth_date}\n🌍 <b>Мова:</b> {language_name}\n⏰ <b>Чаканая працягласць жыцця:</b> {life_expectancy} гадоў\n\nВыберыце, што хочаце змяніць:"
+
+#: dynamic key: settings.premium
+msgctxt "settings.premium"
+msgid "⚙️ <b>Profile Settings (Premium Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\nSelect what you want to change:"
+msgstr "⚙️ <b>Налады профілю (Прэміум падпіска)</b>\n\n📅 <b>Дата нараджэння:</b> {birth_date}\n🌍 <b>Мова:</b> {language_name}\n⏰ <b>Чаканая працягласць жыцця:</b> {life_expectancy} гадоў\n\nВыберыце, што хочаце змяніць:"
+
+#: dynamic key: settings.error
+msgctxt "settings.error"
+msgid "❌ An error occurred while updating settings.\nPlease try again later or contact the administrator."
+msgstr "❌ Адбылася памылка пры абнаўленні налад.\nПаспрабуйце пазней або звярніцеся да адміністратара."
+
+#: dynamic key: settings.language_updated
+msgctxt "settings.language_updated"
+msgid "✅ <b>Language successfully changed!</b>\n\nNew language: <b>{new_language}</b>\n\nAll bot messages will now be in the selected language"
+msgstr "✅ <b>Мова паспяхова зменена!</b>\n\nНовая мова: <b>{new_language}</b>\n\nУсе паведамленні бота цяпер будуць на абранай мове"
+
+#: dynamic key: buttons.change_birth_date
+msgctxt "buttons.change_birth_date"
+msgid "📅 Change birth date"
+msgstr "📅 Змяніць дату нараджэння"
+
+#: dynamic key: buttons.change_language
+msgctxt "buttons.change_language"
+msgid "🌍 Change language"
+msgstr "🌍 Змяніць мову"
+
+#: dynamic key: buttons.change_life_expectancy
+msgctxt "buttons.change_life_expectancy"
+msgid "⏰ Change life expectancy"
+msgstr "⏰ Змяніць чаканую працягласць жыцця"
+
+#: dynamic key: weeks.statistics
+msgctxt "weeks.statistics"
+msgid "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
+msgstr "📊 <b>Ваша статыстыка жыцця:</b>\n\n🎂 <b>Узрост:</b> %(age)s гадоў\n📅 <b>Пражыта тыдняў:</b> %(weeks_lived)s\n⏳ <b>Засталося тыдняў (да 80 гадоў):</b> %(remaining_weeks)s\n📈 <b>Прагрэс жыцця:</b> %(life_percentage)s\n🎉 <b>Дзён да дня нараджэння:</b> %(days_until_birthday)s\n\n💡 Выкарыстоўвайце /visualize для візуалізацыі вашых тыдняў"
+
+#: dynamic key: visualize.info
+msgctxt "visualize.info"
+msgid "📊 <b>Visualization of your life weeks</b>\n\n🎂 Age: %(age)s years\n📅 Weeks lived: %(weeks_lived)s\n📈 Life progress: %(life_percentage)s\n\n🟩 Green cells = weeks lived\n⬜ White cells = future weeks"
+msgstr "📊 <b>Візуалізацыя вашых тыдняў жыцця</b>\n\n🎂 Узрост: %(age)s гадоў\n📅 Пражыта тыдняў: %(weeks_lived)s\n📈 Прагрэс жыцця: %(life_percentage)s\n\n🟩 Зялёныя клеткі = пражытыя тыдні\n⬜ Белыя клеткі = будучыя тыдні"
+
+#: dynamic key: visualize.legend
+msgctxt "visualize.legend"
+msgid "🟩 Lived weeks | ⬜ Future weeks"
+msgstr "🟩 Пражытыя тыдні | ⬜ Будучыя тыдні"
+
+#: id-as-key: visualize.legend
+msgid "visualize.legend"
+msgstr "🟩 Пражытыя тыдні | ⬜ Будучыя тыдні"
+
+#: dynamic key: unknown.command
+msgctxt "unknown.command"
+msgid "❌ Error: Unknown command or message.\n\nUse /help to get a list of available commands."
+msgstr "❌ Памылка: Невядомая каманда або паведамленне.\n\nВыкарыстоўвайце /help для атрымання спісу даступных каманд."
+
+#: dynamic key: subscription.management
+msgctxt "subscription.management"
+msgid "🔐 <b>Subscription Management</b>\n\nCurrent subscription: <b>{subscription_type}</b>\n{subscription_description}\n\nSelect new subscription type:"
+msgstr "🔐 <b>Кіраванне падпіскай</b>\n\nБягучая падпіска: <b>{subscription_type}</b>\n{subscription_description}\n\nВыберыце новы тып падпіскі:"
+
+#: dynamic key: subscription.basic_info
+msgctxt "subscription.basic_info"
+msgid "💡 <b>Basic Subscription</b>\n\nYou are using the basic version of the bot with core functionality.\n\n🔗 <b>Support the project:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Donate: {buymeacoffee_url}\n\nYour support helps develop the bot! 🙏"
+msgstr "💡 <b>Базавая падпіска</b>\n\nВы выкарыстоўваеце базавую версію бота з асноўнай функцыянальнасцю.\n\n🔗 <b>Падтрымаць праект:</b>\n• GitHub: https://github.com/your-project/lifeweeks-bot\n• Данат: {buymeacoffee_url}\n\nВаша падтрымка дапамагае развіваць бота! 🙏"
+
+#: dynamic key: subscription.premium_content
+msgctxt "subscription.premium_content"
+msgid "✨ <b>Premium Content</b>\n\n🧠 <b>Psychology of Time:</b>\nResearch shows that time visualization helps make more conscious decisions. When we see the limitation of our weeks, we begin to value each one.\n\n📊 <b>Interesting Facts:</b>\n• Average person spends 26 years sleeping (about 1,352 weeks)\n• 11 years working (572 weeks)\n• 5 years eating and cooking (260 weeks)\n• 4 years commuting (208 weeks)\n\n🎯 <b>Daily Tip:</b> Try doing something new every week - it will help make life more fulfilling and memorable!"
+msgstr "✨ <b>Прэміум кантент</b>\n\n🧠 <b>Псіхалогія часу:</b>\nДаследаванні паказваюць, што візуалізацыя часу дапамагае прымаць больш свядомасныя рашэнні. Калі мы бачым абмежаванасць нашых тыдняў, мы пачынаем цаніць кожны з іх.\n\n📊 <b>Цікавыя факты:</b>\n• Сярэдні чалавек праводзіць 26 гадоў у сне (каля 1,352 тыдняў)\n• 11 гадоў працуючы (572 тыдні)\n• 5 гадоў ядучы і гатуючы (260 тыдняў)\n• 4 гады ў дарозе (208 тыдняў)\n\n🎯 <b>Парада дня:</b> Паспрабуйце рабіць што-то новае кожны тыдзень - гэта дапаможа зрабіць жыццё больш насычаным і запамінальным!"
+
+#: dynamic key: settings.change_birth_date
+msgctxt "settings.change_birth_date"
+msgid "📅 <b>Change Birth Date</b>\n\nCurrent date: <b>{current_birth_date}</b>\n\nEnter new birth date in DD.MM.YYYY format\nFor example: 15.03.1990\n\nOr press /cancel to cancel"
+msgstr "📅 <b>Змяніць дату нараджэння</b>\n\nБягучая дата: <b>{current_birth_date}</b>\n\nУвядзіце новую дату нараджэння ў фармаце ДД.ММ.ГГГГ\nНапрыклад: 15.03.1990\n\nАбо націсніце /cancel для адмены"
+
+#: dynamic key: settings.birth_date_updated
+msgctxt "settings.birth_date_updated"
+msgid "✅ <b>Birth date successfully updated!</b>\n\nNew date: <b>{new_birth_date}</b>\nNew age: <b>{new_age} years</b>\n\nUse /weeks to see updated statistics"
+msgstr "✅ <b>Дата нараджэння паспяхова абноўлена!</b>\n\nНовая дата: <b>{new_birth_date}</b>\nНовы ўзрост: <b>{new_age} гадоў</b>\n\nВыкарыстоўвайце /weeks каб паглядзець абноўленую статыстыку"
+
+#: dynamic key: cancel.success
+msgctxt "cancel.success"
+msgid "✅ %(first_name)s, all your data has been successfully deleted.\nUse /start for re-registration."
+msgstr "✅ %(first_name)s, усе вашы даныя былі паспяхова выдаленыя.\nВыкарыстоўвайце /start для паўторнай рэгістрацыі."
+
+#: dynamic key: cancel.error
+msgctxt "cancel.error"
+msgid "❌ An error occurred while deleting your data.\nPlease try again or contact the administrator."
+msgstr "❌ Адбылася памылка пры выдаленні вашых даных.\nПаспрабуйце яшчэ раз або звярніцеся да адміністратара."
+
+#: dynamic key: settings.change_life_expectancy
+msgctxt "settings.change_life_expectancy"
+msgid "⏰ <b>Change Expected Life Expectancy</b>\n\nCurrent value: <b>{current_life_expectancy} years</b>\n\nEnter new value (from 50 to 120 years):"
+msgstr "⏰ <b>Змяніць чаканую працягласць жыцця</b>\n\nБягучае значэнне: <b>{current_life_expectancy} гадоў</b>\n\nУвядзіце новае значэнне (ад 50 да 120 гадоў):"
+
+#: dynamic key: settings.life_expectancy_updated
+msgctxt "settings.life_expectancy_updated"
+msgid "✅ <b>Expected life expectancy updated!</b>\n\nNew value: <b>{new_life_expectancy} years</b>\n\nUse /weeks to see updated statistics"
+msgstr "✅ <b>Чаканая працягласць жыцця абноўлена!</b>\n\nНовае значэнне: <b>{new_life_expectancy} гадоў</b>\n\nВыкарыстоўвайце /weeks каб паглядзець абноўленую статыстыку"
+
+#: dynamic key: common.not_registered
+msgctxt "common.not_registered"
+msgid "❌ Please register using /start"
+msgstr "❌ Калі ласка, зарэгіструйцеся з дапамогай /start"
+
+#: dynamic key: not.set
+msgctxt "not.set"
+msgid "Not set"
+msgstr "Не ўстаноўлена"
+
+#: dynamic key: settings.invalid_life_expectancy
+msgctxt "settings.invalid_life_expectancy"
+msgid "❌ Invalid life expectancy.\nPlease enter a value between 50 and 120 years."
+msgstr "❌ Няправільная працягласць жыцця.\nКалі ласка, увядзіце значэнне ад 50 да 120 гадоў."
+
+#: dynamic key: settings.change_language
+msgctxt "settings.change_language"
+msgid "🌍 Select your preferred language"
+msgstr "🌍 Выберыце пераважную мову"

@@ -1,5 +1,13 @@
 # Environment variables
 .env
+.env.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/
+lifeweeks.db
 
 # Python
 __pycache__/
@@ -24,6 +32,7 @@ wheels/
 *.egg
 
 # Virtual Environment
+.venv/
 venv/
 env/
 ENV/
@@ -31,9 +40,20 @@ ENV/
 # IDE specific files
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
+
+# Logs
+logs/
+*.log
 
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Coverage
+.coverage
+*.coverage
+coverage.xml
+htmlcov/
