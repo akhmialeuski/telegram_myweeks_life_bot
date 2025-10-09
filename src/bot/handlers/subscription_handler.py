@@ -193,16 +193,16 @@ class SubscriptionHandler(BaseHandler):
             f"{self.command_name}: [{user_id}]: Callback executed: {callback_data}"
         )
 
-        try:
-            # Resolve language
-            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
-            lang = (
-                profile.settings.language
-                if profile and profile.settings and profile.settings.language
-                else (user.language_code or "en")
-            )
-            _, _, pgettext = use_locale(lang=lang)
+        # Resolve language
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
 
+        try:
             # Answer the callback query to remove loading state
             await query.answer()
 

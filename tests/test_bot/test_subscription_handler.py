@@ -178,8 +178,11 @@ class TestSubscriptionHandler:
 
         with patch.object(
             handler, "_handle_subscription", side_effect=Exception("Test exception")
-        ):
+        ), patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle(mock_update, mock_context)
+
+            # Assert error handling was invoked
+            mock_send_error.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_subscription_callback_same_subscription(

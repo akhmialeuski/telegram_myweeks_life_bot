@@ -67,13 +67,21 @@ class BaseSQLiteRepository:
         :type db_path: str
         """
         key = f"{self.__class__.__name__}_{db_path}"
+
+        # Fast path: already initialized
         if key in self._initialized:
             return
 
-        self.db_path = Path(db_path)
-        self.engine = None
-        self.SessionLocal = None
-        self._initialized[key] = True
+        # Acquire lock for thread-safe initialization
+        with self._lock:
+            # Double-check after acquiring lock
+            if key in self._initialized:
+                return
+
+            self.db_path = Path(db_path)
+            self.engine = None
+            self.SessionLocal = None
+            self._initialized[key] = True
 
     def initialize(self) -> None:
         """Initialize database connection and create tables.

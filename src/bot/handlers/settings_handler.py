@@ -204,16 +204,16 @@ class SettingsHandler(BaseHandler):
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling settings command")
 
-        try:
-            # Resolve language and profile
-            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
-            lang = (
-                profile.settings.language
-                if profile and profile.settings and profile.settings.language
-                else (user.language_code or "en")
-            )
-            _, _, pgettext = use_locale(lang=lang)
+        # Resolve language and profile
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
 
+        try:
             # Determine subscription type
             is_premium = (
                 profile
@@ -471,6 +471,16 @@ class SettingsHandler(BaseHandler):
             f"{self.command_name}: [{user_id}]: Executed language callback: {callback_data}"
         )
 
+        # Resolve current language for error messages
+        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        user = cmd_context.user
+        lang = (
+            profile.settings.language
+            if profile and profile.settings and profile.settings.language
+            else (user.language_code or "en")
+        )
+        _, _, pgettext = use_locale(lang=lang)
+
         try:
             # Answer the callback query to remove loading state
             await query.answer()
@@ -480,7 +490,6 @@ class SettingsHandler(BaseHandler):
 
             # Validate language code
             if language_code not in [e.value for e in SupportedLanguage]:
-                _, _, pgettext = use_locale(lang=language_code)
                 error_text = pgettext(
                     "settings.error",
                     "❌ An error occurred while updating settings.\nPlease try again later or contact the administrator.",
