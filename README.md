@@ -23,7 +23,7 @@ This project helps users better understand the passage of time and motivates mor
 
 ### 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/akhmialeuski/telegram_myweeks_life_bot.git
 cd telegram_myweeks_life_bot
 ```
 
@@ -35,6 +35,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 ### 3. Install dependencies:
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 pip install -r requirements-dev.txt  # For development
 ```
@@ -49,11 +50,6 @@ Required environment variables:
 - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token from BotFather
 - `CHAT_ID` - Your Telegram user ID for notifications
 
-### 5. Set up the database:
-```bash
-python scripts/setup_database.py
-```
-
 ## Database Setup
 
 The project uses SQLAlchemy 2.0 with Alembic for database migrations and SQLite as the default database.
@@ -63,7 +59,7 @@ The project uses SQLAlchemy 2.0 with Alembic for database migrations and SQLite 
 Run the setup script to create the database and apply migrations:
 
 ```bash
-python scripts/setup_database.py
+PYTHONPATH=. python scripts/setup_database.py
 ```
 
 ### Manual Migration Commands
