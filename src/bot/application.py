@@ -12,10 +12,13 @@ and provide a clean interface for bot management.
 
 from typing import Optional
 
+from telegram import Update
+from telegram.error import NetworkError, RetryAfter, TimedOut
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
 )
@@ -142,6 +145,7 @@ class LifeWeeksBot:
 
         This method:
             - Creates the telegram.ext.Application instance
+            - Registers global error handler for network and other errors
             - Registers all command handlers including conversation handler for /start
             - Configures the bot for operation
             - Sets up weekly notification scheduler
@@ -154,6 +158,9 @@ class LifeWeeksBot:
 
         logger.info("Setting up bot application")
         self._app = Application.builder().token(TOKEN).build()
+
+        # Register global error handler for network and other errors
+        self._app.add_error_handler(self._error_handler)
 
         # Automatically register all handlers from HANDLERS
         self._register_handlers()
@@ -427,6 +434,75 @@ class LifeWeeksBot:
             "Registered universal unknown handler for all messages and commands"
         )
         logger.info("Unknown handler registered as universal fallback")
+
+    async def _error_handler(
+        self, update: Optional[Update], context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle errors that occur during bot operation.
+
+        This global error handler catches all unhandled exceptions including:
+            - Network errors (connection issues, timeouts, read errors)
+            - Rate limiting errors (RetryAfter)
+            - Other unexpected errors
+
+        The handler logs errors appropriately and prevents bot crashes
+        from network issues or other transient errors.
+
+        :param update: Telegram update object, may be None for non-update errors
+        :type update: Optional[Update]
+        :param context: Telegram context object containing error information
+        :type context: ContextTypes.DEFAULT_TYPE
+        :returns: None
+        """
+        error = context.error
+
+        # Handle rate limiting - Telegram API rate limit exceeded
+        # Check RetryAfter before NetworkError as it may inherit from it
+        if isinstance(error, RetryAfter):
+            logger.warning(
+                f"Rate limit exceeded. Retry after {error.retry_after} seconds."
+            )
+            return
+
+        # Handle timeout errors
+        # Check TimedOut before NetworkError as it inherits from NetworkError
+        if isinstance(error, TimedOut):
+            logger.warning(
+                f"Request timeout occurred: {error}. "
+                "This is usually a temporary network issue."
+            )
+            return
+
+        # Handle network errors - these are usually transient and should not crash the bot
+        # Check NetworkError last as it's the base class for TimedOut
+        if isinstance(error, NetworkError):
+            logger.warning(
+                f"Network error occurred: {error}. "
+                "This is usually a temporary issue and will be retried automatically."
+            )
+            return
+
+        # Log all other errors with full context
+        logger.error(
+            f"Unhandled exception occurred: {error}",
+            exc_info=error,
+        )
+
+        # Try to notify user if update is available
+        if update and update.effective_chat:
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=(
+                        "Sorry, an unexpected error occurred. "
+                        "Please try again later or use /help for assistance."
+                    ),
+                )
+            except Exception as send_error:
+                logger.error(
+                    f"Failed to send error notification to user: {send_error}",
+                    exc_info=True,
+                )
 
     def _setup_scheduler(self) -> None:
         """Set up the weekly notification scheduler.
