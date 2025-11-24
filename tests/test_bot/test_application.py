@@ -156,6 +156,39 @@ class TestLifeWeeksBot:
         assert bot._app is mock_application_builder
         mock_application_logger.info.assert_any_call("Setting up bot application")
 
+    def test_setup_registers_post_init_callback(
+        self,
+        bot: LifeWeeksBot,
+        mock_application_builder: MagicMock,
+    ) -> None:
+        """Verify that setup() registers post_init callback for scheduler startup.
+
+        The post_init callback ensures scheduler starts after event loop is created.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_builder: Mocked Application.builder() chain
+        :type mock_application_builder: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_builder_chain = MagicMock()
+        mock_builder_chain.token.return_value = mock_builder_chain
+        mock_builder_chain.post_init.return_value = mock_builder_chain
+        mock_builder_chain.build.return_value = mock_application_builder
+
+        with patch(
+            "src.bot.application.Application.builder", return_value=mock_builder_chain
+        ), patch.object(bot, "_register_handlers"), patch.object(
+            bot, "_setup_scheduler"
+        ):
+            bot.setup()
+
+        # Verify post_init was called with the callback method
+        mock_builder_chain.post_init.assert_called_once_with(
+            bot._post_init_scheduler_start
+        )
+
     def test_register_handlers_registers_all_types(
         self, bot: LifeWeeksBot, mock_app: MagicMock
     ) -> None:
@@ -247,31 +280,25 @@ class TestLifeWeeksBot:
         assert bot._app is not None
         bot._app.run_polling.assert_called_once()
 
-    def test_start_runs_polling_and_scheduler(
+    def test_start_runs_polling_without_direct_scheduler_start(
         self,
         bot: LifeWeeksBot,
-        mock_start_scheduler: MagicMock,
         mock_app: MagicMock,
-        mock_scheduler: MagicMock,
     ) -> None:
-        """Ensure start() runs polling and starts the scheduler if it exists.
+        """Ensure start() runs polling without directly starting scheduler.
+
+        The scheduler is now started via post_init callback, not directly in start().
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
-        :param mock_start_scheduler: Mocked start_scheduler function
-        :type mock_start_scheduler: MagicMock
         :param mock_app: Mocked Application instance
         :type mock_app: MagicMock
-        :param mock_scheduler: Mocked scheduler instance
-        :type mock_scheduler: MagicMock
         :returns: None
         :rtype: None
         """
         bot._app = mock_app
-        bot._scheduler = mock_scheduler
         bot.start()
         bot._app.run_polling.assert_called_once()
-        mock_start_scheduler.assert_called_once_with(mock_scheduler)
 
     def test_stop_cleans_up_scheduler(
         self,
@@ -607,3 +634,66 @@ class TestLifeWeeksBot:
         _run_async(bot._error_handler(mock_update, context))
         # Should log error but not try to send message
         mock_application_logger.error.assert_called_once()
+
+    def test_post_init_scheduler_start_with_scheduler(
+        self,
+        bot: LifeWeeksBot,
+        mock_start_scheduler: MagicMock,
+        mock_scheduler: MagicMock,
+        mock_application_logger: MagicMock,
+    ) -> None:
+        """Test that _post_init_scheduler_start starts scheduler when it exists.
+
+        This test verifies that the post_init callback correctly starts the scheduler
+        when it is configured and available.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_start_scheduler: Mocked start_scheduler function
+        :type mock_start_scheduler: MagicMock
+        :param mock_scheduler: Mocked scheduler instance
+        :type mock_scheduler: MagicMock
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._scheduler = mock_scheduler
+        mock_application = MagicMock()
+
+        _run_async(bot._post_init_scheduler_start(mock_application))
+
+        mock_start_scheduler.assert_called_once_with(mock_scheduler)
+        mock_application_logger.info.assert_called_with(
+            "Starting scheduler via post_init callback"
+        )
+
+    def test_post_init_scheduler_start_without_scheduler(
+        self,
+        bot: LifeWeeksBot,
+        mock_start_scheduler: MagicMock,
+        mock_application_logger: MagicMock,
+    ) -> None:
+        """Test that _post_init_scheduler_start handles missing scheduler gracefully.
+
+        This test verifies that the post_init callback logs a warning when scheduler
+        is not configured, without crashing.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_start_scheduler: Mocked start_scheduler function
+        :type mock_start_scheduler: MagicMock
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        bot._scheduler = None
+        mock_application = MagicMock()
+
+        _run_async(bot._post_init_scheduler_start(mock_application))
+
+        mock_start_scheduler.assert_not_called()
+        mock_application_logger.warning.assert_called_with(
+            "Scheduler not configured, skipping start"
+        )
