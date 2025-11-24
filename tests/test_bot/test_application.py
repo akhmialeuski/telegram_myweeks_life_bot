@@ -1,10 +1,12 @@
 """Unit tests for the bot application, focusing on LifeWeeksBot class behavior."""
 
 import asyncio
+from collections.abc import Coroutine
 from types import SimpleNamespace
-from typing import List, Type
+from typing import Any, List, Type
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+from telegram.error import NetworkError, RetryAfter, TimedOut
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
 
 from src.bot.application import HANDLERS, LifeWeeksBot
@@ -18,6 +20,26 @@ from src.bot.constants import (
     COMMAND_VISUALIZE,
     COMMAND_WEEKS,
 )
+
+
+def _run_async(coro: Coroutine[Any, Any, Any]) -> Any:
+    """Run an async coroutine in a new event loop.
+
+    Creates a new event loop, runs the coroutine, and properly cleans up
+    the event loop. This helper function eliminates code duplication
+    across test methods.
+
+    :param coro: The coroutine to run
+    :type coro: Coroutine[Any, Any, Any]
+    :returns: The result of the coroutine
+    :rtype: Any
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 def _get_handlers_by_type(mock_app: Mock, handler_type: Type) -> List[MagicMock]:
@@ -301,25 +323,20 @@ class TestLifeWeeksBot:
             COMMAND_UNKNOWN: unknown_handler,
         }
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            update1 = Mock()
-            context1 = SimpleNamespace(user_data={"waiting_for": "start_state"})
-            loop.run_until_complete(bot._universal_text_handler(update1, context1))
-            start_handler.handle_birth_date_input.assert_called_once()
-            unknown_handler.handle.assert_not_called()
-            update2 = Mock()
-            context2 = SimpleNamespace(user_data={"waiting_for": "settings_state"})
-            loop.run_until_complete(bot._universal_text_handler(update2, context2))
-            unknown_handler.handle.assert_called_once()
-            unknown_handler.handle.reset_mock()
-            update3 = Mock()
-            context3 = SimpleNamespace(user_data={})
-            loop.run_until_complete(bot._universal_text_handler(update3, context3))
-            unknown_handler.handle.assert_called_once()
-        finally:
-            loop.close()
+        update1 = Mock()
+        context1 = SimpleNamespace(user_data={"waiting_for": "start_state"})
+        _run_async(bot._universal_text_handler(update1, context1))
+        start_handler.handle_birth_date_input.assert_called_once()
+        unknown_handler.handle.assert_not_called()
+        update2 = Mock()
+        context2 = SimpleNamespace(user_data={"waiting_for": "settings_state"})
+        _run_async(bot._universal_text_handler(update2, context2))
+        unknown_handler.handle.assert_called_once()
+        unknown_handler.handle.reset_mock()
+        update3 = Mock()
+        context3 = SimpleNamespace(user_data={})
+        _run_async(bot._universal_text_handler(update3, context3))
+        unknown_handler.handle.assert_called_once()
 
     def test_setup_scheduler_assigns_instance(
         self,
@@ -367,3 +384,226 @@ class TestLifeWeeksBot:
         message_handlers = _get_handlers_by_type(bot._app, MessageHandler)
         registered_callbacks = [h.callback for h in message_handlers]
         assert mock_handlers["test_cmd"]["class"]().handle in registered_callbacks
+
+    def test_setup_registers_error_handler(
+        self,
+        bot: LifeWeeksBot,
+        mock_application_builder: MagicMock,
+        mock_application_logger: MagicMock,
+    ) -> None:
+        """Verify that setup() registers the global error handler.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_builder: Mocked Application.builder() chain
+        :type mock_application_builder: MagicMock
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        with patch.object(bot, "_register_handlers"), patch.object(
+            bot, "_setup_scheduler"
+        ):
+            bot.setup()
+        mock_application_builder.add_error_handler.assert_called_once_with(
+            bot._error_handler
+        )
+
+    def test_error_handler_handles_network_error(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles NetworkError correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        network_error = NetworkError("Connection failed")
+        context = MagicMock()
+        context.error = network_error
+        update = None
+
+        _run_async(bot._error_handler(update, context))
+        mock_application_logger.warning.assert_called_once()
+        warning_message = mock_application_logger.warning.call_args[0][0]
+        assert "Network error occurred" in warning_message
+        assert "This is usually a temporary issue" in warning_message
+
+    def test_error_handler_handles_retry_after(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles RetryAfter correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        retry_after_error = RetryAfter(retry_after=60)
+        context = MagicMock()
+        context.error = retry_after_error
+        update = None
+
+        _run_async(bot._error_handler(update, context))
+        mock_application_logger.warning.assert_called_once()
+        warning_message = mock_application_logger.warning.call_args[0][0]
+        assert "Rate limit exceeded" in warning_message
+        assert "60" in warning_message
+        assert "Retry after" in warning_message
+
+    def test_error_handler_handles_timed_out(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles TimedOut correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        timeout_error = TimedOut("Request timeout")
+        context = MagicMock()
+        context.error = timeout_error
+        update = None
+
+        _run_async(bot._error_handler(update, context))
+        mock_application_logger.warning.assert_called_once()
+        warning_message = mock_application_logger.warning.call_args[0][0]
+        assert "Request timeout occurred" in warning_message
+        assert "This is usually a temporary network issue" in warning_message
+
+    def test_error_handler_handles_other_errors(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles other errors correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        other_error = ValueError("Unexpected error")
+        context = MagicMock()
+        context.error = other_error
+        update = None
+
+        _run_async(bot._error_handler(update, context))
+        mock_application_logger.error.assert_called_once()
+        error_message = mock_application_logger.error.call_args[0][0]
+        assert "Unhandled exception occurred" in error_message
+        assert "Unexpected error" in error_message
+
+    def test_error_handler_sends_message_to_user_on_other_errors(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler sends message to user when update is available.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        other_error = ValueError("Unexpected error")
+        mock_bot = AsyncMock()
+        mock_chat = MagicMock()
+        mock_chat.id = 12345
+        mock_update = MagicMock()
+        mock_update.effective_chat = mock_chat
+        context = MagicMock()
+        context.error = other_error
+        context.bot = mock_bot
+
+        _run_async(bot._error_handler(mock_update, context))
+        mock_bot.send_message.assert_called_once_with(
+            chat_id=12345,
+            text=(
+                "Sorry, an unexpected error occurred. "
+                "Please try again later or use /help for assistance."
+            ),
+        )
+
+    def test_error_handler_handles_send_message_error(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles errors when sending message to user.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        other_error = ValueError("Unexpected error")
+        mock_bot = AsyncMock()
+        mock_bot.send_message.side_effect = Exception("Failed to send message")
+        mock_chat = MagicMock()
+        mock_chat.id = 12345
+        mock_update = MagicMock()
+        mock_update.effective_chat = mock_chat
+        context = MagicMock()
+        context.error = other_error
+        context.bot = mock_bot
+
+        _run_async(bot._error_handler(mock_update, context))
+        # Should log error about failed message send
+        # First call is for the original error, second is for send failure
+        assert mock_application_logger.error.call_count >= 2
+        send_error_call = mock_application_logger.error.call_args_list[-1]
+        send_error_message = send_error_call[0][0]
+        assert "Failed to send error notification" in send_error_message
+
+    def test_error_handler_handles_none_update(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles None update correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        other_error = ValueError("Unexpected error")
+        context = MagicMock()
+        context.error = other_error
+        update = None
+
+        _run_async(bot._error_handler(update, context))
+        # Should log error but not try to send message
+        mock_application_logger.error.assert_called_once()
+
+    def test_error_handler_handles_update_without_chat(
+        self, bot: LifeWeeksBot, mock_application_logger: MagicMock
+    ) -> None:
+        """Test that _error_handler handles update without effective_chat correctly.
+
+        :param bot: The bot instance
+        :type bot: LifeWeeksBot
+        :param mock_application_logger: Mocked logger instance for application module
+        :type mock_application_logger: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        other_error = ValueError("Unexpected error")
+        mock_update = MagicMock()
+        mock_update.effective_chat = None
+        context = MagicMock()
+        context.error = other_error
+
+        _run_async(bot._error_handler(mock_update, context))
+        # Should log error but not try to send message
+        mock_application_logger.error.assert_called_once()
