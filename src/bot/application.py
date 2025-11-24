@@ -145,6 +145,7 @@ class LifeWeeksBot:
 
         This method:
             - Creates the telegram.ext.Application instance
+            - Registers post_init callback for scheduler startup
             - Registers global error handler for network and other errors
             - Registers all command handlers including conversation handler for /start
             - Configures the bot for operation
@@ -157,7 +158,13 @@ class LifeWeeksBot:
             return  # Already set up
 
         logger.info("Setting up bot application")
-        self._app = Application.builder().token(TOKEN).build()
+        builder = Application.builder().token(TOKEN)
+
+        # Register post_init callback to start scheduler after event loop is created
+        # This ensures APScheduler AsyncIOScheduler has access to running event loop
+        builder.post_init(self._post_init_scheduler_start)
+
+        self._app = builder.build()
 
         # Register global error handler for network and other errors
         self._app.add_error_handler(self._error_handler)
@@ -176,18 +183,16 @@ class LifeWeeksBot:
 
         This method:
             - Ensures the application is set up (calls setup() if needed)
-            - Starts the weekly notification scheduler if it is configured
             - Runs the bot in polling mode to process incoming updates
+
+        The scheduler is started via post_init callback registered in setup().
+        This ensures APScheduler AsyncIOScheduler has access to running event loop.
 
         :returns: None
         :raises RuntimeError: If application is not properly configured
         """
         if not self._app:
             self.setup()
-
-        # Start the weekly notification scheduler
-        if self._scheduler:
-            start_scheduler(self._scheduler)
 
         logger.info("Starting Life Weeks Bot")
         self._app.run_polling()
@@ -522,3 +527,23 @@ class LifeWeeksBot:
             logger.error(
                 f"Failed to set up weekly notification scheduler: {error.message}"
             )
+
+    async def _post_init_scheduler_start(self, application: Application) -> None:
+        """Post-initialization callback to start scheduler after event loop is created.
+
+        This callback is registered via Application.post_init() and is called after
+        the event loop is created and running. This ensures APScheduler AsyncIOScheduler
+        can access the running event loop when it starts.
+
+        The callback is called automatically by python-telegram-bot after the
+        application is initialized and the event loop is running.
+
+        :param application: The Application instance (unused, kept for signature compatibility)
+        :type application: Application
+        :returns: None
+        """
+        if self._scheduler:
+            logger.info("Starting scheduler via post_init callback")
+            start_scheduler(self._scheduler)
+        else:
+            logger.warning("Scheduler not configured, skipping start")

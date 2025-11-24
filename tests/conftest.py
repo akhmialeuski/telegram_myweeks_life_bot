@@ -263,6 +263,8 @@ def bot() -> LifeWeeksBot:
 def mock_application_builder(mocker: MockerFixture) -> MagicMock:
     """Provides a mocked Application.builder() chain for testing bot setup.
 
+    The builder chain supports post_init() method for registering callbacks.
+
     :param mocker: Pytest mocker fixture
     :type mocker: MockerFixture
     :returns: Mocked Application.builder() chain
@@ -270,7 +272,11 @@ def mock_application_builder(mocker: MockerFixture) -> MagicMock:
     """
     mock_app_class = mocker.patch("src.bot.application.Application")
     mock_app = MagicMock(spec=Application)
-    mock_app_class.builder.return_value.token.return_value.build.return_value = mock_app
+    mock_builder_chain = MagicMock()
+    mock_builder_chain.token.return_value = mock_builder_chain
+    mock_builder_chain.post_init.return_value = mock_builder_chain
+    mock_builder_chain.build.return_value = mock_app
+    mock_app_class.builder.return_value = mock_builder_chain
     return mock_app
 
 
