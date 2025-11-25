@@ -107,6 +107,43 @@ python main.py
 - `/help` - Show help information
 - `/cancel` - Cancel current operation
 
+## Deployment (Linux/Systemd)
+
+For production environments, you can run the bot as a systemd service using the provided installation script.
+
+### Installation
+
+Run the automated installer script:
+```bash
+chmod +x scripts/install_service.sh
+./scripts/install_service.sh
+```
+
+### Service Management
+
+Common commands for managing the bot service:
+
+```bash
+# Check status
+sudo systemctl status lifeweeks-bot
+
+# Restart service (useful after updates)
+sudo systemctl restart lifeweeks-bot
+
+# Stop service
+sudo systemctl stop lifeweeks-bot
+
+# View real-time logs
+journalctl -u lifeweeks-bot -f
+```
+
+### Uninstall
+
+To remove the service:
+```bash
+./scripts/install_service.sh --uninstall
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
