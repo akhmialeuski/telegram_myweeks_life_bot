@@ -8,11 +8,12 @@ import logging
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, List, Optional, Type, TypeVar
+from typing import Any, Generator, List, Optional, Type
 
 from sqlalchemy import create_engine, delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
+from typing_extensions import TypeVar
 
 from ....utils.config import BOT_NAME
 from ...constants import DEFAULT_DATABASE_PATH, SQLITE_ECHO, SQLITE_POOL_PRE_PING
@@ -21,7 +22,7 @@ from ...models.base import Base
 logger = logging.getLogger(BOT_NAME)
 
 # Type variable for SQLAlchemy models
-ModelType = TypeVar("ModelType", bound=Base)
+ModelType = TypeVar("ModelType", bound=Base, default=Base)
 
 
 class BaseSQLiteRepository:

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.bot.constants import COMMAND_SETTINGS
-from src.bot.handlers.settings_handler import SettingsHandler
+from src.bot.handlers.settings import SettingsHandler
 from src.constants import DEFAULT_LIFE_EXPECTANCY
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from tests.conftest import TEST_USER_ID
@@ -53,7 +53,7 @@ class TestSettingsHandler:
         """
         mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
         mocker.patch(
-            "src.bot.handlers.settings_handler.use_locale",
+            "src.bot.handlers.settings.handler.use_locale",
             return_value=(None, None, mock_pgettext),
         )
         return mock_pgettext
@@ -613,9 +613,9 @@ class TestSettingsHandler:
         future_date = date(2025, 1, 1)
 
         with patch(
-            "src.bot.handlers.settings_handler.datetime"
+            "src.bot.handlers.settings.handler.datetime"
         ) as mock_datetime, patch(
-            "src.bot.handlers.settings_handler.date"
+            "src.bot.handlers.settings.handler.date"
         ) as mock_date, patch.object(
             handler, "send_message"
         ) as mock_send_message:
@@ -655,7 +655,7 @@ class TestSettingsHandler:
         old_date = date(1800, 1, 1)
 
         with patch(
-            "src.bot.handlers.settings_handler.datetime"
+            "src.bot.handlers.settings.handler.datetime"
         ) as mock_datetime, patch.object(handler, "send_message") as mock_send_message:
             mock_datetime.strptime.return_value.date.return_value = old_date
 
@@ -695,7 +695,7 @@ class TestSettingsHandler:
         )
 
         with patch(
-            "src.bot.handlers.settings_handler.datetime"
+            "src.bot.handlers.settings.handler.datetime"
         ) as mock_datetime, patch.object(
             handler, "send_error_message"
         ) as mock_send_error:
@@ -731,7 +731,7 @@ class TestSettingsHandler:
         :rtype: None
         """
         with patch(
-            "src.bot.handlers.settings_handler.datetime"
+            "src.bot.handlers.settings.handler.datetime"
         ) as mock_datetime, patch.object(
             handler, "send_error_message"
         ) as mock_send_error:

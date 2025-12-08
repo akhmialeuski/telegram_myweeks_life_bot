@@ -5,6 +5,7 @@ dependencies, including database services, schedulers, and utilities.
 It implements the Dependency Injection pattern to reduce coupling between
 modules and simplify testing.
 """
+
 import threading
 
 from ..core.life_calculator import LifeCalculatorEngine

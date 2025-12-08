@@ -1,16 +1,4 @@
-"""Bot application setup and initialization.
-
-This module provides the main bot application class that manages:
-    - Bot initialization and configuration
-    - Command handler registration
-    - Application lifecycle management
-    - Bot state management
-
-The module uses a class-based approach to encapsulate all bot functionality
-and provide a clean interface for bot management.
-"""
-
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from telegram import Update
 from telegram.error import NetworkError, RetryAfter, TimedOut
@@ -23,6 +11,9 @@ from telegram.ext import (
     filters,
 )
 
+from ..core.di import ServiceProvider
+from ..core.plugins import BotPlugin, PluginRegistry
+from ..services.adapter import LegacyServiceAdapter
 from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
@@ -46,6 +37,7 @@ from .handlers import (
     VisualizeHandler,
     WeeksHandler,
 )
+from .handlers.settings.states import SettingsState
 from .scheduler import (
     SchedulerSetupError,
     setup_user_notification_schedules,
@@ -54,6 +46,61 @@ from .scheduler import (
 )
 
 logger = get_logger(BOT_NAME)
+
+
+class DeclarativePlugin(BotPlugin):
+    """Plugin wrapper for declarative handler configuration."""
+
+    def __init__(
+        self, command: str, config: Dict[str, Any], bot_instance: "LifeWeeksBot"
+    ):
+        self._command = command
+        self._config = config
+        self._bot = bot_instance
+
+    @property
+    def name(self) -> str:
+        return f"plugin_{self._command}"
+
+    def register(self, app: Application, services: ServiceProvider) -> None:
+        # Get handler class and create instance with services
+        # We need the raw ServiceContainer for legacy handlers
+        # Using the adapter to get it back or just using self._bot.services
+        container = services.get(ServiceContainer)
+
+        handler_class = self._config["class"]
+        handler_instance = handler_class(container)
+
+        # Store instance in bot for backward compatibility if needed
+        self._bot._handler_instances[self._command] = handler_instance
+
+        # Register command handler
+        app.add_handler(CommandHandler(self._command, handler_instance.handle))
+        logger.debug(f"Registered command handler: /{self._command}")
+
+        # Register callbacks if any
+        for callback in self._config.get("callbacks", []):
+            callback_method = getattr(handler_instance, callback["method"])
+            app.add_handler(
+                CallbackQueryHandler(callback_method, pattern=callback["pattern"])
+            )
+            logger.debug(
+                f"Registered callback: {callback['method']} for /{self._command}"
+            )
+
+        # Collect text input handlers and waiting states if specified
+        if "text_input" in self._config:
+            text_input_method = getattr(handler_instance, self._config["text_input"])
+            self._bot._text_input_handlers[self._command] = text_input_method
+
+            # Collect waiting states from config
+            if "waiting_states" in self._config:
+                for state in self._config["waiting_states"]:
+                    self._bot._waiting_states[state] = self._command
+
+        # Register message handler if specified (for unknown messages)
+        if self._config.get("message_handler", False):
+            app.add_handler(MessageHandler(filters.ALL, handler_instance.handle))
 
 
 # Unified handlers mapping
@@ -68,11 +115,17 @@ HANDLERS = {
     COMMAND_SETTINGS: {
         "class": SettingsHandler,
         "callbacks": [
-            {"method": "handle_settings_callback", "pattern": "settings_birth_date"},
-            {"method": "handle_settings_callback", "pattern": "settings_language"},
             {
                 "method": "handle_settings_callback",
-                "pattern": "settings_life_expectancy",
+                "pattern": SettingsState.WAITING_BIRTH_DATE,
+            },
+            {
+                "method": "handle_settings_callback",
+                "pattern": SettingsState.WAITING_LANGUAGE,
+            },
+            {
+                "method": "handle_settings_callback",
+                "pattern": SettingsState.WAITING_LIFE_EXPECTANCY,
             },
             {"method": "handle_language_callback", "pattern": "language_ru"},
             {"method": "handle_language_callback", "pattern": "language_en"},
@@ -80,7 +133,10 @@ HANDLERS = {
             {"method": "handle_language_callback", "pattern": "language_by"},
         ],
         "text_input": "handle_settings_input",
-        "waiting_states": ["settings_birth_date", "settings_life_expectancy"],
+        "waiting_states": [
+            SettingsState.WAITING_BIRTH_DATE,
+            SettingsState.WAITING_LIFE_EXPECTANCY,
+        ],
     },
     COMMAND_VISUALIZE: {"class": VisualizeHandler, "callbacks": []},
     COMMAND_HELP: {"class": HelpHandler, "callbacks": []},
@@ -134,10 +190,13 @@ class LifeWeeksBot:
         """
         self._app: Optional[Application] = None
         self._scheduler = None
+        # These are still used by universal text handler, which is not yet a plugin
         self._handler_instances = {}
         self._text_input_handlers = {}
         self._waiting_states = {}
+
         self.services = ServiceContainer()
+        self.registry = PluginRegistry()
         logger.info("Initializing LifeWeeksBot")
 
     def setup(self) -> None:
@@ -169,11 +228,23 @@ class LifeWeeksBot:
         # Register global error handler for network and other errors
         self._app.add_error_handler(self._error_handler)
 
-        # Automatically register all handlers from HANDLERS
-        self._register_handlers()
+        # Register plugins map from HANDLERS
+        self._register_plugins()
 
-        # Register unknown handler separately
-        self._register_unknown_handler()
+        # Load all plugins
+        adapter = LegacyServiceAdapter(self.services)
+        self.registry.load_all(self._app, adapter)
+
+        # Register universal text handler (legacy glue logic)
+        self._app.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, self._universal_text_handler
+            )
+        )
+        logger.info("Registered universal text handler for routing text input")
+
+        # Register unknown handler separate fallback (legacy glue logic)
+        self._register_unknown_handlers()
 
         # Set up weekly notification scheduler
         self._setup_scheduler()
@@ -217,86 +288,10 @@ class LifeWeeksBot:
 
         logger.info("Life Weeks Bot stopped")
 
-    def _register_handlers(self) -> None:
-        """Register all command handlers, callbacks, and text input handlers.
-
-        This private method automatically registers all handlers defined in the
-        HANDLERS dictionary. It processes each handler configuration and creates
-        the appropriate handler instances for commands, callbacks, and text input.
-
-        The registration process performs the following actions:
-        - Registers a command handler for each command defined in HANDLERS
-        - Registers callback query handlers for each callback specified in the handler configuration
-        - Registers text input handlers if specified in the handler configuration
-        - Registers a message handler for unknown messages if indicated in the handler configuration
-
-        :returns: None
-        """
-        registered_commands = []
-        registered_callbacks = []
-        registered_text_handlers = []
-
-        # Collect all handler instances and text input methods automatically from HANDLERS
+    def _register_plugins(self) -> None:
+        """Register all plugins from HANDLERS configuration."""
         for command, config in HANDLERS.items():
-            # Get handler class and create instance with services
-            handler_class = config["class"]
-            handler_instance = handler_class(self.services)
-            self._handler_instances[command] = handler_instance
-
-            # Register command handler
-            self._app.add_handler(CommandHandler(command, handler_instance.handle))
-            logger.debug(f"Registered command handler: /{command}")
-            registered_commands.append(command)
-            logger.info(f"Command handlers registered: /{command}")
-
-            # Register callbacks if any
-            for callback in config.get("callbacks", []):
-                callback_method = getattr(handler_instance, callback["method"])
-                self._app.add_handler(
-                    CallbackQueryHandler(callback_method, pattern=callback["pattern"])
-                )
-                logger.debug(
-                    f"Registered callback: {callback['method']} for /{command}"
-                )
-                registered_callbacks.append(f"{command}_{callback['method']}")
-                logger.info(
-                    f"Callback handlers registered: {', '.join(f'/{cmd}' for cmd in registered_callbacks)}"
-                )
-
-            # Collect text input handlers and waiting states if specified
-            if "text_input" in config:
-                text_input_method = getattr(handler_instance, config["text_input"])
-                self._text_input_handlers[command] = text_input_method
-
-                # Collect waiting states from config
-                if "waiting_states" in config:
-                    for state in config["waiting_states"]:
-                        self._waiting_states[state] = command
-
-                logger.debug(
-                    f"Collected text input: {config['text_input']} for /{command}"
-                )
-
-        # Register the universal text handler
-        self._app.add_handler(
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND, self._universal_text_handler
-            )
-        )
-        logger.info("Registered universal text handler for routing text input")
-
-        # Register message handler if specified (for unknown messages)
-        for command, config in HANDLERS.items():
-            if config.get("message_handler", False):
-                handler_instance = self._handler_instances[command]
-                self._app.add_handler(
-                    MessageHandler(filters.ALL, handler_instance.handle)
-                )
-                logger.debug(f"Registered message handler: {command}")
-                registered_text_handlers.append(f"{command}_message_handler")
-                logger.info(
-                    f"Message handlers registered: {', '.join(f'/{cmd}' for cmd in registered_text_handlers)}"
-                )
+            self.registry.register_plugin(DeclarativePlugin(command, config, self))
 
     async def _universal_text_handler(self, update, context):
         """Universal text handler that routes messages to appropriate handlers.
@@ -345,7 +340,9 @@ class LifeWeeksBot:
         :returns: None
         """
         try:
-            await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+            # Check if unknown handler is in _handler_instances
+            if COMMAND_UNKNOWN in self._handler_instances:
+                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
         except Exception as error:
             logger.error(
                 f"Error in unknown handler for no waiting state: {error}",
@@ -386,7 +383,8 @@ class LifeWeeksBot:
         :returns: True if error occurred, False otherwise
         """
         try:
-            await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+            if COMMAND_UNKNOWN in self._handler_instances:
+                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
             return False
         except Exception as error:
             logger.error(
@@ -413,32 +411,27 @@ class LifeWeeksBot:
                 exc_info=True,
             )
 
-    def _register_unknown_handler(self) -> None:
+    def _register_unknown_handlers(self) -> None:
         """Register the unknown handler for handling unknown messages and commands.
 
-        This private method registers the UnknownHandler as a MessageHandler
-        with filters.ALL to catch all messages and commands that are not handled
-        by other handlers. This handler must be registered last to act as a fallback
-        for any unrecognized input.
-
-        The handler will:
-        - Catch all unknown commands (e.g., /invalid_command)
-        - Catch all unknown text messages
-        - Catch all other message types (photos, documents, etc.)
-        - Provide error message and help suggestion for truly unknown input
-
-        :returns: None
+        This private method registers MessageHandlers for unknown input.
+        It relies on the UnknownHandler being registered via plugins into _handler_instances.
         """
-        unknown_handler = UnknownHandler(self.services)
+        # Note: The actual CommandHandler for unknown_command is registered via the plugin system.
+        # Here we just register the fallback MessageHandler if needed, OR
+        # we can ensure the plugin registers it.
+        # But 'message_handler' key in HANDLERS seems to cover this for UnknownHandler!
+        # Let's check HANDLERS[COMMAND_UNKNOWN]... it has "callbacks": []
+        # It does NOT have "message_handler": True.
 
-        # Register universal handler for all messages and commands
-        # This will catch everything that wasn't handled by other handlers
-        self._app.add_handler(MessageHandler(filters.ALL, unknown_handler.handle))
-
-        logger.debug(
-            "Registered universal unknown handler for all messages and commands"
-        )
-        logger.info("Unknown handler registered as universal fallback")
+        # Explicit registration for universal fallback as strictly strictly last handler
+        if COMMAND_UNKNOWN in self._handler_instances:
+            unknown_handler = self._handler_instances[COMMAND_UNKNOWN]
+            self._app.add_handler(MessageHandler(filters.ALL, unknown_handler.handle))
+            logger.debug(
+                "Registered universal unknown handler for all messages and commands"
+            )
+            logger.info("Unknown handler registered as universal fallback")
 
     async def _error_handler(
         self, update: Optional[Update], context: ContextTypes.DEFAULT_TYPE
