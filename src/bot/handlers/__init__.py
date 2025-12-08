@@ -22,7 +22,7 @@ logging, and user experience.
 from .base_handler import BaseHandler
 from .cancel_handler import CancelHandler
 from .help_handler import HelpHandler
-from .settings_handler import SettingsHandler
+from .settings import SettingsHandler
 from .start_handler import StartHandler
 from .subscription_handler import SubscriptionHandler
 from .unknown_handler import UnknownHandler

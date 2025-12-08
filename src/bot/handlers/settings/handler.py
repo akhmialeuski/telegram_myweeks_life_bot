@@ -1,43 +1,37 @@
 """Settings command handler for user profile management.
 
 This module contains the SettingsHandler class which handles the /settings command
-and related callbacks. It allows users to view and modify their profile settings
-including birth date, language preference, and life expectancy.
-
-The settings management includes:
-- Display current settings based on subscription type
-- Change birth date with validation
-- Change language preference
-- Change life expectancy with validation
-- Integration with notification scheduler
+and related callbacks.
 """
 
 import time
 import uuid
 from datetime import date, datetime
-from typing import Literal, Optional, TypedDict
+from typing import Optional, TypedDict
 
 from babel.dates import format_date
 from babel.numbers import format_decimal
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.i18n import get_localized_language_name, normalize_babel_locale, use_locale
 
-from ...core.enums import SubscriptionType, SupportedLanguage
-from ...core.life_calculator import LifeCalculatorEngine
-from ...database.service import UserNotFoundError, UserSettingsUpdateError
-from ...services.container import ServiceContainer
-from ...utils.config import (
+from ....core.enums import SubscriptionType, SupportedLanguage
+from ....core.life_calculator import LifeCalculatorEngine
+from ....database.service import UserNotFoundError, UserSettingsUpdateError
+from ....services.container import ServiceContainer
+from ....utils.config import (
     BOT_NAME,
     MAX_LIFE_EXPECTANCY,
     MIN_BIRTH_YEAR,
     MIN_LIFE_EXPECTANCY,
 )
-from ...utils.logger import get_logger
-from ..constants import COMMAND_SETTINGS
-from ..scheduler import update_user_schedule
-from .base_handler import BaseHandler
+from ....utils.logger import get_logger
+from ...constants import COMMAND_SETTINGS
+from ...scheduler import update_user_schedule
+from ..base_handler import BaseHandler
+from .keyboards import get_language_keyboard, get_settings_keyboard
+from .states import SettingsState
 
 # Initialize logger for this module
 logger = get_logger(BOT_NAME)
@@ -46,7 +40,7 @@ logger = get_logger(BOT_NAME)
 class SettingsWaitingState(TypedDict, total=False):
     """Type definition for settings waiting state with locking mechanism."""
 
-    waiting_for: Optional[Literal["birth_date", "life_expectancy"]]
+    waiting_for: Optional[SettingsState]
     timestamp: Optional[float]
     state_id: Optional[str]
 
@@ -263,37 +257,10 @@ class SettingsHandler(BaseHandler):
                 ),
             )
 
-            # Localized buttons
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        text=pgettext(
-                            "buttons.change_birth_date", "📅 Change birth date"
-                        ),
-                        callback_data="settings_birth_date",
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text=pgettext("buttons.change_language", "🌍 Change language"),
-                        callback_data="settings_language",
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text=pgettext(
-                            "buttons.change_life_expectancy",
-                            "⏰ Change life expectancy",
-                        ),
-                        callback_data="settings_life_expectancy",
-                    )
-                ],
-            ]
-
             await self.send_message(
                 update=update,
                 message_text=template,
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=get_settings_keyboard(pgettext),
             )
             return None
 
@@ -346,7 +313,7 @@ class SettingsHandler(BaseHandler):
 
             # Use pattern matching for different setting types (Python 3.10+)
             match callback_data:
-                case "settings_birth_date":
+                case SettingsState.WAITING_BIRTH_DATE:
                     # Show birth date change interface
                     message_text = pgettext(
                         "settings.change_birth_date",
@@ -371,32 +338,9 @@ class SettingsHandler(BaseHandler):
                         message_text=message_text,
                     )
                     # Store state in context for handling user input
-                    self._set_waiting_state(context, "settings_birth_date")
+                    self._set_waiting_state(context, SettingsState.WAITING_BIRTH_DATE)
 
-                case "settings_language":
-                    # Show language selection keyboard (labels remain recognizable)
-                    keyboard = [
-                        [
-                            InlineKeyboardButton(
-                                "🇷🇺 Русский", callback_data="language_ru"
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                "🇺🇸 English", callback_data="language_en"
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                "🇺🇦 Українська", callback_data="language_ua"
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                "🇧🇾 Беларуская", callback_data="language_by"
-                            )
-                        ],
-                    ]
+                case SettingsState.WAITING_LANGUAGE:
                     message_text = pgettext(
                         "settings.change_language",
                         "🌍 Select your preferred language",
@@ -404,10 +348,10 @@ class SettingsHandler(BaseHandler):
                     await self.edit_message(
                         query=query,
                         message_text=message_text,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
+                        reply_markup=get_language_keyboard(),
                     )
 
-                case "settings_life_expectancy":
+                case SettingsState.WAITING_LIFE_EXPECTANCY:
                     # Show life expectancy change interface
                     message_text = pgettext(
                         "settings.change_life_expectancy",
@@ -429,7 +373,9 @@ class SettingsHandler(BaseHandler):
                         message_text=message_text,
                     )
                     # Store state in context for handling user input
-                    self._set_waiting_state(context, "settings_life_expectancy")
+                    self._set_waiting_state(
+                        context, SettingsState.WAITING_LIFE_EXPECTANCY
+                    )
 
                 case _:
                     # Unknown setting type
@@ -572,8 +518,10 @@ class SettingsHandler(BaseHandler):
 
             # Use pattern matching for different waiting states with validation
             match waiting_for:
-                case "settings_birth_date":
-                    if self._is_valid_waiting_state(context, "settings_birth_date"):
+                case SettingsState.WAITING_BIRTH_DATE:
+                    if self._is_valid_waiting_state(
+                        context, SettingsState.WAITING_BIRTH_DATE
+                    ):
                         logger.info(
                             f"{self.command_name}: [{user_id}]: Processing birth date input"
                         )
@@ -589,9 +537,9 @@ class SettingsHandler(BaseHandler):
                         # Clear invalid state
                         self._clear_waiting_state(context)
 
-                case "settings_life_expectancy":
+                case SettingsState.WAITING_LIFE_EXPECTANCY:
                     if self._is_valid_waiting_state(
-                        context, "settings_life_expectancy"
+                        context, SettingsState.WAITING_LIFE_EXPECTANCY
                     ):
                         logger.info(
                             f"{self.command_name}: [{user_id}]: Processing life expectancy input"
