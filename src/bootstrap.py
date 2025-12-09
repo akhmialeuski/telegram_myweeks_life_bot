@@ -22,6 +22,7 @@ from .contracts import (
 from .core.di import Container
 from .core.life_calculator import LifeCalculatorEngine
 from .database.service import UserService
+from .services.container import ServiceContainer
 
 
 @dataclass
@@ -72,11 +73,18 @@ def configure_container(config: AppConfig | None = None) -> Container:
         factory=lambda: UserService(),
     )
 
-    # Register Life Calculator Factory as a factory
+    # Register Life Calculator as a factory (new instance per request)
     # Returns the class itself, which is instantiated with a user when needed
     container.register_factory(
         protocol=type[LifeCalculatorProtocol],
         factory=lambda: LifeCalculatorEngine,
+    )
+
+    # Register legacy ServiceContainer for backward compatibility
+    # This allows code using the old pattern to continue working
+    container.register_lazy_singleton(
+        protocol=ServiceContainer,
+        factory=lambda: ServiceContainer(),
     )
 
     return container
@@ -91,9 +99,23 @@ def configure_test_container() -> Container:
     :returns: Container configured with test implementations
     :rtype: Container
     """
+    # Import here to avoid circular imports and keep test deps separate
+    from tests.fakes import FakeNotificationGateway, FakeUserService
+
+    from .contracts import NotificationGatewayProtocol
+
     container = Container()
 
-    # Test implementations will be registered here
-    # This will be populated when in-memory implementations are created
+    # Register fake user service
+    container.register_singleton(
+        protocol=UserServiceProtocol,
+        instance=FakeUserService(),
+    )
+
+    # Register fake notification gateway
+    container.register_singleton(
+        protocol=NotificationGatewayProtocol,
+        instance=FakeNotificationGateway(),
+    )
 
     return container
