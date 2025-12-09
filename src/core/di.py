@@ -215,7 +215,9 @@ class Container(ServiceProvider):
                     else:
                         dispose_method()
             except Exception as error:
-                logger.warning(f"Error disposing {protocol.__name__}: {error}")
+                # Handle GenericAlias (e.g., type[X]) which doesn't have __name__
+                protocol_name = getattr(protocol, "__name__", repr(protocol))
+                logger.warning(f"Error disposing {protocol_name}: {error}")
         self._singletons.clear()
 
     def clear(self) -> None:
