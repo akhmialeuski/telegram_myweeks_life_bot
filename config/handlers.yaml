@@ -1,0 +1,71 @@
+# Handler Configuration for LifeWeeksBot
+# This file is the source of truth for handler configuration.
+# Entry points are only used to verify class availability in installed mode.
+
+handlers:
+  - module: src.bot.handlers.start_handler
+    class: StartHandler
+    command: start
+    callbacks: []
+    text_input: handle_birth_date_input
+    waiting_states:
+      - start_birth_date
+
+  - module: src.bot.handlers.weeks_handler
+    class: WeeksHandler
+    command: weeks
+    callbacks: []
+
+  - module: src.bot.handlers.settings
+    class: SettingsHandler
+    command: settings
+    callbacks:
+      - method: handle_settings_callback
+        pattern: settings_birth_date
+      - method: handle_settings_callback
+        pattern: settings_language
+      - method: handle_settings_callback
+        pattern: settings_life_expectancy
+      - method: handle_language_callback
+        pattern: language_ru
+      - method: handle_language_callback
+        pattern: language_en
+      - method: handle_language_callback
+        pattern: language_ua
+      - method: handle_language_callback
+        pattern: language_by
+    text_input: handle_settings_input
+    waiting_states:
+      - settings_birth_date
+      - settings_life_expectancy
+
+  - module: src.bot.handlers.visualize_handler
+    class: VisualizeHandler
+    command: visualize
+    callbacks: []
+
+  - module: src.bot.handlers.help_handler
+    class: HelpHandler
+    command: help
+    callbacks: []
+
+  - module: src.bot.handlers.subscription_handler
+    class: SubscriptionHandler
+    command: subscription
+    callbacks:
+      - method: handle_subscription_callback
+        pattern: subscription_basic
+      - method: handle_subscription_callback
+        pattern: subscription_premium
+      - method: handle_subscription_callback
+        pattern: subscription_trial
+
+  - module: src.bot.handlers.cancel_handler
+    class: CancelHandler
+    command: cancel
+    callbacks: []
+
+  - module: src.bot.handlers.unknown_handler
+    class: UnknownHandler
+    command: unknown
+    callbacks: []
