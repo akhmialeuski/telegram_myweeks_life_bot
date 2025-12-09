@@ -15,12 +15,21 @@ The base handler provides:
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, ClassVar, Optional, TypeVar
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Optional,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+)
 
 from telegram import CallbackQuery, InlineKeyboardMarkup, Update, User
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
+from ...contracts import LifeCalculatorProtocol, UserServiceProtocol
 from ...i18n import use_locale
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -47,6 +56,19 @@ class CommandContext:
     command_name: Optional[str] = None
 
 
+@runtime_checkable
+class ServiceContainerProtocol(Protocol):
+    """Protocol for service container interface.
+
+    This protocol defines the minimal interface that any service container
+    must provide to be used with handlers. Allows using either the legacy
+    ServiceContainer or new Protocol-based containers.
+    """
+
+    user_service: UserServiceProtocol
+    life_calculator: type[LifeCalculatorProtocol]
+
+
 class BaseHandler(ABC):
     """Base class for all command handlers.
 
@@ -66,13 +88,14 @@ class BaseHandler(ABC):
         f"/{COMMAND_HELP}",
     ]
 
-    def __init__(self, services: ServiceContainer) -> None:
+    def __init__(self, services: ServiceContainer | ServiceContainerProtocol) -> None:
         """Initialize the base handler.
 
-        Sets up common attributes that all handlers need.
+        Sets up common attributes that all handlers need. Supports both
+        the legacy ServiceContainer and new Protocol-based interfaces.
 
         :param services: Service container with all dependencies
-        :type services: ServiceContainer
+        :type services: ServiceContainer | ServiceContainerProtocol
         """
         self.bot_name = BOT_NAME
         self.command_name: Optional[str] = None
