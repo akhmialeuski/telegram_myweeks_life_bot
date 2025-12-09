@@ -1,22 +1,19 @@
-"""Plugin loader for handler discovery via entry points and configuration.
+"""Plugin loader for handler discovery via YAML configuration.
 
 This module provides the PluginLoader class that discovers handlers using
-Python entry points (for installed packages) or falls back to YAML
-configuration files for development environments.
+YAML configuration as the source of truth. Entry points are not used for
+configuration since metadata (callbacks, text_input, waiting_states) cannot
+be stored in entry point declarations.
 """
 
 import importlib
 import logging
 from dataclasses import dataclass, field
-from importlib.metadata import entry_points
 from pathlib import Path
 
 import yaml
 
 logger = logging.getLogger(__name__)
-
-# Entry point group name for handler plugins
-ENTRY_POINT_GROUP = "lifeweeksbot.handlers"
 
 # Default configuration file path
 DEFAULT_CONFIG_PATH = (
@@ -75,9 +72,10 @@ class PluginLoadError(Exception):
 class PluginLoader:
     """Loader for discovering and loading handler plugins.
 
-    The loader attempts to discover handlers in the following order:
-    1. Entry points from the 'lifeweeksbot.handlers' group
-    2. YAML configuration file (fallback for development)
+    The loader reads handler configuration from YAML file which is the
+    single source of truth for handler metadata (callbacks, text_input,
+    waiting_states). This ensures consistent behavior in both development
+    and installed environments.
 
     :ivar _config_path: Path to the YAML configuration file
     :type _config_path: Path
@@ -96,53 +94,14 @@ class PluginLoader:
         self._handler_configs: list[HandlerConfig] = []
 
     def discover_handlers(self) -> list[HandlerConfig]:
-        """Discover all available handlers.
-
-        First attempts to load from entry points, then falls back to
-        YAML configuration if no entry points are found.
+        """Discover all available handlers from YAML configuration.
 
         :returns: List of handler configurations
         :rtype: list[HandlerConfig]
         """
-        # Try entry points first
-        configs = self._discover_from_entry_points()
-
-        if not configs:
-            # Fall back to YAML configuration
-            logger.debug("No entry points found, trying YAML configuration")
-            configs = self._discover_from_yaml()
-
+        configs = self._discover_from_yaml()
         self._handler_configs = configs
         logger.info(f"Discovered {len(configs)} handler(s)")
-        return configs
-
-    def _discover_from_entry_points(self) -> list[HandlerConfig]:
-        """Discover handlers from Python entry points.
-
-        :returns: List of handler configurations from entry points
-        :rtype: list[HandlerConfig]
-        """
-        configs: list[HandlerConfig] = []
-
-        try:
-            eps = entry_points(group=ENTRY_POINT_GROUP)
-            for ep in eps:
-                try:
-                    handler_class = ep.load()
-                    config = self._create_config_from_class(
-                        handler_class=handler_class,
-                        command=ep.name,
-                    )
-                    configs.append(config)
-                    self._loaded_handlers[ep.name] = handler_class
-                    logger.debug(f"Loaded handler from entry point: {ep.name}")
-                except Exception as error:
-                    logger.warning(f"Failed to load entry point '{ep.name}': {error}")
-        except Exception as error:
-            logger.debug(
-                f"No entry points found for group '{ENTRY_POINT_GROUP}': {error}"
-            )
-
         return configs
 
     def _discover_from_yaml(self) -> list[HandlerConfig]:
@@ -154,7 +113,7 @@ class PluginLoader:
         configs: list[HandlerConfig] = []
 
         if not self._config_path.exists():
-            logger.debug(f"Configuration file not found: {self._config_path}")
+            logger.error(f"Configuration file not found: {self._config_path}")
             return configs
 
         try:
@@ -175,42 +134,12 @@ class PluginLoader:
                     waiting_states=handler_data.get("waiting_states", []),
                 )
                 configs.append(config)
-                logger.debug(f"Loaded handler config from YAML: {config.command}")
+                logger.debug(f"Loaded handler config: {config.command}")
 
         except Exception as error:
             logger.error(f"Failed to load YAML configuration: {error}")
 
         return configs
-
-    def _create_config_from_class(
-        self,
-        handler_class: type,
-        command: str,
-    ) -> HandlerConfig:
-        """Create HandlerConfig from a handler class.
-
-        Extracts configuration from class attributes if available.
-
-        :param handler_class: The handler class to inspect
-        :type handler_class: type
-        :param command: Command name for this handler
-        :type command: str
-        :returns: Handler configuration
-        :rtype: HandlerConfig
-        """
-        # Try to get configuration from class attributes
-        callbacks = getattr(handler_class, "CALLBACKS", [])
-        text_input = getattr(handler_class, "TEXT_INPUT", None)
-        waiting_states = getattr(handler_class, "WAITING_STATES", [])
-
-        return HandlerConfig(
-            module=handler_class.__module__,
-            class_name=handler_class.__name__,
-            command=command,
-            callbacks=callbacks,
-            text_input=text_input,
-            waiting_states=waiting_states,
-        )
 
     def load_handler_class(self, config: HandlerConfig) -> type:
         """Load a handler class from its configuration.
@@ -238,7 +167,7 @@ class PluginLoader:
         except AttributeError as error:
             raise PluginLoadError(
                 plugin_name=config.command,
-                reason=f"Class '{config.class_name}' not found in module '{config.module}': {error}",
+                reason=f"Class '{config.class_name}' not found in '{config.module}': {error}",
             ) from error
 
     def get_handler_configs(self) -> list[HandlerConfig]:

@@ -1,6 +1,6 @@
 # Handler Configuration for LifeWeeksBot
-# This file is used as a fallback when entry points are not available
-# (e.g., during development without pip install -e .)
+# This file is the source of truth for handler configuration.
+# Entry points are only used to verify class availability in installed mode.
 
 handlers:
   - module: src.bot.handlers.start_handler
@@ -16,7 +16,7 @@ handlers:
     command: weeks
     callbacks: []
 
-  - module: src.bot.handlers.settings_handler
+  - module: src.bot.handlers.settings
     class: SettingsHandler
     command: settings
     callbacks:
