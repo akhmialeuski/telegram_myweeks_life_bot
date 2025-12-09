@@ -44,7 +44,9 @@ class DependencyNotRegisteredError(Exception):
         :type protocol: type
         """
         self.protocol = protocol
-        super().__init__(f"No registration found for {protocol.__name__}")
+        # Handle GenericAlias (e.g., type[X]) which doesn't have __name__
+        protocol_name = getattr(protocol, "__name__", repr(protocol))
+        super().__init__(f"No registration found for {protocol_name}")
 
 
 @runtime_checkable

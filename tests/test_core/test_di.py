@@ -257,3 +257,23 @@ class TestDependencyNotRegisteredError:
 
         assert "MissingService" in str(error)
         assert "No registration found" in str(error)
+
+    def test_error_handles_generic_alias(self) -> None:
+        """Test that error handles GenericAlias types.
+
+        This test verifies that the error doesn't crash when
+        the protocol is a GenericAlias like type[X] which has
+        no __name__ attribute.
+        """
+
+        class SomeProtocol:
+            pass
+
+        # Create a GenericAlias - type[X] doesn't have __name__
+        generic_alias = type[SomeProtocol]
+
+        # Should not raise AttributeError
+        error = DependencyNotRegisteredError(protocol=generic_alias)
+
+        # Should contain some representation of the type
+        assert "No registration found" in str(error)

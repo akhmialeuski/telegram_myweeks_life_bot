@@ -24,6 +24,10 @@ from .core.life_calculator import LifeCalculatorEngine
 from .database.service import UserService
 from .services.container import ServiceContainer
 
+# Sentinel key for LifeCalculator class registration
+# Used to distinguish class resolution from instance resolution
+LIFE_CALCULATOR_CLASS_KEY = "LifeCalculatorClass"
+
 
 @dataclass
 class AppConfig:
@@ -66,18 +70,27 @@ def configure_container(config: AppConfig | None = None) -> Container:
 
     container = Container()
 
+    # Store config for services that need it
+    container.register_singleton(
+        protocol=AppConfig,
+        instance=config,
+    )
+
     # Register User Service as a lazy singleton
     # The service is created on first request and cached for subsequent requests
+    # Note: UserService currently doesn't accept database_path in constructor,
+    # but config is stored for future migrations
     container.register_lazy_singleton(
         protocol=UserServiceProtocol,
         factory=lambda: UserService(),
     )
 
-    # Register Life Calculator as a factory (new instance per request)
-    # Returns the class itself, which is instantiated with a user when needed
-    container.register_factory(
-        protocol=type[LifeCalculatorProtocol],
-        factory=lambda: LifeCalculatorEngine,
+    # Register Life Calculator class for direct instantiation by handlers
+    # LifeCalculatorEngine requires a User object in its constructor,
+    # so we register the class itself rather than an instance
+    container.register_singleton(
+        protocol=LifeCalculatorProtocol,
+        instance=LifeCalculatorEngine,  # type: ignore[arg-type]
     )
 
     # Register legacy ServiceContainer for backward compatibility

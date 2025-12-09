@@ -91,6 +91,23 @@ class TestConfigureContainer:
 
         assert container.is_registered(protocol=ServiceContainer) is True
 
+    def test_registers_app_config(self) -> None:
+        """Test that AppConfig is registered in the container.
+
+        This test verifies that custom configuration is stored
+        in the container and can be resolved by services.
+        """
+        config = AppConfig(
+            database_path=Path("custom.db"),
+            debug=True,
+        )
+
+        container = configure_container(config=config)
+
+        resolved_config = container.get(protocol=AppConfig)
+        assert resolved_config is config
+        assert resolved_config.debug is True
+
     def test_accepts_custom_config(self) -> None:
         """Test that configure_container accepts custom config.
 
