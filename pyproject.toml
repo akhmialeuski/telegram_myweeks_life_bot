@@ -6,6 +6,19 @@ build-backend = "setuptools.build_meta"
 name = "telegram_myweeks_life_bot"
 version = "0.1.0"
 requires-python = ">=3.13"
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.entry-points."lifeweeksbot.handlers"]
+start = "src.bot.handlers.start_handler:StartHandler"
+weeks = "src.bot.handlers.weeks_handler:WeeksHandler"
+settings = "src.bot.handlers.settings:SettingsHandler"
+help = "src.bot.handlers.help_handler:HelpHandler"
+visualize = "src.bot.handlers.visualize_handler:VisualizeHandler"
+subscription = "src.bot.handlers.subscription_handler:SubscriptionHandler"
+cancel = "src.bot.handlers.cancel_handler:CancelHandler"
+unknown = "src.bot.handlers.unknown_handler:UnknownHandler"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
