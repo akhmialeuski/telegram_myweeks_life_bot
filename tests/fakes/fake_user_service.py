@@ -4,6 +4,7 @@ This module provides an in-memory implementation of UserServiceProtocol
 that can be used for testing without database dependencies.
 """
 
+import copy
 from datetime import UTC, date, datetime, time
 
 from src.constants import (
@@ -52,22 +53,28 @@ class FakeUserService:
     def get_user_profile(self, telegram_id: int) -> User | None:
         """Get complete user profile with settings and subscription.
 
+        Returns a copy of the user to prevent mutation of stored data.
+
         :param telegram_id: Unique Telegram user identifier
         :type telegram_id: int
         :returns: User with settings and subscription if found, None otherwise
         :rtype: User | None
         """
-        user = self._repository.get_user(telegram_id=telegram_id)
-        if user is None:
+        stored_user = self._repository.get_user(telegram_id=telegram_id)
+        if stored_user is None:
             return None
 
-        # Attach settings and subscription
-        user.settings = self._settings.get(telegram_id)
-        user.subscription = self._subscriptions.get(telegram_id)
+        settings = self._settings.get(telegram_id)
+        subscription = self._subscriptions.get(telegram_id)
 
         # Return None if settings or subscription are missing
-        if user.settings is None or user.subscription is None:
+        if settings is None or subscription is None:
             return None
+
+        # Create a shallow copy to prevent mutation of stored data
+        user = copy.copy(stored_user)
+        user.settings = settings
+        user.subscription = subscription
 
         return user
 
@@ -235,11 +242,15 @@ class FakeUserService:
     def get_all_users(self) -> list[User]:
         """Get all users from the repository.
 
+        Returns copies of users to prevent mutation of stored data.
+
         :returns: List of all users with their profiles
         :rtype: list[User]
         """
         users = []
-        for user in self._repository.get_all_users():
+        for stored_user in self._repository.get_all_users():
+            # Create a shallow copy to prevent mutation of stored data
+            user = copy.copy(stored_user)
             user.settings = self._settings.get(user.telegram_id)
             user.subscription = self._subscriptions.get(user.telegram_id)
             users.append(user)
