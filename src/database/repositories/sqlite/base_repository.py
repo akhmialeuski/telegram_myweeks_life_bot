@@ -1,18 +1,24 @@
-"""Base SQLite repository with session management.
+"""Base SQLite repository with async session management.
 
 This module provides a base class for SQLite repositories with
-common session management functionality following SQLAlchemy 2.0 best practices.
+common async session management functionality following SQLAlchemy 2.0 best practices.
 """
 
+import asyncio
 import logging
 import threading
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Generator, List, Optional, Type
+from typing import Any, AsyncGenerator, Optional, Type
 
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from typing_extensions import TypeVar
 
 from ....utils.config import BOT_NAME
@@ -26,9 +32,9 @@ ModelType = TypeVar("ModelType", bound=Base, default=Base)
 
 
 class BaseSQLiteRepository:
-    """Base class for SQLite repositories with session management.
+    """Base class for SQLite repositories with async session management.
 
-    Provides a shared SQLAlchemy engine and session factory per ``db_path``
+    Provides a shared SQLAlchemy async engine and session factory per ``db_path``
     across all subclasses to avoid duplicate initializations and logs.
 
     :param db_path: Path to SQLite database file
@@ -36,8 +42,8 @@ class BaseSQLiteRepository:
     """
 
     # Shared registries across ALL subclasses (keyed by db_path absolute string)
-    _engines: dict[str, Any] = {}
-    _sessions: dict[str, sessionmaker] = {}
+    _engines: dict[str, AsyncEngine] = {}
+    _sessions: dict[str, async_sessionmaker[AsyncSession]] = {}
     _initialized_once_logged: set[str] = set()
     _instances: dict[str, "BaseSQLiteRepository"] = {}
     _initialized: dict[str, bool] = {}
@@ -61,7 +67,7 @@ class BaseSQLiteRepository:
                     cls._instances[key] = instance
         return instance
 
-    def __init__(self, db_path: str = DEFAULT_DATABASE_PATH):
+    def __init__(self, db_path: str = DEFAULT_DATABASE_PATH) -> None:
         """Initialize repository instance minimal state.
 
         :param db_path: Path to SQLite database file
@@ -80,14 +86,14 @@ class BaseSQLiteRepository:
                 return
 
             self.db_path = Path(db_path)
-            self.engine = None
-            self.SessionLocal = None
+            self.engine: Optional[AsyncEngine] = None
+            self.SessionLocal: Optional[async_sessionmaker[AsyncSession]] = None
             self._initialized[key] = True
 
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """Initialize database connection and create tables.
 
-        Ensures a single SQLAlchemy engine/sessionmaker per ``db_path`` for all
+        Ensures a single SQLAlchemy async engine/sessionmaker per ``db_path`` for all
         repository subclasses. Subsequent calls reuse the shared engine/session
         without re-initializing or re-logging.
 
@@ -108,15 +114,19 @@ class BaseSQLiteRepository:
                 self.SessionLocal = self._sessions[db_key]
                 return
 
-            # Create new engine/sessionmaker for this db_path
+            # Create new async engine/sessionmaker for this db_path
             try:
-                engine = create_engine(
-                    url=f"sqlite:///{self.db_path}",
+                engine = create_async_engine(
+                    url=f"sqlite+aiosqlite:///{self.db_path}",
                     echo=SQLITE_ECHO,
                     pool_pre_ping=SQLITE_POOL_PRE_PING,
                 )
-                Base.metadata.create_all(bind=engine)
-                SessionLocal = sessionmaker(
+
+                # Create tables using run_sync
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+
+                session_local: async_sessionmaker[AsyncSession] = async_sessionmaker(
                     bind=engine,
                     autocommit=False,
                     autoflush=False,
@@ -125,11 +135,11 @@ class BaseSQLiteRepository:
 
                 # Store in shared registries
                 self._engines[db_key] = engine
-                self._sessions[db_key] = SessionLocal
+                self._sessions[db_key] = session_local
 
                 # Bind to this instance
                 self.engine = engine
-                self.SessionLocal = SessionLocal
+                self.SessionLocal = session_local
 
                 # Log only once per db_path
                 if db_key not in self._initialized_once_logged:
@@ -141,7 +151,7 @@ class BaseSQLiteRepository:
                 # Ensure partial initialization does not leave invalid state
                 if db_key in self._engines:
                     try:
-                        self._engines[db_key].dispose()
+                        await self._engines[db_key].dispose()
                     except Exception:
                         pass
                     finally:
@@ -151,7 +161,7 @@ class BaseSQLiteRepository:
                 self.SessionLocal = None
                 raise
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close database connection and cleanup resources.
 
         Note: The engine/session are shared across repositories for the same
@@ -164,7 +174,7 @@ class BaseSQLiteRepository:
         db_key: str = str(self.db_path.resolve())
         if db_key in self._engines:
             try:
-                self._engines[db_key].dispose()
+                await self._engines[db_key].dispose()
             finally:
                 self._engines.pop(db_key, None)
                 self._sessions.pop(db_key, None)
@@ -181,10 +191,17 @@ class BaseSQLiteRepository:
         :rtype: None
         """
         with cls._lock:
-            # Dispose all engines
+            # Dispose all engines - need to run in event loop
             for engine in list(cls._engines.values()):
                 try:
-                    engine.dispose()
+                    # Run dispose in a new event loop if not in async context
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # Already in async context - schedule for later
+                        loop.create_task(engine.dispose())
+                    except RuntimeError:
+                        # No running loop - create one
+                        asyncio.run(engine.dispose())
                 except Exception:
                     pass
             cls._engines.clear()
@@ -198,11 +215,11 @@ class BaseSQLiteRepository:
             cls._instances.clear()
             cls._initialized.clear()
 
-    @contextmanager
-    def session(self) -> Generator[Session, None, None]:
-        """Create a new session and handle its lifecycle.
+    @asynccontextmanager
+    async def async_session(self) -> AsyncGenerator[AsyncSession, None]:
+        """Create a new async session and handle its lifecycle.
 
-        This context manager ensures proper session handling:
+        This async context manager ensures proper session handling:
         - Creates a new session
         - Handles commit/rollback automatically
         - Closes session after use
@@ -210,33 +227,31 @@ class BaseSQLiteRepository:
 
         Usage::
 
-            with self.session() as session:
-                result = session.execute(stmt)
+            async with self.async_session() as session:
+                result = await session.execute(stmt)
                 # No need to commit - handled automatically
 
         :yields: Database session
-        :rtype: Generator[Session, None, None]
+        :rtype: AsyncGenerator[AsyncSession, None]
         :raises RuntimeError: If repository is not initialized
         """
         if not self.SessionLocal:
             raise RuntimeError("Repository not initialized")
 
-        session = self.SessionLocal()
-        try:
-            yield session
-            session.commit()
-        except SQLAlchemyError as e:
-            session.rollback()
-            logger.error(f"Database error in {self.__class__.__name__}: {e}")
-            raise
-        finally:
-            session.close()
+        async with self.SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except SQLAlchemyError as e:
+                await session.rollback()
+                logger.error(f"Database error in {self.__class__.__name__}: {e}")
+                raise
 
-    def _detach_instance(self, session: Session, instance: Any) -> None:
+    def _detach_instance(self, session: AsyncSession, instance: Any) -> None:
         """Detach instance from session while keeping its state.
 
         :param session: Database session
-        :type session: Session
+        :type session: AsyncSession
         :param instance: SQLAlchemy model instance to detach
         :type instance: Any
         :returns: None
@@ -245,8 +260,8 @@ class BaseSQLiteRepository:
         if instance and instance in session:
             session.expunge(instance)
 
-    def _create_entity(self, entity: ModelType, entity_name: str) -> bool:
-        """Generic method to create an entity.
+    async def _create_entity(self, entity: ModelType, entity_name: str) -> bool:
+        """Generic async method to create an entity.
 
         :param entity: Entity object to create
         :type entity: ModelType
@@ -256,7 +271,7 @@ class BaseSQLiteRepository:
         :rtype: bool
         """
         try:
-            with self.session() as session:
+            async with self.async_session() as session:
                 session.add(entity)
                 logger.info(f"Created {entity_name}")
                 return True
@@ -268,10 +283,10 @@ class BaseSQLiteRepository:
             logger.error(f"Failed to create {entity_name}: {e}")
             return False
 
-    def _get_entity_by_telegram_id(
+    async def _get_entity_by_telegram_id(
         self, model_class: Type[ModelType], telegram_id: int, entity_name: str
     ) -> Optional[ModelType]:
-        """Generic method to get entity by telegram_id.
+        """Generic async method to get entity by telegram_id.
 
         :param model_class: SQLAlchemy model class
         :type model_class: Type[ModelType]
@@ -283,9 +298,9 @@ class BaseSQLiteRepository:
         :rtype: Optional[ModelType]
         """
         try:
-            with self.session() as session:
+            async with self.async_session() as session:
                 stmt = select(model_class).where(model_class.telegram_id == telegram_id)
-                result = session.execute(stmt)
+                result = await session.execute(stmt)
                 entity = result.scalar_one_or_none()
                 if entity:
                     self._detach_instance(session, entity)
@@ -295,10 +310,10 @@ class BaseSQLiteRepository:
             logger.error(f"Failed to get {entity_name} {telegram_id}: {e}")
             return None
 
-    def _delete_entity_by_telegram_id(
+    async def _delete_entity_by_telegram_id(
         self, model_class: Type[ModelType], telegram_id: int, entity_name: str
     ) -> bool:
-        """Generic method to delete entity by telegram_id.
+        """Generic async method to delete entity by telegram_id.
 
         :param model_class: SQLAlchemy model class
         :type model_class: Type[ModelType]
@@ -310,9 +325,9 @@ class BaseSQLiteRepository:
         :rtype: bool
         """
         try:
-            with self.session() as session:
+            async with self.async_session() as session:
                 stmt = delete(model_class).where(model_class.telegram_id == telegram_id)
-                result = session.execute(stmt)
+                result = await session.execute(stmt)
 
                 if result.rowcount > 0:
                     logger.info(f"Deleted {entity_name} for user {telegram_id}")
@@ -325,22 +340,22 @@ class BaseSQLiteRepository:
             logger.error(f"Failed to delete {entity_name}: {e}")
             return False
 
-    def _get_all_entities(
+    async def _get_all_entities(
         self, model_class: Type[ModelType], entity_name: str
-    ) -> List[ModelType]:
-        """Generic method to get all entities.
+    ) -> list[ModelType]:
+        """Generic async method to get all entities.
 
         :param model_class: SQLAlchemy model class
         :type model_class: Type[ModelType]
         :param entity_name: Name of entity for logging
         :type entity_name: str
         :returns: List of all entity objects
-        :rtype: List[ModelType]
+        :rtype: list[ModelType]
         """
         try:
-            with self.session() as session:
+            async with self.async_session() as session:
                 stmt = select(model_class)
-                result = session.execute(stmt)
+                result = await session.execute(stmt)
                 entities = list(result.scalars().all())
                 # Detach all objects from session
                 for entity in entities:

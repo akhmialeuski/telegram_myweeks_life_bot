@@ -74,12 +74,12 @@ class HelpHandler(BaseHandler):
         Example:
             User sends /help → Bot shows available commands and usage instructions
         """
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
 
         logger.info(f"{self.command_name}: [{cmd_context.user_id}]: Handling command")
 
         # Resolve language from DB profile or Telegram fallback
-        profile = self.services.user_service.get_user_profile(
+        profile = await self.services.user_service.get_user_profile(
             telegram_id=cmd_context.user_id
         )
         lang = (

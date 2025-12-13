@@ -194,7 +194,7 @@ class NotificationScheduler:
         """
         try:
             # Get user profile from database with all related data
-            user = user_service.get_user_profile(user_id)
+            user = await user_service.get_user_profile(telegram_id=user_id)
             if not user:
                 logger.warning(f"User {user_id} not found for weekly notification")
                 return
@@ -323,7 +323,7 @@ class NotificationScheduler:
                 original_error=error,
             )
 
-    def add_user(self, user_id: int) -> None:
+    async def add_user(self, user_id: int) -> None:
         """Add or update a user in the notification scheduler.
 
         This method adds a user to the running scheduler or updates an existing
@@ -338,7 +338,7 @@ class NotificationScheduler:
         """
         try:
             # Get user profile from database
-            user = user_service.get_user_profile(user_id)
+            user = await user_service.get_user_profile(telegram_id=user_id)
             if not user:
                 error_message = f"User {user_id} not found for scheduler addition"
                 logger.warning(error_message)
@@ -395,7 +395,7 @@ class NotificationScheduler:
                 original_error=error,
             )
 
-    def update_user_schedule(self, user_id: int) -> None:
+    async def update_user_schedule(self, user_id: int) -> None:
         """Update notification schedule for an existing user.
 
         This method updates the notification schedule for a specific user
@@ -407,9 +407,9 @@ class NotificationScheduler:
         :returns: None
         :raises SchedulerOperationError: If the user schedule cannot be updated
         """
-        self.add_user(user_id=user_id)
+        await self.add_user(user_id=user_id)
 
-    def setup_schedules(self) -> None:
+    async def setup_schedules(self) -> None:
         """Set up individual notification schedules for each user.
 
         This method implements a comprehensive notification scheduling system that:
@@ -437,7 +437,7 @@ class NotificationScheduler:
         try:
             # Retrieve all users from database with complete profiles
             # This includes settings and subscription information
-            users = user_service.get_all_users()
+            users = await user_service.get_all_users()
 
             if not users:
                 logger.info("No users found for notification schedules")
@@ -518,7 +518,8 @@ def setup_user_notification_schedules(
     """Set up user notification schedules using the new class-based approach.
 
     This function provides backward compatibility while encouraging migration
-    to the new NotificationScheduler class.
+    to the new NotificationScheduler class. Note that schedules are set up
+    asynchronously via the post_init callback.
 
     :param application: The Application instance for sending messages
     :type application: Application
@@ -531,8 +532,7 @@ def setup_user_notification_schedules(
     notification_scheduler = NotificationScheduler(
         application=application, scheduler=scheduler
     )
-    notification_scheduler.setup_schedules()
-
+    # Schedules are set up in post_init via setup_schedules_async()
     return notification_scheduler
 
 
@@ -566,7 +566,7 @@ def stop_scheduler(scheduler: AsyncIOScheduler | NotificationScheduler) -> None:
         logger.info("User notification scheduler stopped successfully")
 
 
-def add_user_to_scheduler(scheduler: NotificationScheduler, user_id: int) -> None:
+async def add_user_to_scheduler(scheduler: NotificationScheduler, user_id: int) -> None:
     """Add user to scheduler instance.
 
     :param scheduler: NotificationScheduler instance
@@ -576,7 +576,7 @@ def add_user_to_scheduler(scheduler: NotificationScheduler, user_id: int) -> Non
     :raises SchedulerOperationError: If operation fails
     """
     try:
-        scheduler.add_user(user_id)
+        await scheduler.add_user(user_id)
     except SchedulerOperationError:
         raise
     except Exception as e:
@@ -606,7 +606,7 @@ def remove_user_from_scheduler(scheduler: NotificationScheduler, user_id: int) -
         )
 
 
-def update_user_schedule(scheduler: NotificationScheduler, user_id: int) -> None:
+async def update_user_schedule(scheduler: NotificationScheduler, user_id: int) -> None:
     """Add or update user schedule in scheduler.
 
     This function is an alias for `add_user_to_scheduler` and handles both
@@ -618,4 +618,4 @@ def update_user_schedule(scheduler: NotificationScheduler, user_id: int) -> None
     :type user_id: int
     :raises SchedulerOperationError: If operation fails
     """
-    add_user_to_scheduler(scheduler=scheduler, user_id=user_id)
+    await add_user_to_scheduler(scheduler=scheduler, user_id=user_id)

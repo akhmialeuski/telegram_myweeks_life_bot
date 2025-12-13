@@ -208,12 +208,20 @@ def mock_scheduler_logger(mocker: MockerFixture) -> MagicMock:
 def mock_user_service(mocker: MockerFixture) -> MagicMock:
     """Provides a mocked user_service for testing database operations.
 
+    The mock sets up AsyncMock for async methods like get_user_profile
+    and get_all_users.
+
     :param mocker: Pytest mocker fixture
     :type mocker: MockerFixture
-    :returns: Mocked user_service instance
+    :returns: Mocked user_service instance with AsyncMock for async methods
     :rtype: MagicMock
     """
-    return mocker.patch("src.bot.scheduler.user_service")
+    mock = mocker.patch("src.bot.scheduler.user_service")
+    # Set up AsyncMock for async methods
+    mock.get_user_profile = AsyncMock()
+    mock.get_all_users = AsyncMock()
+    mock.is_valid_user_profile = AsyncMock()
+    return mock
 
 
 # These fixtures are no longer needed as we use FakeServiceContainer

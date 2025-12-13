@@ -66,25 +66,40 @@ class TestServiceContainer:
         assert life_calculator is container.life_calculator
         assert life_calculator.__name__ == "LifeCalculatorEngine"
 
-    def test_service_initialization_order(self) -> None:
+    import pytest
+
+    @pytest.mark.asyncio
+    async def test_service_initialization_order(self) -> None:
         """Test that services are initialized in correct order.
 
         This test verifies that services that depend on other services
-        are initialized after their dependencies.
+        are initialized explicitly via the initialize method.
 
         :returns: None
         :rtype: None
         """
-        container = ServiceContainer()
+        from unittest.mock import AsyncMock, patch
 
-        # Verify that all services are properly initialized
-        assert container.user_service is not None
-        assert container.life_calculator is not None
+        # Reset container to ensure fresh instance
+        ServiceContainer.reset_instance()
 
-        # Verify that user service can be used
-        # (this would fail if initialization order was wrong)
-        assert hasattr(container.user_service, "initialize")
-        assert hasattr(container.user_service, "close")
+        # Mock UserService
+        with patch("src.services.container.UserService") as mock_user_service_cls:
+            mock_service_instance = AsyncMock()
+            mock_user_service_cls.return_value = mock_service_instance
+            
+            container = ServiceContainer()
+            
+            # Verify that all services are properly created
+            assert container.user_service is not None
+            
+            # Additional services setup if any
+            
+            # Call initialize
+            await container.initialize()
+
+            # Verify initialization was called
+            mock_service_instance.initialize.assert_awaited_once()
 
     def test_cleanup_method(self) -> None:
         """Test cleanup method closes database connections and cleans up resources.

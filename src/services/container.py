@@ -78,9 +78,20 @@ class ServiceContainer:
 
         :returns: None
         """
-        # Initialize user service if it has dependencies
+        # Dependencies that don't require async initialization can be set here
+        pass
+
+    async def initialize(self) -> None:
+        """Initialize all async services.
+
+        This method must be called within an async context (e.g., bot startup).
+
+        :returns: None
+        :rtype: None
+        """
+        # Initialize user service (database connections)
         if hasattr(self.user_service, "initialize"):
-            self.user_service.initialize()
+            await self.user_service.initialize()
 
     def get_user_service(self) -> UserService:
         """Get the user service instance.

@@ -112,14 +112,14 @@ class CancelHandler(BaseHandler):
         :returns: Conversation state (always END)
         :rtype: Optional[int]
         """
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         # Resolve language from DB profile or Telegram fallback
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -144,7 +144,7 @@ class CancelHandler(BaseHandler):
             logger.info(
                 f"{self.command_name}: [{user_id}]: Deleting user profile and all associated data"
             )
-            self.services.user_service.delete_user_profile(telegram_id=user_id)
+            await self.services.user_service.delete_user_profile(telegram_id=user_id)
             logger.info(
                 f"{self.command_name}: [{user_id}]: User data deleted successfully"
             )

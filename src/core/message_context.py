@@ -9,10 +9,10 @@ via :pyfunc:`use_message_context` at the entry point (e.g., a Telegram handler).
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
-from typing import Iterator, Optional
+from typing import AsyncIterator, Optional
 
 from telegram import User as TelegramUser
 
@@ -46,7 +46,7 @@ class MessageContext:
     language: str
 
     @classmethod
-    def from_user(
+    async def from_user(
         cls, user_info: TelegramUser, *, fetch_profile: bool
     ) -> "MessageContext":
         """Build context for a user.
@@ -62,7 +62,9 @@ class MessageContext:
 
         container: ServiceContainer = ServiceContainer()
         profile: Optional[User] = (
-            container.get_user_service().get_user_profile(telegram_id=user_info.id)
+            await container.get_user_service().get_user_profile(
+                telegram_id=user_info.id
+            )
             if fetch_profile
             else None
         )
@@ -89,7 +91,7 @@ class MessageContext:
             return user_profile.settings.language
         return user_info.language_code or DEFAULT_LANGUAGE
 
-    def ensure_profile(self) -> User:
+    async def ensure_profile(self) -> User:
         """Ensure user profile is present, fetching it if needed.
 
         :returns: Resolved user profile
@@ -99,7 +101,7 @@ class MessageContext:
         if self.user_profile is None:
             from ..services.container import ServiceContainer
 
-            profile: Optional[User] = (
+            profile: Optional[User] = await (
                 ServiceContainer()
                 .get_user_service()
                 .get_user_profile(telegram_id=self.user_info.id)
@@ -112,20 +114,20 @@ class MessageContext:
         return self.user_profile
 
 
-@contextmanager
-def use_message_context(
+@asynccontextmanager
+async def use_message_context(
     user_info: TelegramUser, *, fetch_profile: bool
-) -> Iterator[MessageContext]:
-    """Context manager that sets per-task :pyclass:`MessageContext`.
+) -> AsyncIterator[MessageContext]:
+    """Async context manager that sets per-task :pyclass:`MessageContext`.
 
     :param user_info: Telegram user object
     :type user_info: TelegramUser
     :param fetch_profile: Whether to fetch user profile
     :type fetch_profile: bool
-    :returns: Iterator yielding the created context
-    :rtype: Iterator[MessageContext]
+    :returns: AsyncIterator yielding the created context
+    :rtype: AsyncIterator[MessageContext]
     """
-    ctx: MessageContext = MessageContext.from_user(
+    ctx: MessageContext = await MessageContext.from_user(
         user_info=user_info, fetch_profile=fetch_profile
     )
     token: Token = _CURRENT_CTX.set(ctx)

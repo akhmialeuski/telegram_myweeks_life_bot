@@ -29,7 +29,7 @@ def calculate_grid_dimensions() -> Tuple[int, int]:
     return width, height
 
 
-def generate_visualization(user_info: Any) -> BytesIO:
+async def generate_visualization(user_info: Any) -> BytesIO:
     """Generate a visual representation of weeks lived.
 
     Creates a grid where:
@@ -64,7 +64,7 @@ def generate_visualization(user_info: Any) -> BytesIO:
         )
 
     # Resolve complete user profile and language
-    user_profile = user_service.get_user_profile(telegram_id=user_id)
+    user_profile = await user_service.get_user_profile(telegram_id=user_id)
     if not user_profile:
         raise ValueError(f"User profile not found for telegram_id: {user_id}")
     user_lang: str = (

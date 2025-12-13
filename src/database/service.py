@@ -36,17 +36,17 @@ logger = get_logger(f"{BOT_NAME}.DatabaseService")
 class DatabaseManager:
     """Manager for database repositories (repositories are already singletons)."""
 
-    _instance = None
-    _lock = threading.Lock()
+    _instance: Optional["DatabaseManager"] = None
+    _lock: threading.Lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> "DatabaseManager":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super(DatabaseManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Prevent re-initialization in singleton
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -54,26 +54,40 @@ class DatabaseManager:
         self.settings_repository = SQLiteUserSettingsRepository()
         self.subscription_repository = SQLiteUserSubscriptionRepository()
 
-        # Initialize all repositories (they are singletons, so this only happens once)
-        self.user_repository.initialize()
-        self.settings_repository.initialize()
-        self.subscription_repository.initialize()
-
         # Mark as initialized to prevent re-initialization on subsequent __init__ calls
         self._initialized = True
 
-    def close(self):
-        """Close all database connections."""
-        self.user_repository.close()
-        self.settings_repository.close()
-        self.subscription_repository.close()
+    async def initialize(self) -> None:
+        """Initialize all repositories asynchronously.
+
+        :returns: None
+        :rtype: None
+        """
+        await self.user_repository.initialize()
+        await self.settings_repository.initialize()
+        await self.subscription_repository.initialize()
+
+    async def close(self) -> None:
+        """Close all database connections.
+
+        :returns: None
+        :rtype: None
+        """
+        await self.user_repository.close()
+        await self.settings_repository.close()
+        await self.subscription_repository.close()
 
     @classmethod
-    def reset_instance(cls):
-        """Reset repository instances (for testing)."""
+    def reset_instance(cls) -> None:
+        """Reset repository instances (for testing).
+
+        :returns: None
+        :rtype: None
+        """
         SQLiteUserRepository.reset_instances()
         SQLiteUserSettingsRepository.reset_instances()
         SQLiteUserSubscriptionRepository.reset_instances()
+        cls._instance = None
 
 
 class UserServiceError(Exception):
@@ -164,12 +178,15 @@ class UserService:
         user_repository: Optional[SQLiteUserRepository] = None,
         settings_repository: Optional[SQLiteUserSettingsRepository] = None,
         subscription_repository: Optional[SQLiteUserSubscriptionRepository] = None,
-    ):
+    ) -> None:
         """Initialize user service.
 
         :param user_repository: User repository instance
+        :type user_repository: Optional[SQLiteUserRepository]
         :param settings_repository: User settings repository instance
+        :type settings_repository: Optional[SQLiteUserSettingsRepository]
         :param subscription_repository: User subscription repository instance
+        :type subscription_repository: Optional[SQLiteUserSubscriptionRepository]
         """
         # Use DatabaseManager to get singleton repositories
         db_manager = DatabaseManager()
@@ -179,17 +196,25 @@ class UserService:
             subscription_repository or db_manager.subscription_repository
         )
 
-    def initialize(self) -> None:
-        """Initialize database connections."""
-        # DatabaseManager already initializes repositories
-        pass
+    async def initialize(self) -> None:
+        """Initialize database connections.
 
-    def close(self) -> None:
-        """Close database connections."""
-        # DatabaseManager handles closing
-        pass
+        :returns: None
+        :rtype: None
+        """
+        db_manager = DatabaseManager()
+        await db_manager.initialize()
 
-    def create_user_profile(
+    async def close(self) -> None:
+        """Close database connections.
+
+        :returns: None
+        :rtype: None
+        """
+        db_manager = DatabaseManager()
+        await db_manager.close()
+
+    async def create_user_profile(
         self,
         user_info,
         birth_date: date,
@@ -206,12 +231,25 @@ class UserService:
 
         :param user_info: Telegram User object
         :param birth_date: User's birth date
+        :type birth_date: date
         :param subscription_type: User's subscription type
+        :type subscription_type: SubscriptionType
+        :param notifications: Whether notifications are enabled
+        :type notifications: bool
+        :param notifications_day: Day of week for notifications
+        :type notifications_day: WeekDay
+        :param notifications_time: Time of day for notifications
+        :type notifications_time: time
+        :param life_expectancy: User's life expectancy in years
+        :type life_expectancy: int
+        :param timezone: User's timezone
+        :type timezone: str
         :returns: Created user object if successful, None otherwise
+        :rtype: Optional[User]
         """
         try:
             # Check if user already exists
-            existing_user = self.get_user_profile(user_info.id)
+            existing_user = await self.get_user_profile(telegram_id=user_info.id)
             if existing_user:
                 logger.warning(f"User with telegram_id {user_info.id} already exists")
                 return existing_user
@@ -248,25 +286,31 @@ class UserService:
             )
 
             # Save to database
-            if self.user_repository.create_user(user):
+            if await self.user_repository.create_user(user=user):
                 # Try to create settings
-                if not self.settings_repository.create_user_settings(settings):
+                if not await self.settings_repository.create_user_settings(
+                    settings=settings
+                ):
                     # Rollback user creation if settings creation failed
-                    self.user_repository.delete_user(user_info.id)
+                    await self.user_repository.delete_user(telegram_id=user_info.id)
                     logger.error(f"Failed to create settings for {user_info.id}")
                     return None
 
                 # Try to create subscription
-                if not self.subscription_repository.create_subscription(subscription):
+                if not await self.subscription_repository.create_subscription(
+                    subscription=subscription
+                ):
                     # Rollback user and settings creation if subscription creation failed
-                    self.settings_repository.delete_user_settings(user_info.id)
-                    self.user_repository.delete_user(user_info.id)
+                    await self.settings_repository.delete_user_settings(
+                        telegram_id=user_info.id
+                    )
+                    await self.user_repository.delete_user(telegram_id=user_info.id)
                     logger.error(f"Failed to create subscription for {user_info.id}")
                     return None
 
                 # All operations successful
                 logger.info(f"Created complete user profile for {user_info.id}")
-                return self.get_user_profile(user_info.id)
+                return await self.get_user_profile(telegram_id=user_info.id)
             else:
                 logger.error(f"Failed to create user {user_info.id}")
                 return None
@@ -275,14 +319,17 @@ class UserService:
             logger.error(f"Error creating user profile: {error}")
             return None
 
-    def get_user_profile(self, telegram_id: int) -> Optional[User]:
+    async def get_user_profile(self, telegram_id: int) -> Optional[User]:
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Telegram user ID
-        :returns: User object with complete settings and subscription if found, None if user, settings, or subscription are missing
+        :type telegram_id: int
+        :returns: User object with complete settings and subscription if found,
+            None if user, settings, or subscription are missing
+        :rtype: Optional[User]
         """
         try:
-            user = self.user_repository.get_user(telegram_id)
+            user = await self.user_repository.get_user(telegram_id=telegram_id)
             if not user:
                 logger.warning(f"User {telegram_id} not found")
                 return None
@@ -298,7 +345,9 @@ class UserService:
 
             # Try to get settings (required for complete profile)
             try:
-                settings = self.settings_repository.get_user_settings(telegram_id)
+                settings = await self.settings_repository.get_user_settings(
+                    telegram_id=telegram_id
+                )
                 if settings is None:
                     logger.warning(f"Settings not found for user {telegram_id}")
                     return None
@@ -309,8 +358,8 @@ class UserService:
 
             # Try to get subscription (required for complete profile)
             try:
-                subscription = self.subscription_repository.get_subscription(
-                    telegram_id
+                subscription = await self.subscription_repository.get_subscription(
+                    telegram_id=telegram_id
                 )
                 if subscription is None:
                     logger.warning(f"Subscription not found for user {telegram_id}")
@@ -328,31 +377,39 @@ class UserService:
             logger.error(f"Error getting user profile for {telegram_id}: {e}")
             return None
 
-    def is_valid_user_profile(self, telegram_id: int) -> bool:
+    async def is_valid_user_profile(self, telegram_id: int) -> bool:
         """Check if user has a valid profile with birth date.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :returns: True if profile is valid, False otherwise
+        :rtype: bool
         """
         try:
-            settings = self.settings_repository.get_user_settings(telegram_id)
+            settings = await self.settings_repository.get_user_settings(
+                telegram_id=telegram_id
+            )
             return settings is not None and settings.birth_date is not None
         except Exception as e:
             logger.error(f"Error checking user profile validity for {telegram_id}: {e}")
             return False
 
-    def update_user_subscription(
+    async def update_user_subscription(
         self, telegram_id: int, subscription_type: SubscriptionType
     ) -> None:
         """Update user subscription type.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :param subscription_type: New subscription type
+        :type subscription_type: SubscriptionType
         :raises UserSubscriptionUpdateError: If subscription update fails
         :raises UserNotFoundError: If user subscription not found
         """
         try:
-            subscription = self.subscription_repository.get_subscription(telegram_id)
+            subscription = await self.subscription_repository.get_subscription(
+                telegram_id=telegram_id
+            )
             if not subscription:
                 logger.warning(f"Subscription not found for user {telegram_id}")
                 raise UserNotFoundError(
@@ -362,7 +419,9 @@ class UserService:
             # Update subscription type
             subscription.subscription_type = subscription_type
 
-            success = self.subscription_repository.update_subscription(subscription)
+            success = await self.subscription_repository.update_subscription(
+                subscription=subscription
+            )
             if not success:
                 logger.warning(f"Failed to update subscription for user {telegram_id}")
                 raise UserSubscriptionUpdateError(
@@ -382,7 +441,7 @@ class UserService:
                 f"Error updating subscription for {telegram_id}: {e}"
             )
 
-    def update_user_settings(
+    async def update_user_settings(
         self,
         telegram_id: int,
         birth_date: Optional[date] = None,
@@ -403,7 +462,9 @@ class UserService:
         :raises UserNotFoundError: If user settings not found
         """
         try:
-            settings = self.settings_repository.get_user_settings(telegram_id)
+            settings = await self.settings_repository.get_user_settings(
+                telegram_id=telegram_id
+            )
             if not settings:
                 logger.warning(f"Settings not found for user {telegram_id}")
                 raise UserNotFoundError(f"Settings not found for user {telegram_id}")
@@ -425,7 +486,9 @@ class UserService:
                 settings.language = language
                 logger.info(f"Updated language for user {telegram_id} to {language}")
 
-            success = self.settings_repository.update_user_settings(settings)
+            success = await self.settings_repository.update_user_settings(
+                settings=settings
+            )
             if not success:
                 logger.warning(f"Failed to update settings for user {telegram_id}")
                 raise UserSettingsUpdateError(
@@ -443,7 +506,7 @@ class UserService:
                 f"Error updating settings for {telegram_id}: {e}"
             )
 
-    def delete_user(self, telegram_id: int) -> bool:
+    async def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
 
         :param telegram_id: Telegram user ID
@@ -452,7 +515,7 @@ class UserService:
         :rtype: bool
         """
         try:
-            success = self.user_repository.delete_user(telegram_id)
+            success = await self.user_repository.delete_user(telegram_id=telegram_id)
             if success:
                 logger.info(f"Deleted user {telegram_id}")
             else:
@@ -462,7 +525,7 @@ class UserService:
             logger.error(f"Error deleting user {telegram_id}: {e}")
             return False
 
-    def delete_user_profile(self, telegram_id: int) -> None:
+    async def delete_user_profile(self, telegram_id: int) -> None:
         """Delete user profile by first removing settings, then user.
 
         This method ensures complete removal of user data by:
@@ -478,8 +541,8 @@ class UserService:
             logger.info(f"Starting deletion of user profile for {telegram_id}")
 
             # First delete user settings
-            settings_deleted = self.settings_repository.delete_user_settings(
-                telegram_id
+            settings_deleted = await self.settings_repository.delete_user_settings(
+                telegram_id=telegram_id
             )
             logger.info(
                 f"Settings deletion result for {telegram_id}: {settings_deleted}"
@@ -489,8 +552,10 @@ class UserService:
                 logger.warning(f"Settings not found for user {telegram_id}")
 
             # Then delete user subscription
-            subscription_deleted = self.subscription_repository.delete_subscription(
-                telegram_id
+            subscription_deleted = (
+                await self.subscription_repository.delete_subscription(
+                    telegram_id=telegram_id
+                )
             )
             logger.info(
                 f"Subscription deletion result for {telegram_id}: {subscription_deleted}"
@@ -500,7 +565,9 @@ class UserService:
                 logger.warning(f"Subscription not found for user {telegram_id}")
 
             # Finally delete user
-            user_deleted = self.user_repository.delete_user(telegram_id)
+            user_deleted = await self.user_repository.delete_user(
+                telegram_id=telegram_id
+            )
             logger.info(f"User deletion result for {telegram_id}: {user_deleted}")
 
             if not user_deleted:
@@ -512,7 +579,7 @@ class UserService:
             logger.error(f"Failed to delete user profile for {telegram_id}: {e}")
             raise UserDeletionError(f"Failed to delete user profile: {e}")
 
-    def get_all_users(self) -> list[User]:
+    async def get_all_users(self) -> list[User]:
         """Get all users from the database.
 
         This method retrieves all users with their settings and subscriptions
@@ -522,17 +589,20 @@ class UserService:
         :rtype: list[User]
         """
         try:
-            users = self.user_repository._get_all_entities(User, "users")
-            complete_users = []
+            users = await self.user_repository._get_all_entities(
+                model_class=User,
+                entity_name="users",
+            )
+            complete_users: list[User] = []
 
             for user in users:
                 try:
                     # Get settings and subscription for each user
-                    settings = self.settings_repository.get_user_settings(
-                        user.telegram_id
+                    settings = await self.settings_repository.get_user_settings(
+                        telegram_id=user.telegram_id
                     )
-                    subscription = self.subscription_repository.get_subscription(
-                        user.telegram_id
+                    subscription = await self.subscription_repository.get_subscription(
+                        telegram_id=user.telegram_id
                     )
 
                     # Create complete user profile

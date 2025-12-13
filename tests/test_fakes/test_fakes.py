@@ -117,7 +117,8 @@ class TestFakeUserService:
     it correctly implements UserServiceProtocol.
     """
 
-    def test_create_user_profile(self) -> None:
+    @pytest.mark.asyncio
+    async def test_create_user_profile(self) -> None:
         """Test creating a user profile.
 
         This test verifies that user profiles can be created
@@ -131,7 +132,7 @@ class TestFakeUserService:
             last_name = "User"
 
         service = FakeUserService()
-        user = service.create_user_profile(
+        user = await service.create_user_profile(
             user_info=MockUserInfo(),
             birth_date=date(1990, 1, 15),
         )
@@ -141,7 +142,8 @@ class TestFakeUserService:
         assert user.settings is not None
         assert user.settings.birth_date == date(1990, 1, 15)
 
-    def test_is_valid_user_profile(self) -> None:
+    @pytest.mark.asyncio
+    async def test_is_valid_user_profile(self) -> None:
         """Test checking if user profile is valid.
 
         This test verifies that is_valid_user_profile correctly
@@ -157,16 +159,17 @@ class TestFakeUserService:
         service = FakeUserService()
 
         # Before creating profile
-        assert service.is_valid_user_profile(telegram_id=12345) is False
+        assert await service.is_valid_user_profile(telegram_id=12345) is False
 
         # After creating profile
-        service.create_user_profile(
+        await service.create_user_profile(
             user_info=MockUserInfo(),
             birth_date=date(1990, 1, 15),
         )
-        assert service.is_valid_user_profile(telegram_id=12345) is True
+        assert await service.is_valid_user_profile(telegram_id=12345) is True
 
-    def test_delete_user_profile(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile(self) -> None:
         """Test deleting a user profile.
 
         This test verifies that user profiles can be deleted.
@@ -179,14 +182,14 @@ class TestFakeUserService:
             last_name = "User"
 
         service = FakeUserService()
-        service.create_user_profile(
+        await service.create_user_profile(
             user_info=MockUserInfo(),
             birth_date=date(1990, 1, 15),
         )
 
-        service.delete_user_profile(telegram_id=12345)
+        await service.delete_user_profile(telegram_id=12345)
 
-        assert service.is_valid_user_profile(telegram_id=12345) is False
+        assert await service.is_valid_user_profile(telegram_id=12345) is False
 
 
 class TestFakeNotificationGateway:

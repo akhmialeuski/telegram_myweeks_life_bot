@@ -1,6 +1,6 @@
 """SQLite implementation of user subscription repository.
 
-Provides SQLite-based implementation of AbstractUserSubscriptionRepository
+Provides SQLite-based async implementation of AbstractUserSubscriptionRepository
 for storing user subscriptions in SQLite database.
 """
 
@@ -20,39 +20,48 @@ logger = logging.getLogger(BOT_NAME)
 class SQLiteUserSubscriptionRepository(
     BaseSQLiteRepository, AbstractUserSubscriptionRepository
 ):
-    """SQLite implementation of user subscription repository.
+    """SQLite async implementation of user subscription repository.
 
-    Handles all database operations for user subscriptions using SQLite as the backend storage.
+    Handles all async database operations for user subscriptions using SQLite as the backend storage.
     """
 
-    def create_subscription(self, subscription: UserSubscription) -> bool:
+    async def create_subscription(self, subscription: UserSubscription) -> bool:
         """Create a new user subscription.
 
         :param subscription: UserSubscription object to create
+        :type subscription: UserSubscription
         :returns: True if successful, False otherwise
+        :rtype: bool
         """
-        return self._create_entity(
-            subscription, f"subscription for user {subscription.telegram_id}"
+        return await self._create_entity(
+            entity=subscription,
+            entity_name=f"subscription for user {subscription.telegram_id}",
         )
 
-    def get_subscription(self, telegram_id: int) -> Optional[UserSubscription]:
+    async def get_subscription(self, telegram_id: int) -> Optional[UserSubscription]:
         """Get user subscription by Telegram ID.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :returns: UserSubscription object if found, None otherwise
+        :rtype: Optional[UserSubscription]
         """
-        return self._get_entity_by_telegram_id(
-            UserSubscription, telegram_id, "user subscription"
+        return await self._get_entity_by_telegram_id(
+            model_class=UserSubscription,
+            telegram_id=telegram_id,
+            entity_name="user subscription",
         )
 
-    def update_subscription(self, subscription: UserSubscription) -> bool:
+    async def update_subscription(self, subscription: UserSubscription) -> bool:
         """Update user subscription.
 
         :param subscription: UserSubscription object with updated data
+        :type subscription: UserSubscription
         :returns: True if successful, False otherwise
+        :rtype: bool
         """
         try:
-            with self.session() as session:
+            async with self.async_session() as session:
                 stmt = (
                     update(UserSubscription)
                     .where(UserSubscription.telegram_id == subscription.telegram_id)
@@ -62,7 +71,7 @@ class SQLiteUserSubscriptionRepository(
                         expires_at=subscription.expires_at,
                     )
                 )
-                result = session.execute(stmt)
+                result = await session.execute(stmt)
 
                 if result.rowcount > 0:
                     logger.debug(
@@ -79,12 +88,16 @@ class SQLiteUserSubscriptionRepository(
             logger.error(f"Failed to update user subscription: {e}")
             return False
 
-    def delete_subscription(self, telegram_id: int) -> bool:
+    async def delete_subscription(self, telegram_id: int) -> bool:
         """Delete user subscription.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :returns: True if successful, False otherwise
+        :rtype: bool
         """
-        return self._delete_entity_by_telegram_id(
-            UserSubscription, telegram_id, "subscription"
+        return await self._delete_entity_by_telegram_id(
+            model_class=UserSubscription,
+            telegram_id=telegram_id,
+            entity_name="subscription",
         )

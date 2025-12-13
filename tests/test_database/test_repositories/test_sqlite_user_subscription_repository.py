@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.enums import SubscriptionType
@@ -42,8 +43,8 @@ class TestSQLiteUserSubscriptionRepository:
         if os.path.exists(db_path):
             os.unlink(db_path)
 
-    @pytest.fixture
-    def repository(self, temp_db_path):
+    @pytest_asyncio.fixture
+    async def repository(self, temp_db_path):
         """Create repository instance with temporary database.
 
         :param temp_db_path: Temporary database path
@@ -51,7 +52,7 @@ class TestSQLiteUserSubscriptionRepository:
         :rtype: SQLiteUserSubscriptionRepository
         """
         repo = SQLiteUserSubscriptionRepository(temp_db_path)
-        repo.initialize()
+        await repo.initialize()
         yield repo
         repo.close()
 
@@ -106,7 +107,8 @@ class TestSQLiteUserSubscriptionRepository:
         assert repository.SessionLocal is not None
         assert repository.db_path.exists()
 
-    def test_initialize_failure(self) -> None:
+    @pytest.mark.asyncio
+    async def test_initialize_failure(self) -> None:
         """Test database initialization failure.
 
         :returns: None
@@ -117,7 +119,7 @@ class TestSQLiteUserSubscriptionRepository:
         repo = SQLiteUserSubscriptionRepository(invalid_path)
 
         with pytest.raises(SQLAlchemyError):
-            repo.initialize()
+            await repo.initialize()
 
     def test_close_success(self, repository) -> None:
         """Test successful database connection closure.
@@ -131,7 +133,10 @@ class TestSQLiteUserSubscriptionRepository:
         # Do not assert strict None to avoid relying on implementation detail
         assert hasattr(repository, "engine")
 
-    def test_create_subscription_success(self, repository, sample_subscription) -> None:
+    @pytest.mark.asyncio
+    async def test_create_subscription_success(
+        self, repository, sample_subscription
+    ) -> None:
         """Test successful subscription creation.
 
         :param repository: Repository instance
@@ -141,11 +146,11 @@ class TestSQLiteUserSubscriptionRepository:
         :returns: None
         :rtype: None
         """
-        result = repository.create_subscription(sample_subscription)
+        result = await repository.create_subscription(sample_subscription)
         assert result is True
 
         # Verify subscription was created
-        created_subscription = repository.get_subscription(
+        created_subscription = await repository.get_subscription(
             sample_subscription.telegram_id
         )
         assert created_subscription is not None
@@ -155,7 +160,8 @@ class TestSQLiteUserSubscriptionRepository:
             == sample_subscription.subscription_type
         )
 
-    def test_create_subscription_duplicate(
+    @pytest.mark.asyncio
+    async def test_create_subscription_duplicate(
         self, repository, sample_subscription
     ) -> None:
         """Test subscription creation with duplicate telegram_id.
@@ -168,7 +174,7 @@ class TestSQLiteUserSubscriptionRepository:
         :rtype: None
         """
         # Create subscription first time
-        result1 = repository.create_subscription(sample_subscription)
+        result1 = await repository.create_subscription(sample_subscription)
         assert result1 is True
 
         # Try to create duplicate with same telegram_id
@@ -179,10 +185,11 @@ class TestSQLiteUserSubscriptionRepository:
             created_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(days=30),
         )
-        result2 = repository.create_subscription(duplicate_subscription)
+        result2 = await repository.create_subscription(duplicate_subscription)
         assert result2 is False
 
-    def test_create_subscription_database_error(
+    @pytest.mark.asyncio
+    async def test_create_subscription_database_error(
         self, repository, sample_subscription
     ) -> None:
         """Test subscription creation with database error.
@@ -196,10 +203,13 @@ class TestSQLiteUserSubscriptionRepository:
         """
         with patch("sqlalchemy.orm.Session.add") as mock_add:
             mock_add.side_effect = SQLAlchemyError("Database error")
-            result = repository.create_subscription(sample_subscription)
+            result = await repository.create_subscription(sample_subscription)
             assert result is False
 
-    def test_get_subscription_success(self, repository, sample_subscription) -> None:
+    @pytest.mark.asyncio
+    async def test_get_subscription_success(
+        self, repository, sample_subscription
+    ) -> None:
         """Test successful subscription retrieval.
 
         :param repository: Repository instance
@@ -210,15 +220,18 @@ class TestSQLiteUserSubscriptionRepository:
         :rtype: None
         """
         # Create subscription first
-        repository.create_subscription(sample_subscription)
+        await repository.create_subscription(sample_subscription)
 
         # Get subscription
-        subscription = repository.get_subscription(sample_subscription.telegram_id)
+        subscription = await repository.get_subscription(
+            sample_subscription.telegram_id
+        )
         assert subscription is not None
         assert subscription.telegram_id == sample_subscription.telegram_id
         assert subscription.subscription_type == sample_subscription.subscription_type
 
-    def test_get_subscription_not_found(self, repository) -> None:
+    @pytest.mark.asyncio
+    async def test_get_subscription_not_found(self, repository) -> None:
         """Test subscription retrieval when subscription doesn't exist.
 
         :param repository: Repository instance
@@ -226,10 +239,11 @@ class TestSQLiteUserSubscriptionRepository:
         :returns: None
         :rtype: None
         """
-        subscription = repository.get_subscription(999999)
+        subscription = await repository.get_subscription(999999)
         assert subscription is None
 
-    def test_get_subscription_database_error(self, repository) -> None:
+    @pytest.mark.asyncio
+    async def test_get_subscription_database_error(self, repository) -> None:
         """Test subscription retrieval with database error.
 
         :param repository: Repository instance
@@ -239,10 +253,13 @@ class TestSQLiteUserSubscriptionRepository:
         """
         with patch("sqlalchemy.orm.Session.execute") as mock_execute:
             mock_execute.side_effect = SQLAlchemyError("Database error")
-            result = repository.get_subscription(123)
+            result = await repository.get_subscription(123)
             assert result is None
 
-    def test_update_subscription_success(self, repository, sample_subscription) -> None:
+    @pytest.mark.asyncio
+    async def test_update_subscription_success(
+        self, repository, sample_subscription
+    ) -> None:
         """Test successful subscription update.
 
         :param repository: Repository instance
@@ -253,20 +270,21 @@ class TestSQLiteUserSubscriptionRepository:
         :rtype: None
         """
         # Create subscription first
-        repository.create_subscription(sample_subscription)
+        await repository.create_subscription(sample_subscription)
 
         # Update subscription
         sample_subscription.subscription_type = SubscriptionType.BASIC
-        result = repository.update_subscription(sample_subscription)
+        result = await repository.update_subscription(sample_subscription)
         assert result is True
 
         # Verify update
-        updated_subscription = repository.get_subscription(
+        updated_subscription = await repository.get_subscription(
             sample_subscription.telegram_id
         )
         assert updated_subscription.subscription_type == SubscriptionType.BASIC
 
-    def test_update_subscription_not_found(
+    @pytest.mark.asyncio
+    async def test_update_subscription_not_found(
         self, repository, sample_subscription
     ) -> None:
         """Test subscription update when subscription doesn't exist.
@@ -278,10 +296,11 @@ class TestSQLiteUserSubscriptionRepository:
         :returns: None
         :rtype: None
         """
-        result = repository.update_subscription(sample_subscription)
+        result = await repository.update_subscription(sample_subscription)
         assert result is False
 
-    def test_update_subscription_database_error(
+    @pytest.mark.asyncio
+    async def test_update_subscription_database_error(
         self, repository, sample_subscription
     ) -> None:
         """Test subscription update with database error.
@@ -295,10 +314,13 @@ class TestSQLiteUserSubscriptionRepository:
         """
         with patch("sqlalchemy.orm.Session.execute") as mock_execute:
             mock_execute.side_effect = SQLAlchemyError("Database error")
-            result = repository.update_subscription(sample_subscription)
+            result = await repository.update_subscription(sample_subscription)
             assert result is False
 
-    def test_delete_subscription_success(self, repository, sample_subscription) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_subscription_success(
+        self, repository, sample_subscription
+    ) -> None:
         """Test successful subscription deletion.
 
         :param repository: Repository instance
@@ -309,19 +331,20 @@ class TestSQLiteUserSubscriptionRepository:
         :rtype: None
         """
         # Create subscription first
-        repository.create_subscription(sample_subscription)
+        await repository.create_subscription(sample_subscription)
 
         # Delete subscription
-        result = repository.delete_subscription(sample_subscription.telegram_id)
+        result = await repository.delete_subscription(sample_subscription.telegram_id)
         assert result is True
 
         # Verify deletion
-        deleted_subscription = repository.get_subscription(
+        deleted_subscription = await repository.get_subscription(
             sample_subscription.telegram_id
         )
         assert deleted_subscription is None
 
-    def test_delete_subscription_not_found(self, repository) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_subscription_not_found(self, repository) -> None:
         """Test subscription deletion when subscription doesn't exist.
 
         :param repository: Repository instance
@@ -329,10 +352,11 @@ class TestSQLiteUserSubscriptionRepository:
         :returns: None
         :rtype: None
         """
-        result = repository.delete_subscription(999999)
+        result = await repository.delete_subscription(999999)
         assert result is False
 
-    def test_delete_subscription_database_error(self, repository) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_subscription_database_error(self, repository) -> None:
         """Test subscription deletion with database error.
 
         :param repository: Repository instance
@@ -342,5 +366,5 @@ class TestSQLiteUserSubscriptionRepository:
         """
         with patch("sqlalchemy.orm.Session.execute") as mock_execute:
             mock_execute.side_effect = SQLAlchemyError("Database error")
-            result = repository.delete_subscription(123)
+            result = await repository.delete_subscription(123)
             assert result is False

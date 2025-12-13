@@ -128,13 +128,15 @@ class BaseHandler(ABC):
 
         @wraps(handler_method)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
-            cmd_context = self._extract_command_context(update)
-            with use_message_context(user_info=cmd_context.user, fetch_profile=False):
+            cmd_context = await self._extract_command_context(update=update)
+            async with use_message_context(
+                user_info=cmd_context.user, fetch_profile=False
+            ):
                 return await handler_method(update, context)
 
         return wrapper
 
-    def _extract_command_context(self, update: Update) -> CommandContext:
+    async def _extract_command_context(self, update: Update) -> CommandContext:
         """Extract common context information from an update.
 
         :param update: The update object containing the user's message
@@ -146,7 +148,9 @@ class BaseHandler(ABC):
         user_id = user.id
 
         # Get user profile from database
-        user_profile = self.services.user_service.get_user_profile(user_id)
+        user_profile = await self.services.user_service.get_user_profile(
+            telegram_id=user_id
+        )
 
         # Get language from user profile or Telegram language code
         lang = (
@@ -195,13 +199,15 @@ class BaseHandler(ABC):
                 context: ContextTypes.DEFAULT_TYPE,
             ) -> Any:
                 # Extract user information from the update
-                cmd_context = self._extract_command_context(update)
+                cmd_context = await self._extract_command_context(update=update)
                 user_id = cmd_context.user_id
                 user_lang = cmd_context.language
 
                 try:
                     # Validate that user has completed registration with birth date
-                    if not self.services.user_service.is_valid_user_profile(user_id):
+                    if not await self.services.user_service.is_valid_user_profile(
+                        telegram_id=user_id
+                    ):
                         # Use gettext for localization
                         _, _, pgettext = use_locale(user_lang)
                         await update.message.reply_text(
@@ -215,7 +221,7 @@ class BaseHandler(ABC):
                     # Execute the original command handler under MessageContext
                     from ...core.message_context import use_message_context
 
-                    with use_message_context(
+                    async with use_message_context(
                         user_info=cmd_context.user, fetch_profile=True
                     ):
                         return await func(update, context)

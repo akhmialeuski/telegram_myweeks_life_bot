@@ -160,7 +160,8 @@ class TestBaseHandler:
             text=message_text, reply_markup=None, parse_mode=ParseMode.HTML
         )
 
-    def test_extract_command_context(
+    @pytest.mark.asyncio
+    async def test_extract_command_context(
         self,
         handler: ConcreteHandler,
         mock_update: MagicMock,
@@ -181,7 +182,7 @@ class TestBaseHandler:
         mock_user_profile.settings.language = SupportedLanguage.EN.value
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
-        result = handler._extract_command_context(mock_update)
+        result = await handler._extract_command_context(mock_update)
 
         assert isinstance(result, CommandContext)
         assert result.user == mock_update.effective_user
