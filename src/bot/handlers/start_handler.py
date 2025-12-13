@@ -78,16 +78,18 @@ class StartHandler(BaseHandler):
             User sends /start → Bot checks registration → Sends appropriate message
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
         logger.info(f"{self.command_name}: [{user_id}]: User started the bot")
 
         # Check if user has already completed registration
-        if self.services.user_service.is_valid_user_profile(telegram_id=user_id):
+        if await self.services.user_service.is_valid_user_profile(telegram_id=user_id):
             # Fetch profile to get preferred language
-            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+            profile = await self.services.user_service.get_user_profile(
+                telegram_id=user_id
+            )
             _, _, pgettext = use_locale(
                 lang=profile.settings.language or user.language_code
             )
@@ -142,7 +144,7 @@ class StartHandler(BaseHandler):
         :returns: None
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
         birth_date_text = update.message.text.strip()
@@ -265,7 +267,7 @@ class StartHandler(BaseHandler):
             return None
 
         # Attempt to create user profile in the database
-        self.services.user_service.create_user_profile(
+        await self.services.user_service.create_user_profile(
             user_info=user, birth_date=birth_date
         )
 
@@ -322,7 +324,7 @@ class StartHandler(BaseHandler):
         :type lang: str
         """
         # Fetch profile and compute statistics for success message
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         if not profile:
             raise UserServiceError("Failed to fetch newly created profile")
 

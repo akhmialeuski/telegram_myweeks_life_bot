@@ -593,14 +593,17 @@ class TestLifeWeeksBot:
         :returns: None
         :rtype: None
         """
+        # Add setup_schedules as AsyncMock to the scheduler mock
+        mock_scheduler.setup_schedules = AsyncMock()
         bot._scheduler = mock_scheduler
         mock_application = MagicMock()
 
         _run_async(bot._post_init_scheduler_start(mock_application))
 
+        mock_scheduler.setup_schedules.assert_called_once()
         mock_start_scheduler.assert_called_once_with(mock_scheduler)
         mock_application_logger.info.assert_called_with(
-            "Starting scheduler via post_init callback"
+            "Setting up and starting scheduler via post_init callback"
         )
 
     def test_post_init_scheduler_start_without_scheduler(

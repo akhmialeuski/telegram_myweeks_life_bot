@@ -65,7 +65,7 @@ class UnknownHandler(BaseHandler):
         :returns: None
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
         message = update.message
@@ -92,7 +92,8 @@ class UnknownHandler(BaseHandler):
                 )
 
         # Resolve language from DB profile or Telegram fallback
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        # cmd_context already has user_profile from _extract_command_context
+        profile = cmd_context.user_profile
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language

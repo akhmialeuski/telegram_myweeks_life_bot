@@ -87,7 +87,7 @@ class SubscriptionHandler(BaseHandler):
         :returns: Optional[int] or None
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
         user_profile = cmd_context.user_profile
@@ -97,7 +97,9 @@ class SubscriptionHandler(BaseHandler):
 
         try:
             # Resolve language from DB or Telegram
-            profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+            profile = await self.services.user_service.get_user_profile(
+                telegram_id=user_id
+            )
             lang = (
                 profile.settings.language
                 if profile and profile.settings and profile.settings.language
@@ -183,7 +185,7 @@ class SubscriptionHandler(BaseHandler):
         :returns: None
         """
         query = update.callback_query
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
         user_profile = cmd_context.user_profile
@@ -194,7 +196,7 @@ class SubscriptionHandler(BaseHandler):
         )
 
         # Resolve language
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -225,9 +227,9 @@ class SubscriptionHandler(BaseHandler):
                 return
 
             # Update subscription in database
-            self.services.user_service.update_user_subscription(
-                user_id,
-                new_subscription_type,
+            await self.services.user_service.update_user_subscription(
+                telegram_id=user_id,
+                subscription_type=new_subscription_type,
             )
 
             # Prepare description for new subscription

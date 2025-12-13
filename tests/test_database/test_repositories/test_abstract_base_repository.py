@@ -38,15 +38,15 @@ class ConcreteRepository(AbstractBaseRepository):
         """
         self.closed = True
 
-    def session(self):
-        """Mock implementation of session context manager.
+    def async_session(self):
+        """Mock implementation of async_session context manager.
 
         :yields: Mock session object
         """
-        from contextlib import contextmanager
+        from contextlib import asynccontextmanager
 
-        @contextmanager
-        def _session():
+        @asynccontextmanager
+        async def _session():
             mock_session = Mock()
             try:
                 yield mock_session
@@ -130,14 +130,15 @@ class TestAbstractBaseRepository:
         repo.close()
         assert repo.closed
 
-    def test_concrete_implementation_session(self) -> None:
-        """Test concrete implementation session context manager.
+    @pytest.mark.asyncio
+    async def test_concrete_implementation_async_session(self) -> None:
+        """Test concrete implementation async_session context manager.
 
         :returns: None
         :rtype: None
         """
         repo = ConcreteRepository("test.db")
-        with repo.session() as session:
+        async with repo.async_session() as session:
             assert session is not None
 
     def test_concrete_implementation_detach_instance(self) -> None:
@@ -160,7 +161,7 @@ class TestAbstractBaseRepository:
         :rtype: None
         """
         abstract_methods = AbstractBaseRepository.__abstractmethods__
-        expected_methods = {"initialize", "close", "session", "_detach_instance"}
+        expected_methods = {"initialize", "close", "async_session", "_detach_instance"}
         assert abstract_methods == expected_methods
 
     def test_concrete_class_implements_all_methods(self) -> None:
@@ -174,13 +175,13 @@ class TestAbstractBaseRepository:
         # Check that all abstract methods are implemented
         assert hasattr(repo, "initialize")
         assert hasattr(repo, "close")
-        assert hasattr(repo, "session")
+        assert hasattr(repo, "async_session")
         assert hasattr(repo, "_detach_instance")
 
         # Check that methods are callable
         assert callable(repo.initialize)
         assert callable(repo.close)
-        assert callable(repo.session)
+        assert callable(repo.async_session)
         assert callable(repo._detach_instance)
 
     def test_init_stores_db_path(self) -> None:

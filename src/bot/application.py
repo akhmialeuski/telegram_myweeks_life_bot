@@ -416,12 +416,16 @@ class LifeWeeksBot:
     async def _post_init_scheduler_start(self, application: Application) -> None:
         """Start scheduler after event loop is created.
 
+        This method also sets up user notification schedules which requires
+        async database operations.
+
         :param application: The Application instance
         :type application: Application
         :returns: None
         """
         if self._scheduler:
-            logger.info("Starting scheduler via post_init callback")
+            logger.info("Setting up and starting scheduler via post_init callback")
+            await self._scheduler.setup_schedules()
             start_scheduler(self._scheduler)
         else:
             logger.warning("Scheduler not configured, skipping start")

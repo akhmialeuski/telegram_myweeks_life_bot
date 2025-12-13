@@ -1,6 +1,6 @@
 """Unit tests for the bot scheduler, focusing on notification job management."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from telegram.constants import ParseMode
@@ -300,7 +300,8 @@ class TestCreateUserNotificationJob:
 class TestSchedulerManagementFunctions:
     """Tests for functions that add, remove, and update user jobs in the scheduler."""
 
-    def test_add_user_success(
+    @pytest.mark.asyncio
+    async def test_add_user_success(
         self,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
@@ -313,10 +314,12 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
+        mock_scheduler.add_user = AsyncMock()
+        await add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
         mock_scheduler.add_user.assert_called_once_with(TEST_USER_ID)
 
-    def test_add_user_raises_exception_if_job_creation_fails(
+    @pytest.mark.asyncio
+    async def test_add_user_raises_exception_if_job_creation_fails(
         self,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
@@ -329,13 +332,16 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = SchedulerOperationError(
-            "Job creation failed", TEST_USER_ID, "create_notification_job"
+        mock_scheduler.add_user = AsyncMock(
+            side_effect=SchedulerOperationError(
+                "Job creation failed", TEST_USER_ID, "create_notification_job"
+            )
         )
         with pytest.raises(SchedulerOperationError):
-            add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
+            await add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
 
-    def test_add_user_raises_exception_on_exception(
+    @pytest.mark.asyncio
+    async def test_add_user_raises_exception_on_exception(
         self,
         mock_user_service: MagicMock,
     ) -> None:
@@ -345,12 +351,13 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = Exception("Database error")
+        mock_scheduler.add_user = AsyncMock(side_effect=Exception("Database error"))
 
         with pytest.raises(SchedulerOperationError):
-            add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
+            await add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
 
-    def test_add_user_raises_exception_when_user_not_found(
+    @pytest.mark.asyncio
+    async def test_add_user_raises_exception_when_user_not_found(
         self,
         mock_user_service: MagicMock,
     ) -> None:
@@ -360,14 +367,16 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = SchedulerOperationError(
-            f"User {TEST_USER_ID} not found for scheduler addition",
-            TEST_USER_ID,
-            "add_user",
+        mock_scheduler.add_user = AsyncMock(
+            side_effect=SchedulerOperationError(
+                f"User {TEST_USER_ID} not found for scheduler addition",
+                TEST_USER_ID,
+                "add_user",
+            )
         )
 
         with pytest.raises(SchedulerOperationError):
-            add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
+            await add_user_to_scheduler(mock_scheduler, TEST_USER_ID)
 
     def test_remove_user_success(self) -> None:
         """Verify that a user's job is successfully removed.
@@ -425,7 +434,8 @@ class TestSchedulerManagementFunctions:
         # JobLookupError should be handled gracefully, not raise an exception
         remove_user_from_scheduler(mock_scheduler, TEST_USER_ID)
 
-    def test_update_user_success(
+    @pytest.mark.asyncio
+    async def test_update_user_success(
         self,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
@@ -438,10 +448,12 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        update_user_schedule(mock_scheduler, TEST_USER_ID)
+        mock_scheduler.add_user = AsyncMock()
+        await update_user_schedule(mock_scheduler, TEST_USER_ID)
         mock_scheduler.add_user.assert_called_once_with(TEST_USER_ID)
 
-    def test_update_user_handles_nonexistent_job(
+    @pytest.mark.asyncio
+    async def test_update_user_handles_nonexistent_job(
         self,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
@@ -454,14 +466,17 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = SchedulerOperationError(
-            f"Error adding user {TEST_USER_ID}", TEST_USER_ID, "add_user"
+        mock_scheduler.add_user = AsyncMock(
+            side_effect=SchedulerOperationError(
+                f"Error adding user {TEST_USER_ID}", TEST_USER_ID, "add_user"
+            )
         )
 
         with pytest.raises(SchedulerOperationError):
-            update_user_schedule(mock_scheduler, TEST_USER_ID)
+            await update_user_schedule(mock_scheduler, TEST_USER_ID)
 
-    def test_update_user_raises_if_user_not_found(
+    @pytest.mark.asyncio
+    async def test_update_user_raises_if_user_not_found(
         self, mock_user_service: MagicMock
     ) -> None:
         """Verify that SchedulerOperationError is raised if user not found.
@@ -470,14 +485,17 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = SchedulerOperationError(
-            f"User {TEST_USER_ID} not found", TEST_USER_ID, "add_user"
+        mock_scheduler.add_user = AsyncMock(
+            side_effect=SchedulerOperationError(
+                f"User {TEST_USER_ID} not found", TEST_USER_ID, "add_user"
+            )
         )
 
         with pytest.raises(SchedulerOperationError):
-            update_user_schedule(mock_scheduler, TEST_USER_ID)
+            await update_user_schedule(mock_scheduler, TEST_USER_ID)
 
-    def test_update_user_raises_if_job_creation_fails(
+    @pytest.mark.asyncio
+    async def test_update_user_raises_if_job_creation_fails(
         self,
         mock_user_with_settings: MagicMock,
         mock_user_service: MagicMock,
@@ -490,14 +508,17 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = SchedulerOperationError(
-            "Job creation failed", TEST_USER_ID, "add_user"
+        mock_scheduler.add_user = AsyncMock(
+            side_effect=SchedulerOperationError(
+                "Job creation failed", TEST_USER_ID, "add_user"
+            )
         )
 
         with pytest.raises(SchedulerOperationError):
-            update_user_schedule(mock_scheduler, TEST_USER_ID)
+            await update_user_schedule(mock_scheduler, TEST_USER_ID)
 
-    def test_update_user_raises_on_exception(
+    @pytest.mark.asyncio
+    async def test_update_user_raises_on_exception(
         self, mock_user_service: MagicMock
     ) -> None:
         """Verify that SchedulerOperationError is raised on unexpected exception.
@@ -506,17 +527,18 @@ class TestSchedulerManagementFunctions:
         :type mock_user_service: MagicMock
         """
         mock_scheduler = MagicMock()
-        mock_scheduler.add_user.side_effect = Exception("Database error")
+        mock_scheduler.add_user = AsyncMock(side_effect=Exception("Database error"))
 
         with pytest.raises(SchedulerOperationError):
-            update_user_schedule(mock_scheduler, TEST_USER_ID)
+            await update_user_schedule(mock_scheduler, TEST_USER_ID)
 
 
 @patch("src.bot.scheduler.user_service.get_all_users")
 class TestSetupUserNotificationSchedules:
     """Tests for the setup_user_notification_schedules function."""
 
-    def test_schedules_jobs_for_all_users(
+    @pytest.mark.asyncio
+    async def test_schedules_jobs_for_all_users(
         self,
         mock_get_all_users: MagicMock,
         mock_app: MagicMock,
@@ -537,11 +559,13 @@ class TestSetupUserNotificationSchedules:
         with patch.object(
             NotificationScheduler, "_create_user_notification_job", mock_create_job
         ):
-            setup_user_notification_schedules(mock_app)
+            scheduler = setup_user_notification_schedules(mock_app)
+            await scheduler.setup_schedules()
 
         mock_create_job.assert_called_once()
 
-    def test_logs_info_if_no_users_found(
+    @pytest.mark.asyncio
+    async def test_logs_info_if_no_users_found(
         self,
         mock_get_all_users: MagicMock,
         mock_app: MagicMock,
@@ -558,12 +582,14 @@ class TestSetupUserNotificationSchedules:
         """
         mock_get_all_users.return_value = []
 
-        setup_user_notification_schedules(mock_app)
+        scheduler = setup_user_notification_schedules(mock_app)
+        await scheduler.setup_schedules()
         mock_scheduler_logger.info.assert_called_once_with(
             "No users found for notification schedules"
         )
 
-    def test_raises_scheduler_setup_error_on_exception(
+    @pytest.mark.asyncio
+    async def test_raises_scheduler_setup_error_on_exception(
         self, mock_get_all_users: MagicMock, mock_app: MagicMock
     ) -> None:
         """Verify that a SchedulerSetupError is raised on database failure.
@@ -576,7 +602,8 @@ class TestSetupUserNotificationSchedules:
         mock_get_all_users.side_effect = Exception(DB_ERROR)
 
         with pytest.raises(SchedulerSetupError):
-            setup_user_notification_schedules(mock_app)
+            scheduler = setup_user_notification_schedules(mock_app)
+            await scheduler.setup_schedules()
 
 
 class TestSchedulerLifecycle:

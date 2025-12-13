@@ -192,14 +192,14 @@ class SettingsHandler(BaseHandler):
         :returns: None
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling settings command")
 
         # Resolve language and profile
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -289,7 +289,7 @@ class SettingsHandler(BaseHandler):
         :returns: None
         """
         query = update.callback_query
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
@@ -299,7 +299,7 @@ class SettingsHandler(BaseHandler):
         )
 
         # Resolve language
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -409,7 +409,7 @@ class SettingsHandler(BaseHandler):
         :returns: None
         """
         query = update.callback_query
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         user_id = cmd_context.user_id
 
         callback_data = query.data
@@ -418,7 +418,7 @@ class SettingsHandler(BaseHandler):
         )
 
         # Resolve current language for error messages
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         user = cmd_context.user
         lang = (
             profile.settings.language
@@ -447,14 +447,14 @@ class SettingsHandler(BaseHandler):
                 return
 
             # Update user's language preference in database
-            self.services.user_service.update_user_settings(
+            await self.services.user_service.update_user_settings(
                 telegram_id=user_id, language=language_code
             )
 
             # Update user's notification schedule
             scheduler = context.bot_data.get("scheduler")
             if scheduler:
-                update_user_schedule(scheduler, user_id)
+                await update_user_schedule(scheduler, user_id)
             else:
                 logger.warning(f"No scheduler available for user {user_id}")
 
@@ -505,7 +505,7 @@ class SettingsHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         message_text = update.message.text
         user_id = cmd_context.user_id
 
@@ -588,7 +588,7 @@ class SettingsHandler(BaseHandler):
         :type message_text: str
         :returns: None
         """
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
@@ -597,7 +597,7 @@ class SettingsHandler(BaseHandler):
         )
 
         # Resolve language
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -635,12 +635,12 @@ class SettingsHandler(BaseHandler):
             logger.info(
                 f"{self.command_name}: [{user_id}]: Updating birth date to {birth_date_value}"
             )
-            self.services.user_service.update_user_settings(
+            await self.services.user_service.update_user_settings(
                 telegram_id=user_id, birth_date=birth_date_value
             )
 
             # Get updated user profile after birth date change
-            updated_user_profile = self.services.user_service.get_user_profile(
+            updated_user_profile = await self.services.user_service.get_user_profile(
                 telegram_id=user_id
             )
 
@@ -720,7 +720,7 @@ class SettingsHandler(BaseHandler):
         :type message_text: str
         :returns: None
         """
-        cmd_context = self._extract_command_context(update)
+        cmd_context = await self._extract_command_context(update)
         user = cmd_context.user
         user_id = cmd_context.user_id
         logger.info(
@@ -728,7 +728,7 @@ class SettingsHandler(BaseHandler):
         )
 
         # Resolve language
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -756,7 +756,7 @@ class SettingsHandler(BaseHandler):
                 return
 
             # Update life expectancy in database
-            self.services.user_service.update_user_settings(
+            await self.services.user_service.update_user_settings(
                 telegram_id=user_id, life_expectancy=life_expectancy
             )
 

@@ -5,8 +5,9 @@ The UserService implementation provides business logic for user
 operations including registration, profile management, and settings.
 """
 
+from collections.abc import Coroutine
 from datetime import date, time
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from ..core.enums import SubscriptionType, WeekDay
@@ -26,13 +27,13 @@ class UserServiceProtocol(Protocol):
         - FakeUserService: In-memory implementation for testing
     """
 
-    def get_user_profile(self, telegram_id: int) -> "User | None":
+    def get_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, "User | None"]:
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Unique Telegram user identifier
         :type telegram_id: int
         :returns: User object with settings and subscription if found, None otherwise
-        :rtype: User | None
+        :rtype: Coroutine[Any, Any, User | None]
         """
         ...
 
@@ -46,7 +47,7 @@ class UserServiceProtocol(Protocol):
         notifications_time: time | None = None,
         life_expectancy: int = 80,
         timezone: str = "UTC",
-    ) -> "User | None":
+    ) -> Coroutine[Any, Any, "User | None"]:
         """Create new user with default settings.
 
         :param user_info: Telegram User object containing user details
@@ -66,17 +67,17 @@ class UserServiceProtocol(Protocol):
         :param timezone: User's timezone
         :type timezone: str
         :returns: Created user object if successful, None otherwise
-        :rtype: User | None
+        :rtype: Coroutine[Any, Any, User | None]
         """
         ...
 
-    def is_valid_user_profile(self, telegram_id: int) -> bool:
+    def is_valid_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, bool]:
         """Check if user has a valid profile with birth date.
 
         :param telegram_id: Unique Telegram user identifier
         :type telegram_id: int
         :returns: True if profile is valid, False otherwise
-        :rtype: bool
+        :rtype: Coroutine[Any, Any, bool]
         """
         ...
 
@@ -86,7 +87,7 @@ class UserServiceProtocol(Protocol):
         birth_date: date | None = None,
         life_expectancy: int | None = None,
         language: str | None = None,
-    ) -> None:
+    ) -> Coroutine[Any, Any, None]:
         """Update user settings.
 
         :param telegram_id: Unique Telegram user identifier
@@ -107,7 +108,7 @@ class UserServiceProtocol(Protocol):
         self,
         telegram_id: int,
         subscription_type: "SubscriptionType",
-    ) -> None:
+    ) -> Coroutine[Any, Any, None]:
         """Update user subscription type.
 
         :param telegram_id: Unique Telegram user identifier
@@ -120,7 +121,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def delete_user_profile(self, telegram_id: int) -> None:
+    def delete_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, None]:
         """Delete user profile and all associated data.
 
         :param telegram_id: Unique Telegram user identifier
@@ -130,10 +131,10 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def get_all_users(self) -> list["User"]:
+    def get_all_users(self) -> Coroutine[Any, Any, list["User"]]:
         """Get all users from the database.
 
         :returns: List of all users with their profiles
-        :rtype: list[User]
+        :rtype: Coroutine[Any, Any, list[User]]
         """
         ...
