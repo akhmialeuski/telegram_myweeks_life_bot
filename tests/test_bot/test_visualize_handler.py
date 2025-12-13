@@ -4,7 +4,7 @@ This module contains tests for the VisualizeHandler class which handles
 the /visualize command and generates life grid visualizations.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -81,7 +81,8 @@ class TestVisualizeHandler:
         :rtype: None
         """
         with patch(
-            "src.bot.handlers.visualize_handler.generate_visualization"
+            "src.bot.handlers.visualize_handler.generate_visualization",
+            new_callable=AsyncMock,
         ) as mock_generate_visualization:
             handler.services.user_service.is_valid_user_profile.return_value = True
             profile = MagicMock()
@@ -159,8 +160,9 @@ class TestVisualizeHandler:
 
         with patch(
             "src.bot.handlers.visualize_handler.generate_visualization",
-            return_value=b"img",
-        ):
+            new_callable=AsyncMock,
+        ) as mock_generate_visualization:
+            mock_generate_visualization.return_value = b"img"
             await handler.handle(mock_update, mock_context)
         mock_update.message.reply_photo.assert_called_once()
         call_args = mock_update.message.reply_photo.call_args

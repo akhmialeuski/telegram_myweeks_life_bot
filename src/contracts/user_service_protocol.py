@@ -27,7 +27,7 @@ class UserServiceProtocol(Protocol):
         - FakeUserService: In-memory implementation for testing
     """
 
-    def get_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, "User | None"]:
+    async def get_user_profile(self, telegram_id: int) -> "User | None":
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Unique Telegram user identifier
@@ -37,7 +37,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def create_user_profile(
+    async def create_user_profile(
         self,
         user_info: object,
         birth_date: date,
@@ -71,7 +71,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def is_valid_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, bool]:
+    async def is_valid_user_profile(self, telegram_id: int) -> bool:
         """Check if user has a valid profile with birth date.
 
         :param telegram_id: Unique Telegram user identifier
@@ -81,7 +81,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def update_user_settings(
+    async def update_user_settings(
         self,
         telegram_id: int,
         birth_date: date | None = None,
@@ -104,7 +104,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def update_user_subscription(
+    async def update_user_subscription(
         self,
         telegram_id: int,
         subscription_type: "SubscriptionType",
@@ -121,7 +121,7 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def delete_user_profile(self, telegram_id: int) -> Coroutine[Any, Any, None]:
+    async def delete_user_profile(self, telegram_id: int) -> None:
         """Delete user profile and all associated data.
 
         :param telegram_id: Unique Telegram user identifier
@@ -131,10 +131,10 @@ class UserServiceProtocol(Protocol):
         """
         ...
 
-    def get_all_users(self) -> Coroutine[Any, Any, list["User"]]:
-        """Get all users from the database.
+    async def get_all_users(self) -> list["User"]:
+        """Get all users from the repository.
 
         :returns: List of all users with their profiles
-        :rtype: Coroutine[Any, Any, list[User]]
+        :rtype: list[User]
         """
         ...

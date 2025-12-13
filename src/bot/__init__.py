@@ -21,7 +21,7 @@ from .handlers import (
 try:
     from ..database.service import user_service
 
-    user_service.initialize()
+    pass
 except ImportError:
     # During testing or when database service is not available
     user_service = None

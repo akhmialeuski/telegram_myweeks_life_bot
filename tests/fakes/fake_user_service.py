@@ -50,7 +50,7 @@ class FakeUserService:
         self._settings: dict[int, UserSettings] = {}
         self._subscriptions: dict[int, UserSubscription] = {}
 
-    def get_user_profile(self, telegram_id: int) -> User | None:
+    async def get_user_profile(self, telegram_id: int) -> User | None:
         """Get complete user profile with settings and subscription.
 
         Returns a copy of the user to prevent mutation of stored data.
@@ -78,7 +78,7 @@ class FakeUserService:
 
         return user
 
-    def create_user_profile(
+    async def create_user_profile(
         self,
         user_info: object,
         birth_date: date,
@@ -115,7 +115,7 @@ class FakeUserService:
         # Check if user already exists
         existing = self._repository.get_user(telegram_id=telegram_id)
         if existing is not None:
-            return self.get_user_profile(telegram_id=telegram_id)
+            return await self.get_user_profile(telegram_id=telegram_id)
 
         # Create user
         user = User(
@@ -162,9 +162,9 @@ class FakeUserService:
         self._settings[telegram_id] = settings
         self._subscriptions[telegram_id] = subscription
 
-        return self.get_user_profile(telegram_id=telegram_id)
+        return await self.get_user_profile(telegram_id=telegram_id)
 
-    def is_valid_user_profile(self, telegram_id: int) -> bool:
+    async def is_valid_user_profile(self, telegram_id: int) -> bool:
         """Check if user has a valid profile with birth date.
 
         :param telegram_id: Unique Telegram user identifier
@@ -175,7 +175,7 @@ class FakeUserService:
         settings = self._settings.get(telegram_id)
         return settings is not None and settings.birth_date is not None
 
-    def update_user_settings(
+    async def update_user_settings(
         self,
         telegram_id: int,
         birth_date: date | None = None,
@@ -206,7 +206,7 @@ class FakeUserService:
         if language is not None:
             settings.language = language
 
-    def update_user_subscription(
+    async def update_user_subscription(
         self,
         telegram_id: int,
         subscription_type: SubscriptionType,
@@ -225,7 +225,7 @@ class FakeUserService:
 
         self._subscriptions[telegram_id].subscription_type = subscription_type
 
-    def delete_user_profile(self, telegram_id: int) -> None:
+    async def delete_user_profile(self, telegram_id: int) -> None:
         """Delete user profile and all associated data.
 
         :param telegram_id: Unique Telegram user identifier
@@ -239,7 +239,7 @@ class FakeUserService:
         self._settings.pop(telegram_id, None)
         self._subscriptions.pop(telegram_id, None)
 
-    def get_all_users(self) -> list[User]:
+    async def get_all_users(self) -> list[User]:
         """Get all users from the repository.
 
         Returns copies of users to prevent mutation of stored data.

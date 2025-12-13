@@ -423,6 +423,9 @@ class LifeWeeksBot:
         :type application: Application
         :returns: None
         """
+        # Initialize services (database connections)
+        await self.services.initialize()
+
         if self._scheduler:
             logger.info("Setting up and starting scheduler via post_init callback")
             await self._scheduler.setup_schedules()

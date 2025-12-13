@@ -145,8 +145,14 @@ class VisualizeHandler(BaseHandler):
         }
 
         # Generate and send visual representation with caption
+        try:
+            image_data = await generate_visualization(user_info=user)
+        except Exception as e:
+            logger.error(f"Failed to generate visualization: {e}")
+            return None
+
         await update.message.reply_photo(
-            photo=generate_visualization(user_info=user),
+            photo=image_data,
             caption=caption,
             parse_mode=ParseMode.HTML,
         )
