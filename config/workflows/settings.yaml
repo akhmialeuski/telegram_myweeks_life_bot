@@ -1,0 +1,37 @@
+# Settings workflow for /settings command
+# Manages birth date and life expectancy updates
+
+name: settings
+initial_state: idle
+
+states:
+  idle:
+    input_type: none
+
+  settings_birth_date:
+    input_type: text
+    validation: validate_birth_date
+    timeout_seconds: 300
+    on_valid:
+      target: idle
+      action: update_birth_date
+    on_invalid:
+      target: settings_birth_date
+      action: send_birth_date_validation_error
+    on_timeout:
+      target: idle
+      action: send_timeout_message
+
+  settings_life_expectancy:
+    input_type: text
+    validation: validate_life_expectancy
+    timeout_seconds: 300
+    on_valid:
+      target: idle
+      action: update_life_expectancy
+    on_invalid:
+      target: settings_life_expectancy
+      action: send_life_expectancy_validation_error
+    on_timeout:
+      target: idle
+      action: send_timeout_message

@@ -22,6 +22,7 @@ from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .constants import COMMAND_UNKNOWN
+from .conversations.states import STATE_TO_COMMAND, ConversationState
 from .plugins.loader import HandlerConfig, PluginLoader
 from .registry import HandlerRegistry
 from .scheduler import (
@@ -73,9 +74,9 @@ class LifeWeeksBot:
         self._plugin_loader = plugin_loader or PluginLoader()
 
         # Handler state for universal text handler routing
-        self._handler_instances: dict = {}
-        self._text_input_handlers: dict = {}
-        self._waiting_states: dict = {}
+        self._handler_instances: dict[str, object] = {}
+        self._text_input_handlers: dict[str, object] = {}
+        self._waiting_states: dict[str, str] = {}  # Maps state value to command
 
         logger.info("Initializing LifeWeeksBot")
 
@@ -231,9 +232,11 @@ class LifeWeeksBot:
         :returns: None
         """
         waiting_for = context.user_data.get("waiting_for")
+        # Convert string state to ConversationState enum for FSM routing
+        current_state = ConversationState.from_string(value=waiting_for)
 
-        if waiting_for in self._waiting_states:
-            await self._handle_waiting_state(update, context, waiting_for)
+        if current_state != ConversationState.IDLE:
+            await self._handle_waiting_state(update, context, current_state)
         else:
             await self._handle_no_waiting_state(update, context)
 
@@ -241,7 +244,7 @@ class LifeWeeksBot:
         self,
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
-        waiting_for: str,
+        current_state: ConversationState,
     ) -> None:
         """Handle message when user is in a waiting state.
 
@@ -249,18 +252,21 @@ class LifeWeeksBot:
         :type update: Update
         :param context: Telegram context object
         :type context: ContextTypes.DEFAULT_TYPE
-        :param waiting_for: The waiting state identifier
-        :type waiting_for: str
+        :param current_state: Current conversation state from FSM
+        :type current_state: ConversationState
         :returns: None
         """
-        target_command = self._waiting_states[waiting_for]
+        # Use STATE_TO_COMMAND mapping for FSM-based routing
+        target_command = STATE_TO_COMMAND.get(
+            current_state, self._waiting_states.get(current_state.value, "")
+        )
         error_occurred = await self._try_text_input_handler(
             update, context, target_command
         )
 
         if error_occurred:
             fallback_error = await self._try_unknown_handler_fallback(
-                update, context, waiting_for
+                update, context, current_state.value
             )
             if fallback_error:
                 await self._send_error_message(update, context)

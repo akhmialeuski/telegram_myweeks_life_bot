@@ -359,10 +359,9 @@ class TestStartHandler:
         mock_update.message.text = "15.03.1990"
         birth_date = date(1990, 3, 15)
 
-        with patch("src.bot.handlers.start_handler.datetime") as mock_datetime, patch(
+        with patch(
             "src.bot.handlers.start_handler.add_user_to_scheduler"
         ) as mock_add_user_to_scheduler:
-            mock_datetime.strptime.return_value.date.return_value = birth_date
             mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
                 message="Scheduler error",
                 user_id=mock_update.effective_user.id,
