@@ -4,14 +4,14 @@ Tests the StartHandler class which handles /start command and user registration.
 """
 
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.bot.constants import COMMAND_START
 from src.bot.handlers.start_handler import StartHandler
-from src.bot.scheduler import SchedulerOperationError
 from src.database.service import UserRegistrationError, UserServiceError
+from src.events.domain_events import UserSettingsChangedEvent
 from tests.utils.fake_container import FakeServiceContainer
 
 
@@ -134,7 +134,7 @@ class TestStartHandler:
         """Test successful user registration with valid birth date.
 
         This test verifies that a valid birth date successfully registers
-        the user, adds them to the scheduler, and sends a success message.
+        the user, publishes a registration event, and sends a success message.
 
         :param handler: StartHandler instance from fixture
         :type handler: StartHandler
@@ -149,16 +149,16 @@ class TestStartHandler:
         mock_update.message.text = "15.03.1990"
         birth_date = date(1990, 3, 15)
 
-        with patch(
-            "src.bot.handlers.start_handler.add_user_to_scheduler"
-        ) as mock_add_user_to_scheduler:
-            mock_add_user_to_scheduler.return_value = None
+        await handler.handle_birth_date_input(mock_update, mock_context)
 
-            await handler.handle_birth_date_input(mock_update, mock_context)
-
-            mock_add_user_to_scheduler.assert_called_once_with(
-                mock_context.bot_data.get.return_value, mock_update.effective_user.id
-            )
+        # Verify event published
+        handler.services.event_bus.publish.assert_called_once()
+        call_args = handler.services.event_bus.publish.call_args
+        event = call_args[0][0]
+        assert isinstance(event, UserSettingsChangedEvent)
+        assert event.user_id == mock_update.effective_user.id
+        assert event.setting_name == "registration"
+        assert event.new_value is True
 
         handler.services.user_service.create_user_profile.assert_called_once_with(
             user_info=mock_update.effective_user, birth_date=birth_date
@@ -334,17 +334,16 @@ class TestStartHandler:
         assert "waiting_for" not in mock_context.user_data
 
     @pytest.mark.asyncio
-    async def test_handle_birth_date_input_scheduler_exception(
+    async def test_handle_birth_date_input_event_bus_error(
         self,
         handler: StartHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test registration handling when scheduler operation fails.
+        """Test registration handling when event publication fails.
 
-        This test verifies that even when adding the user to the scheduler
-        fails with a SchedulerOperationError, the user profile is still
-        created and a response is sent.
+        This test verifies that even when publishing the registration event
+        fails, the user profile is still created and a response is sent.
 
         :param handler: StartHandler instance from fixture
         :type handler: StartHandler
@@ -359,17 +358,12 @@ class TestStartHandler:
         mock_update.message.text = "15.03.1990"
         birth_date = date(1990, 3, 15)
 
-        with patch(
-            "src.bot.handlers.start_handler.add_user_to_scheduler"
-        ) as mock_add_user_to_scheduler:
-            mock_add_user_to_scheduler.side_effect = SchedulerOperationError(
-                message="Scheduler error",
-                user_id=mock_update.effective_user.id,
-                operation="add_user",
-            )
+        # Mock event bus failure
+        handler.services.event_bus.publish.side_effect = Exception("Event Bus Error")
 
-            await handler.handle_birth_date_input(mock_update, mock_context)
+        await handler.handle_birth_date_input(mock_update, mock_context)
 
+        handler.services.event_bus.publish.assert_called_once()
         handler.services.user_service.create_user_profile.assert_called_once_with(
             user_info=mock_update.effective_user, birth_date=birth_date
         )

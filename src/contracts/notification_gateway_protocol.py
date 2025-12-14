@@ -2,10 +2,12 @@
 
 This module defines the contract for notification delivery.
 Implementations include TelegramNotificationGateway (production)
-and FakeNotificationGateway (testing).
+and LoggingGateway/FakeNotificationGateway (testing).
 """
 
 from typing import Protocol, runtime_checkable
+
+from ..events.domain_events import DeliveryResult, NotificationPayload
 
 
 @runtime_checkable
@@ -17,6 +19,7 @@ class NotificationGatewayProtocol(Protocol):
 
     Implementations:
         - TelegramNotificationGateway: Production Telegram bot integration
+        - LoggingGateway: Logs notifications for testing
         - FakeNotificationGateway: In-memory implementation for testing
     """
 
@@ -48,5 +51,35 @@ class NotificationGatewayProtocol(Protocol):
         :type caption: str | None
         :returns: True if photo sent successfully, False otherwise
         :rtype: bool
+        """
+        ...
+
+    async def send_notification(self, payload: NotificationPayload) -> DeliveryResult:
+        """Send notification using domain payload.
+
+        This method sends a notification using the transport-agnostic
+        NotificationPayload, which can be formatted appropriately for
+        the specific delivery channel.
+
+        :param payload: Notification payload with message content and metadata
+        :type payload: NotificationPayload
+        :returns: Result of the delivery attempt
+        :rtype: DeliveryResult
+        """
+        ...
+
+    async def send_batch(
+        self,
+        payloads: list[NotificationPayload],
+    ) -> list[DeliveryResult]:
+        """Send multiple notifications efficiently.
+
+        For channels that support batching, this can be more efficient
+        than sending individual notifications.
+
+        :param payloads: List of notification payloads to send
+        :type payloads: list[NotificationPayload]
+        :returns: List of delivery results in the same order as payloads
+        :rtype: list[DeliveryResult]
         """
         ...

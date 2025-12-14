@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.enums import SubscriptionType, WeekDay
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
@@ -23,6 +22,7 @@ from src.database.repositories.sqlite.user_settings_repository import (
 from src.database.repositories.sqlite.user_subscription_repository import (
     SQLiteUserSubscriptionRepository,
 )
+from src.enums import SubscriptionType, WeekDay
 from tests.conftest import (
     DEFAULT_LIFE_EXPECTANCY,
     DEFAULT_TIMEZONE,

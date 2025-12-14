@@ -12,6 +12,8 @@ from babel.numbers import format_decimal
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.enums import SubscriptionType, SupportedLanguage
+from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import get_localized_language_name, normalize_babel_locale, use_locale
 from src.services.validation_service import (
     ERROR_DATE_IN_FUTURE,
@@ -22,7 +24,6 @@ from src.services.validation_service import (
     ValidationService,
 )
 
-from ....core.enums import SubscriptionType, SupportedLanguage
 from ....core.life_calculator import LifeCalculatorEngine
 from ....database.service import UserNotFoundError, UserSettingsUpdateError
 from ....services.container import ServiceContainer
@@ -31,7 +32,6 @@ from ....utils.logger import get_logger
 from ...constants import COMMAND_SETTINGS
 from ...conversations.persistence import TelegramContextPersistence
 from ...conversations.states import ConversationState
-from ...scheduler import update_user_schedule
 from ..base_handler import BaseHandler
 from .keyboards import get_language_keyboard, get_settings_keyboard
 
@@ -363,12 +363,19 @@ class SettingsHandler(BaseHandler):
                 telegram_id=user_id, language=language_code
             )
 
-            # Update user's notification schedule
-            scheduler = context.bot_data.get("scheduler")
-            if scheduler:
-                await update_user_schedule(scheduler, user_id)
-            else:
-                logger.warning(f"No scheduler available for user {user_id}")
+            # Update user's notification schedule via event
+            # We publish the event and let the listener handle the scheduler update
+            await self.services.event_bus.publish(
+                UserSettingsChangedEvent(
+                    user_id=user_id,
+                    setting_name="language",
+                    new_value=language_code,
+                    old_value=lang,
+                )
+            )
+            logger.info(
+                f"{self.command_name}: [{user_id}]: Published UserSettingsChangedEvent for language"
+            )
 
             # Show success message in the new language
             _, _, pgettext = use_locale(lang=language_code)
@@ -559,6 +566,16 @@ class SettingsHandler(BaseHandler):
                 telegram_id=user_id, birth_date=birth_date_value
             )
 
+            # Publish event regarding birth date change
+            await self.services.event_bus.publish(
+                UserSettingsChangedEvent(
+                    user_id=user_id,
+                    setting_name="birth_date",
+                    new_value=birth_date_value,
+                    old_value=getattr(profile, "birth_date", None),
+                )
+            )
+
             # Get updated user profile after birth date change
             updated_user_profile = await self.services.user_service.get_user_profile(
                 telegram_id=user_id
@@ -676,6 +693,18 @@ class SettingsHandler(BaseHandler):
             # Update life expectancy in database
             await self.services.user_service.update_user_settings(
                 telegram_id=user_id, life_expectancy=life_expectancy
+            )
+
+            # Publish event regarding life expectancy change
+            await self.services.event_bus.publish(
+                UserSettingsChangedEvent(
+                    user_id=user_id,
+                    setting_name="life_expectancy",
+                    new_value=life_expectancy,
+                    old_value=getattr(
+                        getattr(profile, "settings", None), "life_expectancy", None
+                    ),
+                )
             )
 
             message_text_out = pgettext(

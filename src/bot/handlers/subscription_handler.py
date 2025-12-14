@@ -16,9 +16,9 @@ from typing import Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from src.enums import SubscriptionType
 from src.i18n import use_locale
 
-from ...core.enums import SubscriptionType
 from ...database.service import UserSubscriptionUpdateError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME, BUYMEACOFFEE_URL

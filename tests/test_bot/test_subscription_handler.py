@@ -9,8 +9,8 @@ import pytest
 
 from src.bot.constants import COMMAND_SUBSCRIPTION
 from src.bot.handlers.subscription_handler import SubscriptionHandler
-from src.core.enums import SubscriptionType
 from src.database.service import UserSubscriptionUpdateError
+from src.enums import SubscriptionType
 
 
 class TestSubscriptionHandler:

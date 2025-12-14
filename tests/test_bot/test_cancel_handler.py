@@ -3,14 +3,13 @@
 Tests the CancelHandler class which handles /cancel command.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.bot.constants import COMMAND_CANCEL
 from src.bot.handlers.cancel_handler import CancelHandler
 from src.database.service import UserDeletionError, UserServiceError
-from tests.conftest import TEST_USER_ID
 from tests.utils.fake_container import FakeServiceContainer
 
 
@@ -74,8 +73,8 @@ class TestCancelHandler:
         """Test successful user cancellation and profile deletion.
 
         This test verifies that when a user cancels their registration,
-        the handler correctly removes them from the scheduler, deletes
-        their profile, and sends a success message.
+        the handler correctly deletes the profile, publishes a UserDeletedEvent,
+        and sends a success message.
 
         :param handler: CancelHandler instance from fixture
         :type handler: CancelHandler
@@ -87,26 +86,32 @@ class TestCancelHandler:
         :rtype: None
         """
         mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = "en"
         handler.services.user_service.is_valid_user_profile.return_value = True
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
-        with patch(
-            "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
-        ) as mock_remove_scheduler:
-            mock_scheduler = MagicMock()
-            mock_context.bot_data.get.return_value = mock_scheduler
+        # Ensure user object has first_name for string formatting
+        mock_update.effective_user.first_name = "TestUser"
 
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            mock_remove_scheduler.assert_called_once_with(
-                mock_scheduler, mock_update.effective_user.id
-            )
-            handler.services.user_service.delete_user_profile.assert_called_once_with(
-                telegram_id=mock_update.effective_user.id
-            )
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            assert "pgettext_cancel.success_" in call_args.kwargs["text"]
+        # Verify usage of user service
+        handler.services.user_service.delete_user_profile.assert_called_once_with(
+            telegram_id=mock_update.effective_user.id
+        )
+
+        # Verify event published
+        handler.services.event_bus.publish.assert_called_once()
+        call_args = handler.services.event_bus.publish.call_args
+        event = call_args[0][0]
+        from src.events.domain_events import UserDeletedEvent
+
+        assert isinstance(event, UserDeletedEvent)
+        assert event.user_id == mock_update.effective_user.id
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert "pgettext_cancel.success_" in call_args.kwargs["text"]
 
     @pytest.mark.asyncio
     async def test_handle_deletion_error(
@@ -131,16 +136,16 @@ class TestCancelHandler:
         :rtype: None
         """
         handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = MagicMock()
         handler.services.user_service.delete_user_profile.side_effect = (
             UserDeletionError("Delete failed")
         )
 
-        with patch("src.bot.handlers.cancel_handler.remove_user_from_scheduler"):
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            assert "pgettext_cancel.error_" in call_args.kwargs["text"]
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert "pgettext_cancel.error_" in call_args.kwargs["text"]
 
     @pytest.mark.asyncio
     async def test_handle_service_error(
@@ -165,28 +170,28 @@ class TestCancelHandler:
         :rtype: None
         """
         handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = MagicMock()
         handler.services.user_service.delete_user_profile.side_effect = (
             UserServiceError("Service error")
         )
 
-        with patch("src.bot.handlers.cancel_handler.remove_user_from_scheduler"):
-            await handler.handle(mock_update, mock_context)
+        await handler.handle(mock_update, mock_context)
 
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            assert "pgettext_cancel.error_" in call_args.kwargs["text"]
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert "pgettext_cancel.error_" in call_args.kwargs["text"]
 
     @pytest.mark.asyncio
-    async def test_handle_scheduler_removal_failure(
+    async def test_handle_event_publishing_failure(
         self,
         handler: CancelHandler,
         mock_update: MagicMock,
         mock_context: MagicMock,
     ) -> None:
-        """Test cancellation handling when scheduler removal fails.
+        """Test cancellation handling when event publishing fails.
 
-        This test verifies that when removing the user from the scheduler
-        fails with a SchedulerOperationError, the handler catches it and
+        This test verifies that when publishing the UserDeletedEvent
+        fails with an exception, the handler catches it and
         sends an appropriate error message to the user.
 
         :param handler: CancelHandler instance from fixture
@@ -198,19 +203,16 @@ class TestCancelHandler:
         :returns: None
         :rtype: None
         """
+        mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = "en"
         handler.services.user_service.is_valid_user_profile.return_value = True
-        from src.bot.scheduler import SchedulerOperationError
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        mock_update.effective_user.first_name = "TestUser"
 
-        with patch(
-            "src.bot.handlers.cancel_handler.remove_user_from_scheduler"
-        ) as mock_remove_scheduler:
-            mock_remove_scheduler.side_effect = SchedulerOperationError(
-                message="Scheduler not initialized",
-                user_id=TEST_USER_ID,
-                operation="remove_user",
-            )
-            await handler.handle(mock_update, mock_context)
+        handler.services.event_bus.publish.side_effect = Exception("Event bus error")
 
-            mock_update.message.reply_text.assert_called_once()
-            call_args = mock_update.message.reply_text.call_args
-            assert "pgettext_cancel.error_" in call_args.kwargs["text"]
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args
+        assert "pgettext_cancel.error_" in call_args.kwargs["text"]

@@ -70,7 +70,8 @@ class TestLifeWeeksBot:
         """
         bot.__init__()
         assert bot._app is None
-        assert bot._scheduler is None
+        assert bot._scheduler_process is None
+        assert bot._scheduler_client is None
         mock_application_logger.info.assert_called_with("Initializing LifeWeeksBot")
 
     def test_setup_logic(
@@ -176,32 +177,6 @@ class TestLifeWeeksBot:
             second_app_instance = bot._app
         assert first_app_instance is second_app_instance
 
-    def test_setup_scheduler_handles_error_gracefully(
-        self,
-        bot: LifeWeeksBot,
-        mock_scheduler_setup_error: MagicMock,
-        mock_application_logger: MagicMock,
-        mock_app: MagicMock,
-    ) -> None:
-        """Check that _setup_scheduler logs an error but doesn't crash if setup fails.
-
-        :param bot: The bot instance
-        :type bot: LifeWeeksBot
-        :param mock_scheduler_setup_error: Mocked scheduler setup that raises error
-        :type mock_scheduler_setup_error: MagicMock
-        :param mock_application_logger: Mocked logger instance for application module
-        :type mock_application_logger: MagicMock
-        :param mock_app: Mocked Application instance
-        :type mock_app: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        bot._app = mock_app
-        bot._setup_scheduler()
-        mock_application_logger.error.assert_called_once_with(
-            "Failed to set up scheduler: Test error"
-        )
-
     def test_start_calls_setup_if_not_initialized(
         self, bot: LifeWeeksBot, mock_app: MagicMock
     ) -> None:
@@ -248,24 +223,25 @@ class TestLifeWeeksBot:
     def test_stop_cleans_up_scheduler(
         self,
         bot: LifeWeeksBot,
-        mock_stop_scheduler: MagicMock,
-        mock_scheduler: MagicMock,
     ) -> None:
         """Verify that stop() correctly stops the scheduler and clears the instance.
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
-        :param mock_stop_scheduler: Mocked stop_scheduler function
-        :type mock_stop_scheduler: MagicMock
-        :param mock_scheduler: Mocked scheduler instance
-        :type mock_scheduler: MagicMock
         :returns: None
         :rtype: None
         """
-        bot._scheduler = mock_scheduler
+        mock_process = MagicMock()
+        mock_process.is_alive.return_value = True
+        bot._scheduler_process = mock_process
+        bot._scheduler_client = MagicMock()
+
         bot.stop()
-        mock_stop_scheduler.assert_called_once_with(mock_scheduler)
-        assert bot._scheduler is None
+
+        mock_process.terminate.assert_called_once()
+        mock_process.join.assert_called_once()
+        assert bot._scheduler_process is None
+        assert bot._scheduler_client is None
 
     def test_universal_text_handler_routes_correctly(self, bot: LifeWeeksBot) -> None:
         """Test all branches of the _universal_text_handler method.
@@ -324,29 +300,35 @@ class TestLifeWeeksBot:
         _run_async(bot._universal_text_handler(update3, context3))
         unknown_handler.handle.assert_called_once()
 
-    def test_setup_scheduler_assigns_instance(
+    def test_setup_scheduler_creates_process(
         self,
         bot: LifeWeeksBot,
-        mock_setup_user_notification_schedules: MagicMock,
         mock_app: MagicMock,
     ) -> None:
-        """Verify that _setup_scheduler assigns the scheduler instance correctly.
+        """Verify that _setup_scheduler creates process and client.
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
-        :param mock_setup_user_notification_schedules: Mocked setup function
-        :type mock_setup_user_notification_schedules: MagicMock
         :param mock_app: Mocked Application instance
         :type mock_app: MagicMock
         :returns: None
         :rtype: None
         """
-        fake_scheduler = "my_fake_scheduler"
-        mock_setup_user_notification_schedules.return_value = fake_scheduler
         bot._app = mock_app
-        bot._setup_scheduler()
-        assert bot._scheduler == fake_scheduler
-        mock_setup_user_notification_schedules.assert_called_once_with(mock_app)
+        with patch("multiprocessing.Process") as mock_process:
+
+            mock_process_instance = MagicMock()
+            mock_process.return_value = mock_process_instance
+
+            # Mock services to allow assertion on set_scheduler_client
+            bot.services = MagicMock()
+
+            bot._setup_scheduler()
+
+            assert bot._scheduler_process is mock_process_instance
+            assert bot._scheduler_client is not None
+            mock_process_instance.start.assert_called_once()
+            bot.services.set_scheduler_client.assert_called_once()
 
     def test_register_handlers_with_message_handler(
         self, bot: LifeWeeksBot, mock_handlers: dict, mock_app: MagicMock
@@ -587,8 +569,6 @@ class TestLifeWeeksBot:
     def test_post_init_scheduler_start_with_scheduler(
         self,
         bot: LifeWeeksBot,
-        mock_start_scheduler: MagicMock,
-        mock_scheduler: MagicMock,
         mock_application_logger: MagicMock,
     ) -> None:
         """Test that _post_init_scheduler_start starts scheduler when it exists.
@@ -598,32 +578,28 @@ class TestLifeWeeksBot:
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
-        :param mock_start_scheduler: Mocked start_scheduler function
-        :type mock_start_scheduler: MagicMock
-        :param mock_scheduler: Mocked scheduler instance
-        :type mock_scheduler: MagicMock
         :param mock_application_logger: Mocked logger instance for application module
         :type mock_application_logger: MagicMock
         :returns: None
         :rtype: None
         """
-        # Add setup_schedules as AsyncMock to the scheduler mock
-        mock_scheduler.setup_schedules = AsyncMock()
-        bot._scheduler = mock_scheduler
+        # Mock scheduler client
+        mock_client = AsyncMock()
+        mock_client.health_check.return_value = True
+        bot._scheduler_client = mock_client
         mock_application = MagicMock()
 
         _run_async(bot._post_init_scheduler_start(mock_application))
 
-        mock_scheduler.setup_schedules.assert_called_once()
-        mock_start_scheduler.assert_called_once_with(mock_scheduler)
+        mock_client.start_listening.assert_awaited_once()
+        mock_client.health_check.assert_awaited_once()
         mock_application_logger.info.assert_called_with(
-            "Setting up and starting scheduler via post_init callback"
+            "Scheduler worker is healthy and connected"
         )
 
     def test_post_init_scheduler_start_without_scheduler(
         self,
         bot: LifeWeeksBot,
-        mock_start_scheduler: MagicMock,
         mock_application_logger: MagicMock,
     ) -> None:
         """Test that _post_init_scheduler_start handles missing scheduler gracefully.
@@ -633,19 +609,14 @@ class TestLifeWeeksBot:
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
-        :param mock_start_scheduler: Mocked start_scheduler function
-        :type mock_start_scheduler: MagicMock
         :param mock_application_logger: Mocked logger instance for application module
         :type mock_application_logger: MagicMock
         :returns: None
         :rtype: None
         """
-        bot._scheduler = None
+        bot._scheduler_client = None
         mock_application = MagicMock()
 
         _run_async(bot._post_init_scheduler_start(mock_application))
 
-        mock_start_scheduler.assert_not_called()
-        mock_application_logger.warning.assert_called_with(
-            "Scheduler not configured, skipping start"
-        )
+        mock_application_logger.warning.assert_not_called()

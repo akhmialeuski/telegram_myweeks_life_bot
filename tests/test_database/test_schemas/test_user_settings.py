@@ -9,7 +9,6 @@ from datetime import date, datetime, time
 import pytest
 from pydantic import ValidationError
 
-from src.core.enums import WeekDay
 from src.database.schemas.user_settings import (
     UserSettingsBase,
     UserSettingsCreate,
@@ -17,6 +16,7 @@ from src.database.schemas.user_settings import (
     UserSettingsResponse,
     UserSettingsUpdate,
 )
+from src.enums import WeekDay
 from tests.conftest import (
     DEFAULT_LIFE_EXPECTANCY,
     TEST_BIRTH_DAY,

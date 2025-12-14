@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from src.core.enums import SupportedLanguage
+from src.enums import SupportedLanguage
 
 
 class TestConfig:

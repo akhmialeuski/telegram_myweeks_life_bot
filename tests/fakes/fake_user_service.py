@@ -14,10 +14,10 @@ from src.constants import (
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
-from src.core.enums import SubscriptionType, WeekDay
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
+from src.enums import SubscriptionType, WeekDay
 
 from .in_memory_user_repository import InMemoryUserRepository
 

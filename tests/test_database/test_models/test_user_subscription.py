@@ -6,11 +6,11 @@ with proper edge case coverage.
 
 from datetime import UTC, datetime, timedelta
 
-from src.core.enums import SubscriptionType
 from src.database.models.user_subscription import (
     DEFAULT_SUBSCRIPTION_EXPIRATION_DAYS,
     UserSubscription,
 )
+from src.enums import SubscriptionType
 
 
 class TestUserSubscription:

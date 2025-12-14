@@ -10,9 +10,9 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.enums import WeekDay
 from src.database.constants import MAX_TIMEZONE_LENGTH, USER_SETTINGS_TABLE, USERS_TABLE
 from src.database.models.base import Base
+from src.enums import WeekDay
 
 
 class UserSettings(Base):

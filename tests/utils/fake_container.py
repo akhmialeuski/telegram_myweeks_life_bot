@@ -7,7 +7,7 @@ implementations.
 
 from unittest.mock import AsyncMock, MagicMock
 
-from src.core.enums import SupportedLanguage
+from src.enums import SupportedLanguage
 
 
 class FakeServiceContainer:
@@ -40,6 +40,12 @@ class FakeServiceContainer:
         # Create mock configuration
         self.config = MagicMock()
 
+        # Create mock event bus
+        self.event_bus = MagicMock()
+
+        # Create mock notification service
+        self.notification_service = MagicMock()
+
         # Set up common mock behaviors
         self._setup_mock_behaviors()
 
@@ -57,6 +63,9 @@ class FakeServiceContainer:
         self.user_service.get_user_profile = AsyncMock(return_value=MagicMock())
         self.user_service.create_user_profile = AsyncMock(return_value=MagicMock())
         self.user_service.update_user_settings = AsyncMock(return_value=None)
+
+        # Set up event bus mock behaviors
+        self.event_bus.publish = AsyncMock(return_value=None)
         self.user_service.update_user_subscription = AsyncMock(return_value=None)
         self.user_service.delete_user_profile = AsyncMock(return_value=None)
         self.user_service.get_all_users = AsyncMock(return_value=[])
@@ -133,3 +142,5 @@ class FakeServiceContainer:
         self.user_service.reset_mock()
         self.life_calculator.reset_mock()
         self.config.reset_mock()
+        self.event_bus.reset_mock()
+        self.notification_service.reset_mock()

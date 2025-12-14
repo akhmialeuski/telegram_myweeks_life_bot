@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
-from src.core.enums import SubscriptionType, SupportedLanguage
 from src.database.models.user import User
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
@@ -31,6 +30,7 @@ from src.database.service import (
     UserSettingsUpdateError,
     UserSubscriptionUpdateError,
 )
+from src.enums import SubscriptionType, SupportedLanguage
 
 
 class TestUserServiceExceptions:

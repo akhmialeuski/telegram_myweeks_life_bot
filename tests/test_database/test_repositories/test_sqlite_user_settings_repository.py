@@ -11,11 +11,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.core.enums import WeekDay
 from src.database.models.user_settings import UserSettings
 from src.database.repositories.sqlite.user_settings_repository import (
     SQLiteUserSettingsRepository,
 )
+from src.enums import WeekDay
 from tests.conftest import (
     TEST_LIFE_EXPECTANCY_ALT,
     TEST_TIMEZONE_EST,
