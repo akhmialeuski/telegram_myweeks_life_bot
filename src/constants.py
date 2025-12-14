@@ -4,7 +4,7 @@ These constants are used across multiple modules (database, bot, core, etc.)
 for default user settings and notification scheduling.
 """
 
-from src.core.enums import WeekDay
+from src.enums import WeekDay
 
 DEFAULT_LIFE_EXPECTANCY = 80  # Default life expectancy in years
 DEFAULT_NOTIFICATIONS_ENABLED = True  # Default notification setting

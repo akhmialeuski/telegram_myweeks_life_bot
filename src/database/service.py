@@ -8,6 +8,8 @@ import threading
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Optional
 
+from src.enums import SubscriptionType, WeekDay
+
 from ..constants import (
     DEFAULT_LIFE_EXPECTANCY,
     DEFAULT_NOTIFICATIONS_DAY,
@@ -15,7 +17,6 @@ from ..constants import (
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
-from ..core.enums import SubscriptionType, WeekDay
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 from .models.user import User

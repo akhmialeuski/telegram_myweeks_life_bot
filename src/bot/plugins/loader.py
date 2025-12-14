@@ -7,13 +7,15 @@ be stored in entry point declarations.
 """
 
 import importlib
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from src.utils.config import BOT_NAME
+from src.utils.logger import get_logger
+
+logger = get_logger(f"{BOT_NAME}.PluginLoader")
 
 # Default configuration file path
 DEFAULT_CONFIG_PATH = (

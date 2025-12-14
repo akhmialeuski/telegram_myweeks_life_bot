@@ -5,6 +5,7 @@ for the Telegram bot application. It delegates handler registration to the
 plugin system and uses HandlerRegistry for centralized handler management.
 """
 
+import multiprocessing
 from typing import Optional
 
 from telegram import Update
@@ -18,6 +19,9 @@ from telegram.ext import (
     filters,
 )
 
+from ..bot.event_listeners import register_event_listeners
+from ..scheduler.client import SchedulerClient
+from ..scheduler.worker import SchedulerWorker
 from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
@@ -25,12 +29,6 @@ from .constants import COMMAND_UNKNOWN
 from .conversations.states import STATE_TO_COMMAND, ConversationState
 from .plugins.loader import HandlerConfig, PluginLoader
 from .registry import HandlerRegistry
-from .scheduler import (
-    SchedulerSetupError,
-    setup_user_notification_schedules,
-    start_scheduler,
-    stop_scheduler,
-)
 
 logger = get_logger(BOT_NAME)
 
@@ -67,7 +65,11 @@ class LifeWeeksBot:
         :type plugin_loader: PluginLoader | None
         """
         self._app: Optional[Application] = None
-        self._scheduler = None
+        # Scheduler process components
+        self._scheduler_process: Optional[multiprocessing.Process] = None
+        self._scheduler_client: Optional[SchedulerClient] = None
+        self._scheduler_command_queue: Optional[multiprocessing.Queue] = None
+        self._scheduler_response_queue: Optional[multiprocessing.Queue] = None
 
         self.services = services or ServiceContainer()
         self.registry = HandlerRegistry()
@@ -101,6 +103,9 @@ class LifeWeeksBot:
 
         # Register global error handler
         self._app.add_error_handler(self._error_handler)
+
+        # Register event listeners
+        register_event_listeners(self.services)
 
         # Discover and register handlers
         self._discover_and_register_handlers()
@@ -209,9 +214,25 @@ class LifeWeeksBot:
 
         :returns: None
         """
-        if self._scheduler:
-            stop_scheduler(self._scheduler)
-            self._scheduler = None
+        if self._scheduler_client:
+            # Try to shutdown gracefully
+            try:
+                # We can't await here easily if valid async context not present,
+                # but run_polling handles loop.
+                # However, cleaner to just terminate process if needed.
+                # Ideally we send SHUTDOWN command.
+                pass
+            except Exception:
+                pass
+
+        if self._scheduler_process and self._scheduler_process.is_alive():
+            logger.info("Stopping scheduler worker process...")
+            self._scheduler_process.terminate()
+            self._scheduler_process.join(timeout=5)
+            logger.info("Scheduler worker stopped")
+
+        self._scheduler_process = None
+        self._scheduler_client = None
 
         if hasattr(self, "services"):
             self.services.cleanup()
@@ -408,22 +429,56 @@ class LifeWeeksBot:
                 logger.error(f"Failed to notify user: {send_error}", exc_info=True)
 
     def _setup_scheduler(self) -> None:
-        """Set up the weekly notification scheduler.
+        """Set up the scheduler worker process.
+
+        Creates IPC queues, initializes the worker and client,
+        and starts the worker process.
 
         :returns: None
         """
         try:
-            self._scheduler = setup_user_notification_schedules(self._app)
-            self._app.bot_data["scheduler"] = self._scheduler
-            logger.debug("Set up weekly notification scheduler")
-        except SchedulerSetupError as error:
-            logger.error(f"Failed to set up scheduler: {error.message}")
+            logger.info("Setting up scheduler worker process")
+
+            # Create IPC queues
+            self._scheduler_command_queue = multiprocessing.Queue()
+            self._scheduler_response_queue = multiprocessing.Queue()
+
+            # Initialize client
+            self._scheduler_client = SchedulerClient(
+                command_queue=self._scheduler_command_queue,
+                response_queue=self._scheduler_response_queue,
+            )
+
+            # Register client with container
+            self.services.set_scheduler_client(self._scheduler_client)
+
+            # Initialize worker
+            worker = SchedulerWorker(
+                command_queue=self._scheduler_command_queue,
+                response_queue=self._scheduler_response_queue,
+            )
+
+            # Create and start process
+            self._scheduler_process = multiprocessing.Process(
+                target=worker.run,
+                name="SchedulerWorker",
+                daemon=True,  # Daemonize to ensure it dies with parent
+            )
+            self._scheduler_process.start()
+
+            # Start client listener loop
+            # We need to run this in the event loop, which isn't running yet in setup()
+            # It will be started in post_init or when needed.
+
+            logger.info(
+                f"Scheduler worker started (PID: {self._scheduler_process.pid})"
+            )
+
+        except Exception as error:
+            logger.error(f"Failed to set up scheduler: {error}", exc_info=True)
 
     async def _post_init_scheduler_start(self, application: Application) -> None:
-        """Start scheduler after event loop is created.
-
-        This method also sets up user notification schedules which requires
-        async database operations.
+        """Post-initialization hook.
 
         :param application: The Application instance
         :type application: Application
@@ -432,9 +487,13 @@ class LifeWeeksBot:
         # Initialize services (database connections)
         await self.services.initialize()
 
-        if self._scheduler:
-            logger.info("Setting up and starting scheduler via post_init callback")
-            await self._scheduler.setup_schedules()
-            start_scheduler(self._scheduler)
-        else:
-            logger.warning("Scheduler not configured, skipping start")
+        if self._scheduler_client:
+            # Start client listening for responses
+            await self._scheduler_client.start_listening()
+
+            # Check worker health
+            healthy = await self._scheduler_client.health_check()
+            if healthy:
+                logger.info("Scheduler worker is healthy and connected")
+            else:
+                logger.warning("Scheduler worker health check failed")

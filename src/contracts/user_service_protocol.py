@@ -10,7 +10,8 @@ from datetime import date, time
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from ..core.enums import SubscriptionType, WeekDay
+    from src.enums import SubscriptionType, WeekDay
+
     from ..database.models.user import User
 
 

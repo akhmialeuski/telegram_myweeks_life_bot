@@ -21,7 +21,7 @@ from src.constants import (
     DEFAULT_TIMEZONE,
     DEFAULT_USER_FIRST_NAME,
 )
-from src.core.enums import SubscriptionType, SupportedLanguage, WeekDay
+from src.enums import SubscriptionType, SupportedLanguage, WeekDay
 
 sys.modules.setdefault("core", types.ModuleType("core"))
 sys.modules["core.life_calculator"] = _lc
@@ -156,31 +156,6 @@ def mock_scheduler() -> MagicMock:
 
 
 @pytest.fixture
-def mock_globals(mocker: MockerFixture) -> dict[str, MagicMock]:
-    """Mocks the global scheduler instance and returns it.
-
-    This fixture is used for testing scheduler management functions that rely on
-    global _global_scheduler_instance variable.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: A dictionary containing the mocked scheduler components
-    :rtype: dict[str, MagicMock]
-    """
-    # Create mock for the APScheduler inside NotificationScheduler
-    mock_apscheduler = MagicMock()
-
-    # Create mock for NotificationScheduler instance
-    mock_scheduler_instance = MagicMock()
-    mock_scheduler_instance.scheduler = mock_apscheduler
-
-    mocker.patch(
-        "src.bot.scheduler._global_scheduler_instance", mock_scheduler_instance
-    )
-    return {"scheduler": mock_apscheduler, "instance": mock_scheduler_instance}
-
-
-@pytest.fixture
 def mock_application_logger(mocker: MockerFixture) -> MagicMock:
     """Provides a mocked logger for testing application logging functionality.
 
@@ -190,38 +165,6 @@ def mock_application_logger(mocker: MockerFixture) -> MagicMock:
     :rtype: MagicMock
     """
     return mocker.patch("src.bot.application.logger")
-
-
-@pytest.fixture
-def mock_scheduler_logger(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked logger for testing scheduler logging functionality.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked logger instance for scheduler module
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.scheduler.logger")
-
-
-@pytest.fixture
-def mock_user_service(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked user_service for testing database operations.
-
-    The mock sets up AsyncMock for async methods like get_user_profile
-    and get_all_users.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked user_service instance with AsyncMock for async methods
-    :rtype: MagicMock
-    """
-    mock = mocker.patch("src.bot.scheduler.user_service")
-    # Set up AsyncMock for async methods
-    mock.get_user_profile = AsyncMock()
-    mock.get_all_users = AsyncMock()
-    mock.is_valid_user_profile = AsyncMock()
-    return mock
 
 
 # These fixtures are no longer needed as we use FakeServiceContainer
@@ -247,14 +190,6 @@ def mock_user_service(mocker: MockerFixture) -> MagicMock:
 #     :rtype: MagicMock
 #     """
 #     return mocker.patch("src.bot.handlers.base_handler.user_service")
-
-
-@pytest.fixture
-def mock_generate_message(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked WeeksMessages.generate function for scheduler tests."""
-    return mocker.patch(
-        "src.bot.scheduler.WeeksMessages.generate", return_value=TEST_MESSAGE
-    )
 
 
 @pytest.fixture
@@ -305,59 +240,6 @@ def mock_handlers(mocker: MockerFixture) -> dict:
             "message_handler": True,
         }
     }
-
-
-@pytest.fixture
-def mock_scheduler_setup_error(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked scheduler setup that raises SchedulerSetupError.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked scheduler setup function that raises error
-    :rtype: MagicMock
-    """
-    from src.bot.scheduler import SchedulerSetupError
-
-    return mocker.patch(
-        "src.bot.application.setup_user_notification_schedules",
-        side_effect=SchedulerSetupError("Test error"),
-    )
-
-
-@pytest.fixture
-def mock_start_scheduler(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked start_scheduler function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked start_scheduler function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.application.start_scheduler")
-
-
-@pytest.fixture
-def mock_stop_scheduler(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked stop_scheduler function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked stop_scheduler function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.application.stop_scheduler")
-
-
-@pytest.fixture
-def mock_setup_user_notification_schedules(mocker: MockerFixture) -> MagicMock:
-    """Provides a mocked setup_user_notification_schedules function.
-
-    :param mocker: Pytest mocker fixture
-    :type mocker: MockerFixture
-    :returns: Mocked setup_user_notification_schedules function
-    :rtype: MagicMock
-    """
-    return mocker.patch("src.bot.application.setup_user_notification_schedules")
 
 
 @pytest.fixture

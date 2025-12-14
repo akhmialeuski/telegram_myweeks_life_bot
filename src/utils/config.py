@@ -4,8 +4,10 @@ import os
 
 from dotenv import load_dotenv
 
-# Use enum values for language constants
-from ..core.enums import SupportedLanguage
+from src.enums import SupportedLanguage
+
+# Bot name for logging
+BOT_NAME: str = "LifeWeeksBot"
 
 # Load environment variables
 load_dotenv()
@@ -13,9 +15,6 @@ load_dotenv()
 # Bot Configuration
 TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID: str = os.getenv("CHAT_ID")  # User's Telegram ID
-
-# Bot name for logging
-BOT_NAME: str = "LifeWeeksBot"
 
 # Localization
 DEFAULT_LANGUAGE: str = SupportedLanguage.RU.value

@@ -7,9 +7,18 @@ modules and simplify testing.
 """
 
 import threading
+from typing import Optional
 
+from telegram import Bot
+
+from ..bot.gateways.telegram_gateway import TelegramNotificationGateway
+from ..contracts.notification_gateway_protocol import NotificationGatewayProtocol
 from ..core.life_calculator import LifeCalculatorEngine
 from ..database.service import DatabaseManager, UserService
+from ..events.event_bus import EventBus
+from ..scheduler.client import SchedulerClient
+from ..utils.config import TOKEN
+from .notification_service import NotificationService
 
 
 class ServiceContainer:
@@ -25,6 +34,10 @@ class ServiceContainer:
         user_service: User management service
         life_calculator: Life statistics calculator
         localization_service: Message localization service
+        event_bus: Event bus for domain events
+        notification_service: Notification generation service
+        notification_gateway: Notification delivery gateway
+        scheduler_client: Client for communicating with scheduler worker
     """
 
     _instance = None
@@ -64,6 +77,22 @@ class ServiceContainer:
 
         # Initialize life calculator
         self.life_calculator = LifeCalculatorEngine
+
+        # Initialize event bus
+        self.event_bus = EventBus()
+
+        # Initialize notification gateway
+        # In a real app, we might want to lazy-load this or allow swapping for testing
+        self.notification_gateway = TelegramNotificationGateway(bot=Bot(token=TOKEN))
+
+        # Initialize notification service
+        self.notification_service = NotificationService(
+            user_service=self.user_service,
+            life_calculator_class=self.life_calculator,
+        )
+
+        # Scheduler client (initialized externally)
+        self.scheduler_client: Optional[SchedulerClient] = None
 
         # Initialize services that depend on other services
         self._initialize_service_dependencies()
@@ -108,6 +137,47 @@ class ServiceContainer:
         :rtype: type[LifeCalculatorEngine]
         """
         return self.life_calculator
+
+    def get_event_bus(self) -> EventBus:
+        """Get the event bus instance.
+
+        :returns: Event bus instance
+        :rtype: EventBus
+        """
+        return self.event_bus
+
+    def get_notification_service(self) -> NotificationService:
+        """Get the notification service instance.
+
+        :returns: Notification service instance
+        :rtype: NotificationService
+        """
+        return self.notification_service
+
+    def get_notification_gateway(self) -> NotificationGatewayProtocol:
+        """Get the notification gateway instance.
+
+        :returns: Notification gateway instance
+        :rtype: NotificationGatewayProtocol
+        """
+        return self.notification_gateway
+
+    def set_scheduler_client(self, client: SchedulerClient) -> None:
+        """Set the scheduler client instance.
+
+        :param client: Scheduler client instance
+        :type client: SchedulerClient
+        :returns: None
+        """
+        self.scheduler_client = client
+
+    def get_scheduler_client(self) -> Optional[SchedulerClient]:
+        """Get the scheduler client instance.
+
+        :returns: Scheduler client instance or None
+        :rtype: Optional[SchedulerClient]
+        """
+        return self.scheduler_client
 
     def cleanup(self) -> None:
         """Cleanup resources and close connections.

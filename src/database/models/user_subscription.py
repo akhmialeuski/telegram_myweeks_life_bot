@@ -10,7 +10,8 @@ from typing import Optional
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ...core.enums import SubscriptionType
+from src.enums import SubscriptionType
+
 from ..constants import USER_SUBSCRIPTIONS_TABLE, USERS_TABLE
 from .base import Base
 

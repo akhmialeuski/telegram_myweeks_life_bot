@@ -15,13 +15,13 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from src.events.domain_events import UserDeletedEvent
 from src.i18n import use_locale
 
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_CANCEL
-from ..scheduler import remove_user_from_scheduler
 from .base_handler import BaseHandler
 
 # Initialize logger for this module
@@ -128,19 +128,8 @@ class CancelHandler(BaseHandler):
         _, _, pgettext = use_locale(lang=lang)
 
         try:
-            # First remove user from notification scheduler
-            scheduler = context.bot_data.get("scheduler")
-            if scheduler:
-                remove_user_from_scheduler(scheduler, user_id)
-                logger.info(
-                    f"{self.command_name}: [{user_id}]: User removed from notification scheduler"
-                )
-            else:
-                logger.warning(
-                    f"{self.command_name}: [{user_id}]: No scheduler available"
-                )
-
-            # Then attempt to delete user profile and all associated data
+            # Attempt to delete user profile and all associated data
+            # Notification cleanup will be handled via domain event
             logger.info(
                 f"{self.command_name}: [{user_id}]: Deleting user profile and all associated data"
             )
@@ -148,6 +137,10 @@ class CancelHandler(BaseHandler):
             logger.info(
                 f"{self.command_name}: [{user_id}]: User data deleted successfully"
             )
+
+            # Publish event to trigger cleanup in other services (scheduler, etc.)
+            await self.services.event_bus.publish(UserDeletedEvent(user_id=user_id))
+            logger.info(f"{self.command_name}: [{user_id}]: Published UserDeletedEvent")
 
             # Send success confirmation message
             await self.send_message(

@@ -18,6 +18,8 @@ from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.enums import SupportedLanguage
+from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import normalize_babel_locale, use_locale
 from src.services.validation_service import (
     ERROR_DATE_IN_FUTURE,
@@ -26,7 +28,6 @@ from src.services.validation_service import (
     ValidationService,
 )
 
-from ...core.enums import SupportedLanguage
 from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -34,7 +35,6 @@ from ...utils.logger import get_logger
 from ..constants import COMMAND_START
 from ..conversations.persistence import TelegramContextPersistence
 from ..conversations.states import ConversationState
-from ..scheduler import SchedulerOperationError, add_user_to_scheduler
 from .base_handler import BaseHandler
 
 # Initialize logger for this module
@@ -282,7 +282,7 @@ class StartHandler(BaseHandler):
     async def _add_user_to_scheduler(
         self, context: ContextTypes.DEFAULT_TYPE, user_id: int
     ) -> None:
-        """Add user to notification scheduler.
+        """Add user to notification scheduler via event bus.
 
         :param context: The context object for the command execution
         :type context: ContextTypes.DEFAULT_TYPE
@@ -290,19 +290,26 @@ class StartHandler(BaseHandler):
         :type user_id: int
         """
         try:
-            scheduler = context.bot_data.get("scheduler")
-            if scheduler:
-                await add_user_to_scheduler(scheduler, user_id)
-                logger.info(
-                    f"{self.command_name}: [{user_id}]: User added to notification scheduler"
+            # Publish event to trigger scheduler addition
+            # We assume the event bus is available in services
+            # Accessing via property to ensure type safety if using updated container
+            event_bus = self.services.event_bus
+
+            await event_bus.publish(
+                UserSettingsChangedEvent(
+                    user_id=user_id,
+                    setting_name="registration",
+                    new_value=True,
                 )
-            else:
-                logger.warning(
-                    f"{self.command_name}: [{user_id}]: No scheduler available"
-                )
-        except SchedulerOperationError as scheduler_error:
-            logger.warning(
-                f"{self.command_name}: [{user_id}]: Failed to add user to notification scheduler: {scheduler_error}"
+            )
+
+            logger.info(
+                f"{self.command_name}: [{user_id}]: Published registration event to scheduler"
+            )
+
+        except Exception as error:
+            logger.error(
+                f"{self.command_name}: [{user_id}]: Failed to publish registration event: {error}"
             )
 
     async def _send_registration_success_message(

@@ -6,8 +6,8 @@ with proper edge case coverage.
 
 from datetime import UTC, date, datetime
 
-from src.core.enums import WeekDay
 from src.database.models.user_settings import UserSettings
+from src.enums import WeekDay
 
 
 class TestUserSettings:

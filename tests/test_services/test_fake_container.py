@@ -5,7 +5,7 @@ Tests the FakeServiceContainer class which provides mock services for testing.
 
 from unittest.mock import MagicMock
 
-from src.core.enums import SupportedLanguage
+from src.enums import SupportedLanguage
 from tests.utils.fake_container import FakeServiceContainer
 
 

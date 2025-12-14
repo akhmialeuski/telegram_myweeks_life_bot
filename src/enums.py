@@ -1,4 +1,8 @@
-"""Module for common enumerations used across the application."""
+"""Common enumerations used across the application.
+
+This module contains shared enums to avoid circular dependencies
+between core, config, and database modules.
+"""
 
 from enum import StrEnum, auto
 from typing import Any

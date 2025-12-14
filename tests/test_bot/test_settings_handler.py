@@ -613,7 +613,7 @@ class TestSettingsHandler:
         """Test life expectancy update with valid input.
 
         This test verifies that a valid life expectancy value is accepted,
-        stored in the database, and confirmed to the user.
+        stored in the database, confirmed to the user, and an event is published.
 
         :param handler: SettingsHandler instance from fixture
         :type handler: SettingsHandler
@@ -626,7 +626,8 @@ class TestSettingsHandler:
         """
         mock_context.user_data = {"waiting_for": "settings_life_expectancy"}
         mock_user_profile = MagicMock()
-        mock_user_profile.settings = MagicMock(language="en")
+        mock_user_profile.settings.language = "en"
+        mock_user_profile.settings.life_expectancy = 80
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
         with patch.object(handler, "send_message") as mock_send_message:
@@ -637,6 +638,18 @@ class TestSettingsHandler:
             handler.services.user_service.update_user_settings.assert_called_once_with(
                 telegram_id=TEST_USER_ID, life_expectancy=DEFAULT_LIFE_EXPECTANCY
             )
+
+            # Verify event published
+            handler.services.event_bus.publish.assert_called_once()
+            call_args = handler.services.event_bus.publish.call_args
+            event = call_args[0][0]
+            from src.events.domain_events import UserSettingsChangedEvent
+
+            assert isinstance(event, UserSettingsChangedEvent)
+            assert event.user_id == TEST_USER_ID
+            assert event.setting_name == "life_expectancy"
+            assert event.new_value == DEFAULT_LIFE_EXPECTANCY
+
             mock_send_message.assert_called_once()
             assert (
                 "pgettext_settings.life_expectancy_updated"
@@ -749,4 +762,122 @@ class TestSettingsHandler:
             assert (
                 mock_handle_validation_error.call_args.kwargs["error_key"]
                 == ERROR_INVALID_NUMBER
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_birth_date_input_success(
+        self,
+        handler: SettingsHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test birth date update with valid input.
+
+        This test verifies that a valid birth date is accepted,
+        stored in the database, an event is published, and confirmed to the user.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        from src.services.validation_service import ValidationResult
+
+        test_birth_date = date(1990, 3, 15)
+        mock_context.user_data = {"waiting_for": "settings_birth_date"}
+        mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = "en"
+        mock_user_profile.birth_date = date(2000, 1, 1)
+        mock_user_profile.settings.birth_date = date(
+            2000, 1, 1
+        )  # Required for LifeCalculatorEngine
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        # Mock validation
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.success(value=test_birth_date)
+        )
+
+        with patch.object(handler, "send_message") as mock_send_message:
+            await handler.handle_birth_date_input(
+                mock_update, mock_context, TEST_BIRTH_DATE
+            )
+
+            handler.services.user_service.update_user_settings.assert_called_once_with(
+                telegram_id=TEST_USER_ID, birth_date=test_birth_date
+            )
+
+            # Verify event published
+            handler.services.event_bus.publish.assert_called_once()
+            call_args = handler.services.event_bus.publish.call_args
+            event = call_args[0][0]
+            from src.events.domain_events import UserSettingsChangedEvent
+
+            assert isinstance(event, UserSettingsChangedEvent)
+            assert event.user_id == TEST_USER_ID
+            assert event.setting_name == "birth_date"
+            assert event.new_value == test_birth_date
+
+            mock_send_message.assert_called_once()
+            assert (
+                "pgettext_settings.birth_date_updated"
+                in mock_send_message.call_args.kwargs["message_text"]
+            )
+            assert "waiting_for" not in mock_context.user_data
+
+    @pytest.mark.asyncio
+    async def test_handle_language_callback_success(
+        self,
+        handler: SettingsHandler,
+        mock_update_with_callback: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test language update via callback.
+
+        This test verifies that selecting a language updates the user settings,
+        publishes an event, and confirms usage of the new language.
+
+        :param handler: SettingsHandler instance from fixture
+        :type handler: SettingsHandler
+        :param mock_update_with_callback: Mocked Telegram update with callback query
+        :type mock_update_with_callback: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update_with_callback.callback_query.data = "language_ua"
+        mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = "en"
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        with patch.object(handler, "edit_message") as mock_edit_message:
+            await handler.handle_language_callback(
+                mock_update_with_callback, mock_context
+            )
+
+            handler.services.user_service.update_user_settings.assert_called_once_with(
+                telegram_id=TEST_USER_ID, language="ua"
+            )
+
+            # Verify event published
+            handler.services.event_bus.publish.assert_called_once()
+            call_args = handler.services.event_bus.publish.call_args
+            event = call_args[0][0]
+            from src.events.domain_events import UserSettingsChangedEvent
+
+            assert isinstance(event, UserSettingsChangedEvent)
+            assert event.user_id == TEST_USER_ID
+            assert event.setting_name == "language"
+            assert event.new_value == "ua"
+
+            mock_edit_message.assert_called_once()
+            # Message should be in new language (mock behavior implies we can check key)
+            assert (
+                "pgettext_settings.language_updated"
+                in mock_edit_message.call_args.kwargs["message_text"]
             )
