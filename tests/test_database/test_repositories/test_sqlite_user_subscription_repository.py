@@ -4,8 +4,6 @@ Tests all methods of the SQLiteUserSubscriptionRepository class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-import os
-import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -29,20 +27,6 @@ class TestSQLiteUserSubscriptionRepository:
     including subscription creation, retrieval, update, and deletion operations.
     """
 
-    @pytest.fixture
-    def temp_db_path(self):
-        """Create a temporary database path for testing.
-
-        :returns: Path to temporary database file
-        :rtype: str
-        """
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            db_path = tmp.name
-        yield db_path
-        # Cleanup
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-
     @pytest_asyncio.fixture
     async def repository(self, temp_db_path):
         """Create repository instance with temporary database.
@@ -55,21 +39,6 @@ class TestSQLiteUserSubscriptionRepository:
         await repo.initialize()
         yield repo
         repo.close()
-
-    @pytest.fixture
-    def sample_subscription(self):
-        """Create a sample UserSubscription object for testing.
-
-        :returns: Sample UserSubscription object
-        :rtype: UserSubscription
-        """
-        return UserSubscription(
-            telegram_id=123456789,
-            subscription_type=SubscriptionType.PREMIUM,
-            is_active=True,
-            created_at=datetime.now(UTC),
-            expires_at=datetime.now(UTC) + timedelta(days=30),
-        )
 
     def test_init_default_path(self) -> None:
         """Test repository initialization with default path.

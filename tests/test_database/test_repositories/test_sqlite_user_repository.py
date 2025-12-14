@@ -4,8 +4,6 @@ Tests all methods of the SQLiteUserRepository class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-import os
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -17,31 +15,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.database.constants import DEFAULT_DATABASE_PATH
 from src.database.models.user import User
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
-from tests.conftest import (
-    TEST_FIRST_NAME,
-    TEST_LAST_NAME,
-    TEST_USER_ID,
-    TEST_USER_ID_NONEXISTENT,
-    TEST_USERNAME,
-)
+from tests.conftest import TEST_USER_ID_NONEXISTENT
 
 
 class TestSQLiteUserRepository:
     """Test suite for SQLiteUserRepository class."""
-
-    @pytest.fixture
-    def temp_db_path(self):
-        """Create a temporary database path for testing.
-
-        :returns: Path to temporary database file
-        :rtype: str
-        """
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            db_path = tmp.name
-        yield db_path
-        # Cleanup
-        if os.path.exists(db_path):
-            os.unlink(db_path)
 
     @pytest_asyncio.fixture
     async def repository(self, temp_db_path):
@@ -55,21 +33,6 @@ class TestSQLiteUserRepository:
         await repo.initialize()
         yield repo
         repo.close()
-
-    @pytest.fixture
-    def sample_user(self):
-        """Create a sample User object for testing.
-
-        :returns: Sample User object
-        :rtype: User
-        """
-        return User(
-            telegram_id=TEST_USER_ID,
-            username=TEST_USERNAME,
-            first_name=TEST_FIRST_NAME,
-            last_name=TEST_LAST_NAME,
-            created_at=datetime.now(UTC),
-        )
 
     def test_init_default_path(self) -> None:
         """Test repository initialization with default path.

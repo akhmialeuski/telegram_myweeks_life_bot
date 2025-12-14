@@ -17,12 +17,8 @@ from src.database.repositories.sqlite.user_settings_repository import (
     SQLiteUserSettingsRepository,
 )
 from tests.conftest import (
-    DEFAULT_LIFE_EXPECTANCY,
-    DEFAULT_TIMEZONE,
-    TEST_BIRTH_YEAR,
     TEST_LIFE_EXPECTANCY_ALT,
     TEST_TIMEZONE_EST,
-    TEST_USER_ID,
     TEST_USER_ID_NONEXISTENT,
 )
 
@@ -33,20 +29,6 @@ class TestSQLiteUserSettingsRepository:
     This test class contains all tests for SQLiteUserSettingsRepository functionality,
     including settings creation, retrieval, update, and deletion operations.
     """
-
-    @pytest.fixture
-    def temp_db_path(self):
-        """Create temporary database for testing.
-
-        :returns: Path to temporary database file
-        :rtype: str
-        """
-        import os
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp_file:
-            yield tmp_file.name
-        os.unlink(tmp_file.name)
 
     @pytest_asyncio.fixture
     async def repository(self, temp_db_path):
@@ -60,24 +42,6 @@ class TestSQLiteUserSettingsRepository:
         await repo.initialize()
         yield repo
         repo.close()
-
-    @pytest.fixture
-    def sample_settings(self):
-        """Create sample user settings for testing.
-
-        :returns: Sample UserSettings object
-        :rtype: UserSettings
-        """
-        return UserSettings(
-            telegram_id=TEST_USER_ID,
-            birth_date=date(TEST_BIRTH_YEAR, 1, 1),
-            notifications_day=WeekDay.MONDAY,
-            life_expectancy=DEFAULT_LIFE_EXPECTANCY,
-            timezone=DEFAULT_TIMEZONE,
-            notifications=True,
-            notifications_time=time(9, 0),
-            updated_at=datetime.now(UTC),
-        )
 
     def test_init_default_path(self) -> None:
         """Test repository initialization with default path.

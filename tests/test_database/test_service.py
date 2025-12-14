@@ -4,8 +4,6 @@ Tests all methods of the UserService class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-import os
-import tempfile
 from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, MagicMock, Mock
 
@@ -107,64 +105,6 @@ class TestUserService:
     """Test suite for UserService class."""
 
     @pytest.fixture
-    def temp_db_path(self):
-        """Create a temporary database path for testing.
-
-        :returns: Path to temporary database file
-        :rtype: str
-        """
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            db_path = tmp.name
-        yield db_path
-        # Cleanup
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-
-    @pytest.fixture
-    def mock_user_repository(self):
-        """Create mock user repository with async methods.
-
-        :returns: Mock user repository with AsyncMock methods
-        :rtype: MagicMock
-        """
-        mock = MagicMock(spec=SQLiteUserRepository)
-        # Make async methods use AsyncMock
-        mock.create_user = AsyncMock(return_value=True)
-        mock.get_user = AsyncMock(return_value=None)
-        mock.delete_user = AsyncMock(return_value=True)
-        return mock
-
-    @pytest.fixture
-    def mock_settings_repository(self):
-        """Create mock settings repository with async methods.
-
-        :returns: Mock settings repository with AsyncMock methods
-        :rtype: MagicMock
-        """
-        mock = MagicMock(spec=SQLiteUserSettingsRepository)
-        # Make async methods use AsyncMock
-        mock.create_user_settings = AsyncMock(return_value=True)
-        mock.get_user_settings = AsyncMock(return_value=None)
-        mock.update_user_settings = AsyncMock(return_value=True)
-        mock.delete_user_settings = AsyncMock(return_value=True)
-        return mock
-
-    @pytest.fixture
-    def mock_subscription_repository(self):
-        """Create mock subscription repository with async methods.
-
-        :returns: Mock subscription repository with AsyncMock methods
-        :rtype: MagicMock
-        """
-        mock = MagicMock(spec=SQLiteUserSubscriptionRepository)
-        # Make async methods use AsyncMock
-        mock.create_subscription = AsyncMock(return_value=True)
-        mock.get_subscription = AsyncMock(return_value=None)
-        mock.update_subscription = AsyncMock(return_value=True)
-        mock.delete_subscription = AsyncMock(return_value=True)
-        return mock
-
-    @pytest.fixture
     def user_service(
         self,
         mock_user_repository,
@@ -183,35 +123,6 @@ class TestUserService:
             user_repository=mock_user_repository,
             settings_repository=mock_settings_repository,
             subscription_repository=mock_subscription_repository,
-        )
-
-    @pytest.fixture
-    def sample_user(self):
-        """Create a sample User object for testing.
-
-        :returns: Sample User object
-        :rtype: User
-        """
-        return User(
-            telegram_id=123456789,
-            username="testuser",
-            first_name="Test",
-            last_name="User",
-            created_at=datetime.now(UTC),
-        )
-
-    @pytest.fixture
-    def sample_settings(self):
-        """Create a sample UserSettings object for testing.
-
-        :returns: Sample UserSettings object
-        :rtype: UserSettings
-        """
-        return UserSettings(
-            telegram_id=123456789,
-            birth_date=date(1990, 1, 1),
-            notifications=True,
-            updated_at=datetime.now(UTC),
         )
 
     def test_init_with_default_repositories(self) -> None:
