@@ -275,9 +275,12 @@ class TestLifeWeeksBot:
         :returns: None
         :rtype: None
         """
+        # Use proper ConversationState enum values for FSM-based routing
+        from src.bot.conversations.states import ConversationState
+
         bot._waiting_states = {
-            "start_state": COMMAND_START,
-            "settings_state": COMMAND_SETTINGS,
+            ConversationState.AWAITING_START_BIRTH_DATE.value: COMMAND_START,
+            ConversationState.AWAITING_SETTINGS_BIRTH_DATE.value: COMMAND_SETTINGS,
         }
         start_handler, settings_handler, unknown_handler = (
             MagicMock(),
@@ -295,16 +298,27 @@ class TestLifeWeeksBot:
             COMMAND_UNKNOWN: unknown_handler,
         }
 
+        # Test 1: Valid start state routes to start handler
         update1 = Mock()
-        context1 = SimpleNamespace(user_data={"waiting_for": "start_state"})
+        context1 = SimpleNamespace(
+            user_data={"waiting_for": ConversationState.AWAITING_START_BIRTH_DATE.value}
+        )
         _run_async(bot._universal_text_handler(update1, context1))
         start_handler.handle_birth_date_input.assert_called_once()
         unknown_handler.handle.assert_not_called()
+
+        # Test 2: Settings state without text handler goes to unknown
         update2 = Mock()
-        context2 = SimpleNamespace(user_data={"waiting_for": "settings_state"})
+        context2 = SimpleNamespace(
+            user_data={
+                "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE.value
+            }
+        )
         _run_async(bot._universal_text_handler(update2, context2))
         unknown_handler.handle.assert_called_once()
         unknown_handler.handle.reset_mock()
+
+        # Test 3: No waiting state goes to unknown handler
         update3 = Mock()
         context3 = SimpleNamespace(user_data={})
         _run_async(bot._universal_text_handler(update3, context3))

@@ -1,0 +1,26 @@
+# Registration workflow for /start command
+# Manages the user registration process with birth date collection
+
+name: registration
+initial_state: start_birth_date
+
+states:
+  start_birth_date:
+    input_type: text
+    validation: validate_birth_date
+    timeout_seconds: 300  # 5 minutes timeout
+    on_valid:
+      target: completed
+      action: create_user_profile
+    on_invalid:
+      target: start_birth_date
+      action: send_validation_error
+    on_timeout:
+      target: idle
+      action: send_timeout_message
+
+  completed:
+    input_type: none
+
+  idle:
+    input_type: none

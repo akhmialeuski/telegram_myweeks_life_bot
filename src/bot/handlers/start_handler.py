@@ -2,7 +2,7 @@
 
 This module contains the StartHandler class which handles the /start command
 and the user registration flow. It manages the registration process using
-context.user_data for state management instead of ConversationHandler.
+the FSM-based ConversationState for state management.
 
 The registration flow includes:
 - Welcome message for new users
@@ -11,22 +11,29 @@ The registration flow includes:
 - Integration with notification scheduler
 """
 
-from datetime import date, datetime
+from datetime import date
 
 from babel.dates import format_date
 from babel.numbers import format_decimal, format_percent
 from telegram import Update
-from telegram import User as TelegramUser
 from telegram.ext import ContextTypes
 
 from src.i18n import normalize_babel_locale, use_locale
+from src.services.validation_service import (
+    ERROR_DATE_IN_FUTURE,
+    ERROR_DATE_TOO_OLD,
+    ERROR_INVALID_DATE_FORMAT,
+    ValidationService,
+)
 
 from ...core.enums import SupportedLanguage
 from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
-from ...utils.config import BOT_NAME, MIN_BIRTH_YEAR
+from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
 from ..constants import COMMAND_START
+from ..conversations.persistence import TelegramContextPersistence
+from ..conversations.states import ConversationState
 from ..scheduler import SchedulerOperationError, add_user_to_scheduler
 from .base_handler import BaseHandler
 
@@ -38,7 +45,7 @@ class StartHandler(BaseHandler):
     """Handler for /start command and user registration process.
 
     This handler manages the initial bot interaction and user registration
-    flow using context.user_data for state management instead of ConversationHandler.
+    flow using ConversationState enum for state management.
 
     Attributes:
         command_name: Name of the command this handler processes
@@ -54,6 +61,8 @@ class StartHandler(BaseHandler):
         """
         super().__init__(services)
         self.command_name = f"/{COMMAND_START}"
+        self._persistence = TelegramContextPersistence()
+        self._validation_service = ValidationService()
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /start command - initiate user registration process.
@@ -66,7 +75,7 @@ class StartHandler(BaseHandler):
         1. Checks if user already has a valid profile with birth date
         2. If registered: sends welcome back message
         3. If not registered: sends welcome message and requests birth date
-        4. Sets waiting state in context.user_data for birth date collection
+        4. Sets waiting state using ConversationState enum
 
         :param update: The update object containing the user's message
         :type update: Update
@@ -125,8 +134,12 @@ class StartHandler(BaseHandler):
             % {"first_name": user.first_name},
         )
 
-        # Set waiting state for birth date input
-        context.user_data["waiting_for"] = "start_birth_date"
+        # Set waiting state using FSM persistence
+        await self._persistence.set_state(
+            user_id=user_id,
+            state=ConversationState.AWAITING_START_BIRTH_DATE,
+            context=context,
+        )
 
     async def handle_birth_date_input(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -134,8 +147,8 @@ class StartHandler(BaseHandler):
         """Handle birth date input during registration process.
 
         This handler processes the birth date input from users during the
-        registration flow. It validates the input format and date range,
-        creates the user profile, and provides feedback to the user.
+        registration flow. It uses ValidationService for input validation
+        and provides feedback to the user.
 
         :param update: The update object containing the birth date input
         :type update: Update
@@ -153,26 +166,42 @@ class StartHandler(BaseHandler):
         lang = user.language_code or SupportedLanguage.EN.value
 
         try:
-            # Validate birth date and create profile
-            birth_date = await self._validate_and_create_profile(
-                update, context, user, user_id, birth_date_text, lang
+            # Validate birth date using ValidationService
+            validation_result = self._validation_service.validate_birth_date(
+                input_str=birth_date_text
             )
 
-            # If validation failed, return early
-            if birth_date is None:
+            if not validation_result.is_valid:
+                await self._handle_validation_error(
+                    update=update,
+                    error_key=validation_result.error_key,
+                    lang=lang,
+                )
                 return
+
+            birth_date: date = validation_result.value
+
+            # Create user profile
+            await self.services.user_service.create_user_profile(
+                user_info=user,
+                birth_date=birth_date,
+            )
+
+            # Add user to notification scheduler
+            await self._add_user_to_scheduler(context=context, user_id=user_id)
 
             # Send success message with calculated statistics
             await self._send_registration_success_message(
-                update, context, user_id, birth_date, lang
+                update=update,
+                context=context,
+                user_id=user_id,
+                birth_date=birth_date,
+                lang=lang,
             )
 
             # Clear waiting state
-            context.user_data.pop("waiting_for", None)
+            await self._persistence.clear_state(user_id=user_id, context=context)
 
-        except ValueError:
-            # Handle invalid date format
-            await self._send_date_format_error(update, lang)
         except (UserRegistrationError, UserServiceError) as error:
             # Handle all database errors with a single error message
             logger.error(
@@ -189,7 +218,7 @@ class StartHandler(BaseHandler):
                 ),
             )
             # Clear waiting state on error
-            context.user_data.pop("waiting_for", None)
+            await self._persistence.clear_state(user_id=user_id, context=context)
 
         except Exception as error:
             logger.error(
@@ -206,75 +235,49 @@ class StartHandler(BaseHandler):
                     "Try again or contact the administrator.",
                 ),
             )
-            context.user_data.pop("waiting_for", None)
+            await self._persistence.clear_state(user_id=user_id, context=context)
 
-    async def _validate_and_create_profile(
+    async def _handle_validation_error(
         self,
         update: Update,
-        context: ContextTypes.DEFAULT_TYPE,
-        user: TelegramUser,
-        user_id: int,
-        birth_date_text: str,
+        error_key: str | None,
         lang: str,
-    ) -> date | None:
-        """Validate birth date and create user profile.
+    ) -> None:
+        """Handle validation error by sending appropriate error message.
 
-        :param update: The update object containing the birth date input
+        :param update: The update object
         :type update: Update
-        :param context: The context object for the command execution
-        :type context: ContextTypes.DEFAULT_TYPE
-        :param user: Telegram user object
-        :type user: TelegramUser
-        :param user_id: Telegram user ID
-        :type user_id: int
-        :param birth_date_text: Birth date string from user input
-        :type birth_date_text: str
+        :param error_key: Error key from validation service
+        :type error_key: str | None
         :param lang: Language code for error messages
         :type lang: str
-        :returns: Parsed birth date if validation successful, None if validation failed
-        :rtype: date | None
-        :raises ValueError: If date format is invalid
-        :raises UserRegistrationError: If profile creation fails
-        :raises UserServiceError: If profile creation fails
+        :returns: None
         """
         _, _, pgettext = use_locale(lang=lang)
 
-        # Parse birth date from user input (DD.MM.YYYY format)
-        birth_date = datetime.strptime(birth_date_text, "%d.%m.%Y").date()
-
-        # Validate that birth date is not in the future
-        if birth_date > date.today():
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "birth_date.future_error",
-                    "❌ Birth date cannot be in the future!\n"
-                    "Please enter a valid date in DD.MM.YYYY format",
-                ),
-            )
-            return None
-
-        # Validate that birth date is not unreasonably old
-        if birth_date.year < MIN_BIRTH_YEAR:
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "birth_date.old_error",
-                    "❌ Birth date is too old!\n"
-                    "Please enter a valid date in DD.MM.YYYY format",
-                ),
-            )
-            return None
-
-        # Attempt to create user profile in the database
-        await self.services.user_service.create_user_profile(
-            user_info=user, birth_date=birth_date
-        )
-
-        # Add user to notification scheduler
-        await self._add_user_to_scheduler(context, user_id)
-
-        return birth_date
+        match error_key:
+            case _ if error_key == ERROR_DATE_IN_FUTURE:
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "birth_date.future_error",
+                        "❌ Birth date cannot be in the future!\n"
+                        "Please enter a valid date in DD.MM.YYYY format",
+                    ),
+                )
+            case _ if error_key == ERROR_DATE_TOO_OLD:
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "birth_date.old_error",
+                        "❌ Birth date is too old!\n"
+                        "Please enter a valid date in DD.MM.YYYY format",
+                    ),
+                )
+            case _ if error_key == ERROR_INVALID_DATE_FORMAT:
+                await self._send_date_format_error(update=update, lang=lang)
+            case _:
+                await self._send_date_format_error(update=update, lang=lang)
 
     async def _add_user_to_scheduler(
         self, context: ContextTypes.DEFAULT_TYPE, user_id: int
@@ -289,7 +292,7 @@ class StartHandler(BaseHandler):
         try:
             scheduler = context.bot_data.get("scheduler")
             if scheduler:
-                add_user_to_scheduler(scheduler, user_id)
+                await add_user_to_scheduler(scheduler, user_id)
                 logger.info(
                     f"{self.command_name}: [{user_id}]: User added to notification scheduler"
                 )

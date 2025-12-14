@@ -87,14 +87,14 @@ class TestServiceContainer:
         with patch("src.services.container.UserService") as mock_user_service_cls:
             mock_service_instance = AsyncMock()
             mock_user_service_cls.return_value = mock_service_instance
-            
+
             container = ServiceContainer()
-            
+
             # Verify that all services are properly created
             assert container.user_service is not None
-            
+
             # Additional services setup if any
-            
+
             # Call initialize
             await container.initialize()
 

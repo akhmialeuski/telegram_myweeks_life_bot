@@ -71,184 +71,33 @@ class TestSettingsHandler:
         """
         assert handler.command_name == f"/{COMMAND_SETTINGS}"
 
-    def test_set_waiting_state(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test setting waiting state for user input.
+    def test_handler_has_persistence(self, handler: SettingsHandler) -> None:
+        """Test that SettingsHandler has FSM persistence initialized.
 
-        This test verifies that _set_waiting_state correctly stores the
-        waiting state, timestamp, and state ID in user data for tracking
-        user input sequences.
+        This test verifies that the handler has TelegramContextPersistence
+        for FSM-based state management.
 
         :param handler: SettingsHandler instance from fixture
         :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
         :returns: None
         :rtype: None
         """
-        handler._set_waiting_state(mock_context, "test_state")
+        assert hasattr(handler, "_persistence")
+        assert handler._persistence is not None
 
-        assert mock_context.user_data["waiting_for"] == "test_state"
-        assert "waiting_timestamp" in mock_context.user_data
-        assert "waiting_state_id" in mock_context.user_data
-        assert isinstance(mock_context.user_data["waiting_timestamp"], float)
-        assert isinstance(mock_context.user_data["waiting_state_id"], str)
+    def test_handler_has_validation_service(self, handler: SettingsHandler) -> None:
+        """Test that SettingsHandler has ValidationService initialized.
 
-    def test_is_valid_waiting_state_valid(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test waiting state validation with valid state data.
-
-        This test verifies that _is_valid_waiting_state returns True
-        when the waiting state matches, timestamp is recent, and state ID exists.
+        This test verifies that the handler has ValidationService
+        for centralized input validation.
 
         :param handler: SettingsHandler instance from fixture
         :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
         :returns: None
         :rtype: None
         """
-        current_time = time.time()
-        mock_context.user_data = {
-            "waiting_for": "test_state",
-            "waiting_timestamp": current_time,
-            "waiting_state_id": "test-id",
-        }
-
-        result = handler._is_valid_waiting_state(mock_context, "test_state")
-
-        assert result is True
-
-    def test_is_valid_waiting_state_invalid_state(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test waiting state validation with mismatched state.
-
-        This test verifies that _is_valid_waiting_state returns False
-        when the waiting state doesn't match the expected state.
-
-        :param handler: SettingsHandler instance from fixture
-        :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        current_time = time.time()
-        mock_context.user_data = {
-            "waiting_for": "wrong_state",
-            "waiting_timestamp": current_time,
-            "waiting_state_id": "test-id",
-        }
-
-        result = handler._is_valid_waiting_state(mock_context, "test_state")
-
-        assert result is False
-
-    def test_is_valid_waiting_state_expired(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test waiting state validation with expired timestamp.
-
-        This test verifies that _is_valid_waiting_state returns False
-        when the waiting state timestamp is too old (> 5 minutes).
-
-        :param handler: SettingsHandler instance from fixture
-        :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        # Timestamp from 10 minutes ago should be considered expired
-        old_time = time.time() - 600
-        mock_context.user_data = {
-            "waiting_for": "test_state",
-            "waiting_timestamp": old_time,
-            "waiting_state_id": "test-id",
-        }
-
-        result = handler._is_valid_waiting_state(mock_context, "test_state")
-
-        assert result is False
-
-    def test_is_valid_waiting_state_missing_timestamp(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test waiting state validation with missing timestamp.
-
-        This test verifies that _is_valid_waiting_state returns False
-        when the timestamp field is missing from user data.
-
-        :param handler: SettingsHandler instance from fixture
-        :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        mock_context.user_data = {
-            "waiting_for": "test_state",
-            "waiting_state_id": "test-id",
-        }
-
-        result = handler._is_valid_waiting_state(mock_context, "test_state")
-
-        assert result is False
-
-    def test_is_valid_waiting_state_missing_state_id(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test waiting state validation with missing state ID.
-
-        This test verifies that _is_valid_waiting_state returns False
-        when the state_id field is missing from user data.
-
-        :param handler: SettingsHandler instance from fixture
-        :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        current_time = time.time()
-        mock_context.user_data = {
-            "waiting_for": "test_state",
-            "waiting_timestamp": current_time,
-        }
-
-        result = handler._is_valid_waiting_state(mock_context, "test_state")
-
-        assert result is False
-
-    def test_clear_waiting_state(
-        self, handler: SettingsHandler, mock_context: MagicMock
-    ) -> None:
-        """Test clearing waiting state from user data.
-
-        This test verifies that _clear_waiting_state removes all
-        waiting-related fields from user data.
-
-        :param handler: SettingsHandler instance from fixture
-        :type handler: SettingsHandler
-        :param mock_context: Mocked Telegram context object
-        :type mock_context: MagicMock
-        :returns: None
-        :rtype: None
-        """
-        mock_context.user_data = {
-            "waiting_for": "test_state",
-            "waiting_timestamp": time.time(),
-            "waiting_state_id": "test-id",
-        }
-
-        handler._clear_waiting_state(mock_context)
-
-        assert "waiting_for" not in mock_context.user_data
-        assert "waiting_timestamp" not in mock_context.user_data
-        assert "waiting_state_id" not in mock_context.user_data
+        assert hasattr(handler, "_validation_service")
+        assert handler._validation_service is not None
 
     @pytest.mark.asyncio
     async def test_handle_premium_success(
@@ -610,18 +459,17 @@ class TestSettingsHandler:
         :returns: None
         :rtype: None
         """
-        future_date = date(2025, 1, 1)
+        from src.services.validation_service import (
+            ERROR_DATE_IN_FUTURE,
+            ValidationResult,
+        )
 
-        with patch(
-            "src.bot.handlers.settings.handler.datetime"
-        ) as mock_datetime, patch(
-            "src.bot.handlers.settings.handler.date"
-        ) as mock_date, patch.object(
-            handler, "send_message"
-        ) as mock_send_message:
-            mock_datetime.strptime.return_value.date.return_value = future_date
-            mock_date.today.return_value = date(2024, 1, 1)
+        # Mock ValidationService to return future date error
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.failure(error_key=ERROR_DATE_IN_FUTURE)
+        )
 
+        with patch.object(handler, "send_message") as mock_send_message:
             await handler.handle_birth_date_input(
                 mock_update, mock_context, "01.01.2025"
             )
@@ -652,13 +500,14 @@ class TestSettingsHandler:
         :returns: None
         :rtype: None
         """
-        old_date = date(1800, 1, 1)
+        from src.services.validation_service import ERROR_DATE_TOO_OLD, ValidationResult
 
-        with patch(
-            "src.bot.handlers.settings.handler.datetime"
-        ) as mock_datetime, patch.object(handler, "send_message") as mock_send_message:
-            mock_datetime.strptime.return_value.date.return_value = old_date
+        # Mock ValidationService to return too old error
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.failure(error_key=ERROR_DATE_TOO_OLD)
+        )
 
+        with patch.object(handler, "send_message") as mock_send_message:
             await handler.handle_birth_date_input(
                 mock_update, mock_context, "01.01.1800"
             )
@@ -689,17 +538,19 @@ class TestSettingsHandler:
         :returns: None
         :rtype: None
         """
+        from src.services.validation_service import ValidationResult
+
         test_birth_date = date(1990, 3, 15)
+
+        # Mock ValidationService to return success
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.success(value=test_birth_date)
+        )
         handler.services.user_service.update_user_settings.side_effect = (
             UserNotFoundError("User not found")
         )
 
-        with patch(
-            "src.bot.handlers.settings.handler.datetime"
-        ) as mock_datetime, patch.object(
-            handler, "send_error_message"
-        ) as mock_send_error:
-            mock_datetime.strptime.return_value.date.return_value = test_birth_date
+        with patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle_birth_date_input(
                 mock_update, mock_context, TEST_BIRTH_DATE
             )
@@ -730,19 +581,26 @@ class TestSettingsHandler:
         :returns: None
         :rtype: None
         """
-        with patch(
-            "src.bot.handlers.settings.handler.datetime"
-        ) as mock_datetime, patch.object(
-            handler, "send_error_message"
-        ) as mock_send_error:
-            mock_datetime.strptime.side_effect = ValueError("Invalid date format")
+        from src.services.validation_service import (
+            ERROR_INVALID_DATE_FORMAT,
+            ValidationResult,
+        )
+
+        # Mock ValidationService to return format error
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.failure(error_key=ERROR_INVALID_DATE_FORMAT)
+        )
+
+        with patch.object(
+            handler, "_handle_validation_error"
+        ) as mock_handle_validation_error:
             await handler.handle_birth_date_input(
                 mock_update, mock_context, "invalid-date"
             )
-            mock_send_error.assert_called_once()
+            mock_handle_validation_error.assert_called_once()
             assert (
-                "pgettext_birth_date.format_error_"
-                in mock_send_error.call_args.kwargs["error_message"]
+                mock_handle_validation_error.call_args.kwargs["error_key"]
+                == ERROR_INVALID_DATE_FORMAT
             )
 
     @pytest.mark.asyncio
@@ -871,12 +729,24 @@ class TestSettingsHandler:
         :returns: None
         :rtype: None
         """
-        with patch.object(handler, "send_error_message") as mock_send_error:
+        from src.services.validation_service import (
+            ERROR_INVALID_NUMBER,
+            ValidationResult,
+        )
+
+        # Mock ValidationService to return invalid number error
+        handler._validation_service.validate_life_expectancy = MagicMock(
+            return_value=ValidationResult.failure(error_key=ERROR_INVALID_NUMBER)
+        )
+
+        with patch.object(
+            handler, "_handle_life_expectancy_validation_error"
+        ) as mock_handle_validation_error:
             await handler.handle_life_expectancy_input(
                 mock_update, mock_context, "not-a-number"
             )
-            mock_send_error.assert_called_once()
+            mock_handle_validation_error.assert_called_once()
             assert (
-                "pgettext_settings.invalid_life_expectancy"
-                in mock_send_error.call_args.kwargs["error_message"]
+                mock_handle_validation_error.call_args.kwargs["error_key"]
+                == ERROR_INVALID_NUMBER
             )
