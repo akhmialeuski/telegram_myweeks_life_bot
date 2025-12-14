@@ -103,14 +103,14 @@ class VisualizeHandler(BaseHandler):
         :returns: None
         """
         # Extract user information using the new helper method
-        cmd_context = self._extract_command_context(update=update)
+        cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
         user_id = cmd_context.user_id
 
         logger.info(f"{self.command_name}: [{user_id}]: Handling command")
 
         # Resolve language via DB profile or Telegram fallback
-        profile = self.services.user_service.get_user_profile(telegram_id=user_id)
+        profile = await self.services.user_service.get_user_profile(telegram_id=user_id)
         lang = (
             profile.settings.language
             if profile and profile.settings and profile.settings.language
@@ -145,8 +145,14 @@ class VisualizeHandler(BaseHandler):
         }
 
         # Generate and send visual representation with caption
+        try:
+            image_data = await generate_visualization(user_info=user)
+        except Exception as e:
+            logger.error(f"Failed to generate visualization: {e}")
+            return None
+
         await update.message.reply_photo(
-            photo=generate_visualization(user_info=user),
+            photo=image_data,
             caption=caption,
             parse_mode=ParseMode.HTML,
         )

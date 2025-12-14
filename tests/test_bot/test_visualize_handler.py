@@ -4,7 +4,7 @@ This module contains tests for the VisualizeHandler class which handles
 the /visualize command and generates life grid visualizations.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -64,7 +64,7 @@ class TestVisualizeHandler:
 
     @pytest.mark.asyncio
     async def test_handle_success(
-        self, handler: VisualizeHandler, mock_update: Mock, mock_context: Mock
+        self, handler: VisualizeHandler, mock_update: MagicMock, mock_context: MagicMock
     ) -> None:
         """Test successful visualization generation and sending.
 
@@ -74,20 +74,21 @@ class TestVisualizeHandler:
         :param handler: VisualizeHandler instance
         :type handler: VisualizeHandler
         :param mock_update: Mocked Telegram Update object
-        :type mock_update: Mock
+        :type mock_update: MagicMock
         :param mock_context: Mocked Telegram Context object
-        :type mock_context: Mock
+        :type mock_context: MagicMock
         :returns: None
         :rtype: None
         """
         with patch(
-            "src.bot.handlers.visualize_handler.generate_visualization"
+            "src.bot.handlers.visualize_handler.generate_visualization",
+            new_callable=AsyncMock,
         ) as mock_generate_visualization:
             handler.services.user_service.is_valid_user_profile.return_value = True
-            profile = Mock()
-            profile.settings = Mock(language="en")
+            profile = MagicMock()
+            profile.settings = MagicMock(language="en")
             handler.services.user_service.get_user_profile.return_value = profile
-            mock_generate_visualization.return_value = Mock()
+            mock_generate_visualization.return_value = MagicMock()
 
             await handler.handle(mock_update, mock_context)
 
@@ -159,8 +160,9 @@ class TestVisualizeHandler:
 
         with patch(
             "src.bot.handlers.visualize_handler.generate_visualization",
-            return_value=b"img",
-        ):
+            new_callable=AsyncMock,
+        ) as mock_generate_visualization:
+            mock_generate_visualization.return_value = b"img"
             await handler.handle(mock_update, mock_context)
         mock_update.message.reply_photo.assert_called_once()
         call_args = mock_update.message.reply_photo.call_args

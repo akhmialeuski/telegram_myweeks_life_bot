@@ -267,7 +267,8 @@ class TestSubscriptionHandler:
 
             mock_callback_query.answer.assert_called_once()
             handler.services.user_service.update_user_subscription.assert_called_once_with(
-                mock_update.effective_user.id, SubscriptionType.PREMIUM
+                telegram_id=mock_update.effective_user.id,
+                subscription_type=SubscriptionType.PREMIUM,
             )
             mock_edit_message.assert_called_once()
             assert (

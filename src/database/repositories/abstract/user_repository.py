@@ -19,26 +19,32 @@ class AbstractUserRepository(AbstractBaseRepository):
     """
 
     @abstractmethod
-    def create_user(self, user: User) -> bool:
+    async def create_user(self, user: User) -> bool:
         """Create a new user in the database.
 
         :param user: User object to create
+        :type user: User
         :returns: True if successful, False otherwise
+        :rtype: bool
         :raises: DatabaseError if user already exists or other database error
         """
 
     @abstractmethod
-    def get_user(self, telegram_id: int) -> Optional[User]:
+    async def get_user(self, telegram_id: int) -> Optional[User]:
         """Get user by Telegram ID.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :returns: User object if found, None otherwise
+        :rtype: Optional[User]
         """
 
     @abstractmethod
-    def delete_user(self, telegram_id: int) -> bool:
+    async def delete_user(self, telegram_id: int) -> bool:
         """Delete user and all associated data.
 
         :param telegram_id: Telegram user ID
+        :type telegram_id: int
         :returns: True if successful, False otherwise
+        :rtype: bool
         """

@@ -4,10 +4,8 @@ Tests all methods of the UserService class using pytest
 with proper fixtures, mocking, and edge case coverage.
 """
 
-import os
-import tempfile
 from datetime import UTC, date, datetime
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -107,47 +105,6 @@ class TestUserService:
     """Test suite for UserService class."""
 
     @pytest.fixture
-    def temp_db_path(self):
-        """Create a temporary database path for testing.
-
-        :returns: Path to temporary database file
-        :rtype: str
-        """
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            db_path = tmp.name
-        yield db_path
-        # Cleanup
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-
-    @pytest.fixture
-    def mock_user_repository(self):
-        """Create mock user repository.
-
-        :returns: Mock user repository
-        :rtype: Mock
-        """
-        return Mock(spec=SQLiteUserRepository)
-
-    @pytest.fixture
-    def mock_settings_repository(self):
-        """Create mock settings repository.
-
-        :returns: Mock settings repository
-        :rtype: Mock
-        """
-        return Mock(spec=SQLiteUserSettingsRepository)
-
-    @pytest.fixture
-    def mock_subscription_repository(self):
-        """Create mock subscription repository.
-
-        :returns: Mock subscription repository
-        :rtype: Mock
-        """
-        return Mock(spec=SQLiteUserSubscriptionRepository)
-
-    @pytest.fixture
     def user_service(
         self,
         mock_user_repository,
@@ -166,35 +123,6 @@ class TestUserService:
             user_repository=mock_user_repository,
             settings_repository=mock_settings_repository,
             subscription_repository=mock_subscription_repository,
-        )
-
-    @pytest.fixture
-    def sample_user(self):
-        """Create a sample User object for testing.
-
-        :returns: Sample User object
-        :rtype: User
-        """
-        return User(
-            telegram_id=123456789,
-            username="testuser",
-            first_name="Test",
-            last_name="User",
-            created_at=datetime.now(UTC),
-        )
-
-    @pytest.fixture
-    def sample_settings(self):
-        """Create a sample UserSettings object for testing.
-
-        :returns: Sample UserSettings object
-        :rtype: UserSettings
-        """
-        return UserSettings(
-            telegram_id=123456789,
-            birth_date=date(1990, 1, 1),
-            notifications=True,
-            updated_at=datetime.now(UTC),
         )
 
     def test_init_with_default_repositories(self) -> None:
@@ -280,7 +208,8 @@ class TestUserService:
         mock_settings_repository.close.assert_not_called()
         mock_subscription_repository.close.assert_not_called()
 
-    def test_create_user_profile_success(
+    @pytest.mark.asyncio
+    async def test_create_user_profile_success(
         self,
         user_service,
         mock_user_repository,
@@ -301,7 +230,7 @@ class TestUserService:
         :rtype: None
         """
         # Mock get_user_profile to return None (user doesn't exist)
-        user_service.get_user_profile = Mock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = True
         mock_subscription_repository.create_subscription.return_value = True
@@ -315,7 +244,7 @@ class TestUserService:
             created_at=datetime.now(UTC),
         )
         created_user.settings = sample_settings
-        user_service.get_user_profile = Mock(side_effect=[None, created_user])
+        user_service.get_user_profile = AsyncMock(side_effect=[None, created_user])
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -324,7 +253,7 @@ class TestUserService:
         mock_user_info.first_name = "Test"
         mock_user_info.last_name = "User"
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -336,7 +265,10 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_called_once()
 
-    def test_create_user_profile_user_exists(self, user_service, sample_user) -> None:
+    @pytest.mark.asyncio
+    async def test_create_user_profile_user_exists(
+        self, user_service, sample_user
+    ) -> None:
         """Test user creation when user already exists.
 
         :param user_service: UserService instance
@@ -344,7 +276,7 @@ class TestUserService:
         :returns: None
         :rtype: None
         """
-        user_service.get_user_profile = Mock(return_value=sample_user)
+        user_service.get_user_profile = AsyncMock(return_value=sample_user)
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -353,7 +285,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -361,7 +293,8 @@ class TestUserService:
 
         assert result == sample_user
 
-    def test_create_user_profile_user_creation_fails(
+    @pytest.mark.asyncio
+    async def test_create_user_profile_user_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -376,7 +309,7 @@ class TestUserService:
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
-        user_service.get_user_profile = Mock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)
         mock_user_repository.create_user.return_value = False
 
         # Create mock user info object with id attribute
@@ -386,7 +319,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -397,7 +330,8 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_not_called()
         mock_subscription_repository.create_subscription.assert_not_called()
 
-    def test_create_user_profile_settings_creation_fails(
+    @pytest.mark.asyncio
+    async def test_create_user_profile_settings_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -412,7 +346,7 @@ class TestUserService:
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
-        user_service.get_user_profile = Mock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = False
         mock_user_repository.delete_user.return_value = True
@@ -424,7 +358,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -434,9 +368,10 @@ class TestUserService:
         mock_user_repository.create_user.assert_called_once()
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_not_called()
-        mock_user_repository.delete_user.assert_called_once_with(123456789)
+        mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
-    def test_create_user_profile_subscription_creation_fails(
+    @pytest.mark.asyncio
+    async def test_create_user_profile_subscription_creation_fails(
         self,
         user_service,
         mock_user_repository,
@@ -451,7 +386,7 @@ class TestUserService:
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
-        user_service.get_user_profile = Mock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = True
         mock_subscription_repository.create_subscription.return_value = False
@@ -465,7 +400,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -476,17 +411,20 @@ class TestUserService:
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_called_once()
         # Now both user and settings should be deleted on subscription failure
-        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
-        mock_user_repository.delete_user.assert_called_once_with(123456789)
+        mock_settings_repository.delete_user_settings.assert_called_once_with(
+            telegram_id=123456789
+        )
+        mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
-    def test_create_user_profile_exception(self, user_service) -> None:
+    @pytest.mark.asyncio
+    async def test_create_user_profile_exception(self, user_service) -> None:
         """Test user creation with exception.
 
         :param user_service: UserService instance
         :returns: None
         :rtype: None
         """
-        user_service.get_user_profile = Mock(side_effect=Exception("Test error"))
+        user_service.get_user_profile = AsyncMock(side_effect=Exception("Test error"))
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -495,7 +433,7 @@ class TestUserService:
         mock_user_info.first_name = None
         mock_user_info.last_name = None
 
-        result = user_service.create_user_profile(
+        result = await user_service.create_user_profile(
             user_info=mock_user_info,
             birth_date=date(1990, 1, 1),
             subscription_type=SubscriptionType.BASIC,
@@ -503,7 +441,8 @@ class TestUserService:
 
         assert result is None
 
-    def test_get_user_profile_success(
+    @pytest.mark.asyncio
+    async def test_get_user_profile_success(
         self,
         user_service,
         mock_user_repository,
@@ -532,17 +471,22 @@ class TestUserService:
         mock_settings_repository.get_user_settings.return_value = sample_settings
         mock_subscription_repository.get_subscription.return_value = sample_subscription
 
-        result = user_service.get_user_profile(123456789)
+        result = await user_service.get_user_profile(123456789)
 
         assert result is not None
         assert result.telegram_id == 123456789
         assert result.settings == sample_settings
         assert result.subscription == sample_subscription
-        mock_user_repository.get_user.assert_called_once_with(123456789)
-        mock_settings_repository.get_user_settings.assert_called_once_with(123456789)
-        mock_subscription_repository.get_subscription.assert_called_once_with(123456789)
+        mock_user_repository.get_user.assert_called_once_with(telegram_id=123456789)
+        mock_settings_repository.get_user_settings.assert_called_once_with(
+            telegram_id=123456789
+        )
+        mock_subscription_repository.get_subscription.assert_called_once_with(
+            telegram_id=123456789
+        )
 
-    def test_get_user_profile_user_not_found(
+    @pytest.mark.asyncio
+    async def test_get_user_profile_user_not_found(
         self, user_service, mock_user_repository
     ) -> None:
         """Test user profile retrieval when user not found.
@@ -554,11 +498,12 @@ class TestUserService:
         """
         mock_user_repository.get_user.return_value = None
 
-        result = user_service.get_user_profile(123456789)
+        result = await user_service.get_user_profile(123456789)
 
         assert result is None
 
-    def test_get_user_profile_settings_not_found(
+    @pytest.mark.asyncio
+    async def test_get_user_profile_settings_not_found(
         self, user_service, mock_user_repository, mock_settings_repository, sample_user
     ):
         """Test user profile retrieval when settings not found.
@@ -573,11 +518,12 @@ class TestUserService:
         mock_user_repository.get_user.return_value = sample_user
         mock_settings_repository.get_user_settings.return_value = None
 
-        result = user_service.get_user_profile(123456789)
+        result = await user_service.get_user_profile(123456789)
         # Service returns None if settings are missing
         assert result is None
 
-    def test_get_user_profile_subscription_not_found(
+    @pytest.mark.asyncio
+    async def test_get_user_profile_subscription_not_found(
         self,
         user_service,
         mock_user_repository,
@@ -601,11 +547,12 @@ class TestUserService:
         mock_settings_repository.get_user_settings.return_value = sample_settings
         mock_subscription_repository.get_subscription.return_value = None
 
-        result = user_service.get_user_profile(123456789)
+        result = await user_service.get_user_profile(123456789)
         # Service returns None if subscription is missing
         assert result is None
 
-    def test_get_user_profile_exception(
+    @pytest.mark.asyncio
+    async def test_get_user_profile_exception(
         self, user_service, mock_user_repository
     ) -> None:
         """Test user profile retrieval with exception.
@@ -617,11 +564,12 @@ class TestUserService:
         """
         mock_user_repository.get_user.side_effect = Exception("Test error")
 
-        result = user_service.get_user_profile(123456789)
+        result = await user_service.get_user_profile(123456789)
 
         assert result is None
 
-    def test_is_valid_user_profile_true(
+    @pytest.mark.asyncio
+    async def test_is_valid_user_profile_true(
         self, user_service, mock_settings_repository, sample_settings
     ):
         """Test is_valid_user_profile returns True for valid profile.
@@ -634,11 +582,12 @@ class TestUserService:
         """
         mock_settings_repository.get_user_settings.return_value = sample_settings
 
-        result = user_service.is_valid_user_profile(123456789)
+        result = await user_service.is_valid_user_profile(123456789)
 
         assert result is True
 
-    def test_is_valid_user_profile_false_no_settings(
+    @pytest.mark.asyncio
+    async def test_is_valid_user_profile_false_no_settings(
         self, user_service, mock_settings_repository
     ):
         """Test is_valid_user_profile returns False when no settings.
@@ -650,11 +599,12 @@ class TestUserService:
         """
         mock_settings_repository.get_user_settings.return_value = None
 
-        result = user_service.is_valid_user_profile(123456789)
+        result = await user_service.is_valid_user_profile(123456789)
 
         assert result is False
 
-    def test_is_valid_user_profile_false_no_birth_date(
+    @pytest.mark.asyncio
+    async def test_is_valid_user_profile_false_no_birth_date(
         self, user_service, mock_settings_repository
     ):
         """Test is_valid_user_profile returns False when no birth date.
@@ -666,11 +616,12 @@ class TestUserService:
         settings = UserSettings(telegram_id=123456789, birth_date=None)
         mock_settings_repository.get_user_settings.return_value = settings
 
-        result = user_service.is_valid_user_profile(123456789)
+        result = await user_service.is_valid_user_profile(123456789)
 
         assert result is False
 
-    def test_is_valid_user_profile_exception(
+    @pytest.mark.asyncio
+    async def test_is_valid_user_profile_exception(
         self, user_service, mock_settings_repository
     ):
         """Test is_valid_user_profile with exception.
@@ -682,11 +633,14 @@ class TestUserService:
         """
         mock_settings_repository.get_user_settings.side_effect = Exception("Test error")
 
-        result = user_service.is_valid_user_profile(123456789)
+        result = await user_service.is_valid_user_profile(123456789)
 
         assert result is False
 
-    def test_delete_user_success(self, user_service, mock_user_repository) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_success(
+        self, user_service, mock_user_repository
+    ) -> None:
         """Test successful user deletion.
 
         :param user_service: UserService instance
@@ -696,12 +650,15 @@ class TestUserService:
         """
         mock_user_repository.delete_user.return_value = True
 
-        result = user_service.delete_user(123456789)
+        result = await user_service.delete_user(123456789)
 
         assert result is True
-        mock_user_repository.delete_user.assert_called_once_with(123456789)
+        mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
-    def test_delete_user_failure(self, user_service, mock_user_repository) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_failure(
+        self, user_service, mock_user_repository
+    ) -> None:
         """Test failed user deletion.
 
         :param user_service: UserService instance
@@ -711,11 +668,14 @@ class TestUserService:
         """
         mock_user_repository.delete_user.return_value = False
 
-        result = user_service.delete_user(123456789)
+        result = await user_service.delete_user(123456789)
 
         assert result is False
 
-    def test_delete_user_exception(self, user_service, mock_user_repository) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_exception(
+        self, user_service, mock_user_repository
+    ) -> None:
         """Test user deletion with exception.
 
         :param user_service: UserService instance
@@ -725,11 +685,12 @@ class TestUserService:
         """
         mock_user_repository.delete_user.side_effect = Exception("Test error")
 
-        result = user_service.delete_user(123456789)
+        result = await user_service.delete_user(123456789)
 
         assert result is False
 
-    def test_delete_user_profile_success(
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_success(
         self, user_service, mock_user_repository, mock_settings_repository
     ):
         """Test successful user profile deletion.
@@ -743,12 +704,15 @@ class TestUserService:
         mock_settings_repository.delete_user_settings.return_value = True
         mock_user_repository.delete_user.return_value = True
 
-        user_service.delete_user_profile(123456789)
+        await user_service.delete_user_profile(123456789)
 
-        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
-        mock_user_repository.delete_user.assert_called_once_with(123456789)
+        mock_settings_repository.delete_user_settings.assert_called_once_with(
+            telegram_id=123456789
+        )
+        mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
-    def test_delete_user_profile_no_settings(
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_no_settings(
         self, user_service, mock_user_repository, mock_settings_repository
     ):
         """Test user profile deletion when no settings exist.
@@ -762,12 +726,15 @@ class TestUserService:
         mock_settings_repository.delete_user_settings.return_value = False
         mock_user_repository.delete_user.return_value = True
 
-        user_service.delete_user_profile(123456789)
+        await user_service.delete_user_profile(123456789)
 
-        mock_settings_repository.delete_user_settings.assert_called_once_with(123456789)
-        mock_user_repository.delete_user.assert_called_once_with(123456789)
+        mock_settings_repository.delete_user_settings.assert_called_once_with(
+            telegram_id=123456789
+        )
+        mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
-    def test_delete_user_profile_user_deletion_fails(
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_user_deletion_fails(
         self, user_service, mock_user_repository, mock_settings_repository
     ):
         """Test user profile deletion when user deletion fails.
@@ -785,9 +752,10 @@ class TestUserService:
             UserDeletionError,
             match="Failed to delete user profile: User 123456789 not found",
         ):
-            user_service.delete_user_profile(123456789)
+            await user_service.delete_user_profile(123456789)
 
-    def test_delete_user_profile_user_deletion_error_reraise(
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_user_deletion_error_reraise(
         self, user_service, mock_user_repository, mock_settings_repository
     ):
         """Test user profile deletion re-raises UserDeletionError.
@@ -803,9 +771,10 @@ class TestUserService:
         )
 
         with pytest.raises(UserDeletionError, match="Test error"):
-            user_service.delete_user_profile(123456789)
+            await user_service.delete_user_profile(123456789)
 
-    def test_delete_user_profile_general_exception(
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_general_exception(
         self, user_service, mock_user_repository, mock_settings_repository
     ):
         """Test user profile deletion with general exception.
@@ -824,7 +793,7 @@ class TestUserService:
             UserDeletionError,
             match="Failed to delete user profile: Test error",
         ):
-            user_service.delete_user_profile(123456789)
+            await user_service.delete_user_profile(123456789)
 
 
 class TestUserServiceUpdateSubscription:
@@ -834,7 +803,8 @@ class TestUserServiceUpdateSubscription:
     including success and error scenarios.
     """
 
-    def test_update_user_subscription_success(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_subscription_success(self) -> None:
         """Test successful subscription type update.
 
         This test verifies that update_user_subscription correctly
@@ -845,21 +815,25 @@ class TestUserServiceUpdateSubscription:
         subscription.subscription_type = SubscriptionType.BASIC
 
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.subscription_repository.get_subscription.return_value = (
             subscription
         )
         user_service.subscription_repository.update_subscription.return_value = True
 
         # Should not raise any exception
-        user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+        await user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
 
         # Verify subscription type was updated
         assert subscription.subscription_type == SubscriptionType.PREMIUM
         user_service.subscription_repository.update_subscription.assert_called_once_with(
-            subscription
+            subscription=subscription
         )
 
-    def test_update_user_subscription_not_found(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_subscription_not_found(self) -> None:
         """Test update_user_subscription when subscription not found.
 
         This test verifies that UserNotFoundError is raised when
@@ -867,14 +841,20 @@ class TestUserServiceUpdateSubscription:
         """
         user_service = UserService()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.subscription_repository.get_subscription.return_value = None
 
         with pytest.raises(
             UserNotFoundError, match="Subscription not found for user 123456789"
         ):
-            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+            await user_service.update_user_subscription(
+                123456789, SubscriptionType.PREMIUM
+            )
 
-    def test_update_user_subscription_update_fails(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_subscription_update_fails(self) -> None:
         """Test update_user_subscription when repository update fails.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -885,6 +865,9 @@ class TestUserServiceUpdateSubscription:
         subscription.subscription_type = SubscriptionType.BASIC
 
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.subscription_repository.get_subscription.return_value = (
             subscription
         )
@@ -894,9 +877,12 @@ class TestUserServiceUpdateSubscription:
             UserSubscriptionUpdateError,
             match="Failed to update subscription for user 123456789",
         ):
-            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+            await user_service.update_user_subscription(
+                123456789, SubscriptionType.PREMIUM
+            )
 
-    def test_update_user_subscription_repository_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_subscription_repository_exception(self) -> None:
         """Test update_user_subscription when repository raises exception.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -906,6 +892,9 @@ class TestUserServiceUpdateSubscription:
         subscription = MagicMock()
 
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.subscription_repository.get_subscription.return_value = (
             subscription
         )
@@ -917,9 +906,12 @@ class TestUserServiceUpdateSubscription:
             UserSubscriptionUpdateError,
             match="Error updating subscription for 123456789",
         ):
-            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+            await user_service.update_user_subscription(
+                123456789, SubscriptionType.PREMIUM
+            )
 
-    def test_update_user_subscription_get_subscription_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_subscription_get_subscription_exception(self) -> None:
         """Test update_user_subscription when get_subscription raises exception.
 
         This test verifies that UserSubscriptionUpdateError is raised when
@@ -927,6 +919,9 @@ class TestUserServiceUpdateSubscription:
         """
         user_service = UserService()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.subscription_repository.get_subscription.side_effect = Exception(
             "Database error"
         )
@@ -935,7 +930,9 @@ class TestUserServiceUpdateSubscription:
             UserSubscriptionUpdateError,
             match="Error updating subscription for 123456789: Database error",
         ):
-            user_service.update_user_subscription(123456789, SubscriptionType.PREMIUM)
+            await user_service.update_user_subscription(
+                123456789, SubscriptionType.PREMIUM
+            )
 
 
 class TestUserServiceUpdateSettings:
@@ -945,7 +942,8 @@ class TestUserServiceUpdateSettings:
     including success and error scenarios.
     """
 
-    def test_update_user_settings_success_all_fields(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_success_all_fields(self) -> None:
         """Test successful settings update with all fields.
 
         This test verifies that update_user_settings correctly
@@ -958,6 +956,9 @@ class TestUserServiceUpdateSettings:
         settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.return_value = True
 
@@ -966,7 +967,7 @@ class TestUserServiceUpdateSettings:
         new_language = SupportedLanguage.RU.value
 
         # Should not raise any exception
-        user_service.update_user_settings(
+        await user_service.update_user_settings(
             123456789,
             birth_date=new_birth_date,
             life_expectancy=new_life_expectancy,
@@ -978,10 +979,11 @@ class TestUserServiceUpdateSettings:
         assert settings.life_expectancy == new_life_expectancy
         assert settings.language == new_language
         user_service.settings_repository.update_user_settings.assert_called_once_with(
-            settings
+            settings=settings
         )
 
-    def test_update_user_settings_success_partial_fields(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_success_partial_fields(self) -> None:
         """Test successful settings update with partial fields.
 
         This test verifies that update_user_settings correctly
@@ -994,23 +996,27 @@ class TestUserServiceUpdateSettings:
         settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.return_value = True
 
         new_language = SupportedLanguage.RU.value
 
         # Should not raise any exception
-        user_service.update_user_settings(123456789, language=new_language)
+        await user_service.update_user_settings(123456789, language=new_language)
 
         # Verify only language was updated
         assert settings.birth_date == date(1990, 1, 1)  # Unchanged
         assert settings.life_expectancy == 75  # Unchanged
         assert settings.language == new_language  # Updated
         user_service.settings_repository.update_user_settings.assert_called_once_with(
-            settings
+            settings=settings
         )
 
-    def test_update_user_settings_not_found(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_not_found(self) -> None:
         """Test update_user_settings when settings not found.
 
         This test verifies that UserNotFoundError is raised when
@@ -1018,16 +1024,20 @@ class TestUserServiceUpdateSettings:
         """
         user_service = UserService()
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = None
 
         with pytest.raises(
             UserNotFoundError, match="Settings not found for user 123456789"
         ):
-            user_service.update_user_settings(
+            await user_service.update_user_settings(
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_update_fails(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_update_fails(self) -> None:
         """Test update_user_settings when repository update fails.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1037,6 +1047,9 @@ class TestUserServiceUpdateSettings:
         settings = MagicMock()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.return_value = False
 
@@ -1044,11 +1057,12 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Failed to update settings for user 123456789",
         ):
-            user_service.update_user_settings(
+            await user_service.update_user_settings(
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_repository_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_repository_exception(self) -> None:
         """Test update_user_settings when repository raises exception.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1058,6 +1072,9 @@ class TestUserServiceUpdateSettings:
         settings = MagicMock()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.side_effect = Exception(
             "Database error"
@@ -1067,11 +1084,12 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(
+            await user_service.update_user_settings(
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_get_settings_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_get_settings_exception(self) -> None:
         """Test update_user_settings when get_user_settings raises exception.
 
         This test verifies that UserSettingsUpdateError is raised when
@@ -1079,6 +1097,9 @@ class TestUserServiceUpdateSettings:
         """
         user_service = UserService()
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.side_effect = Exception(
             "Database error"
         )
@@ -1087,11 +1108,12 @@ class TestUserServiceUpdateSettings:
             UserSettingsUpdateError,
             match="Error updating settings for 123456789: Database error",
         ):
-            user_service.update_user_settings(
+            await user_service.update_user_settings(
                 123456789, language=SupportedLanguage.RU.value
             )
 
-    def test_update_user_settings_no_fields_provided(self) -> None:
+    @pytest.mark.asyncio
+    async def test_update_user_settings_no_fields_provided(self) -> None:
         """Test update_user_settings when no fields are provided.
 
         This test verifies that the method works correctly when
@@ -1104,18 +1126,21 @@ class TestUserServiceUpdateSettings:
         settings.language = SupportedLanguage.EN.value
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.get_user_settings.return_value = settings
         user_service.settings_repository.update_user_settings.return_value = True
 
         # Should not raise any exception
-        user_service.update_user_settings(123456789)
+        await user_service.update_user_settings(123456789)
 
         # Verify no fields were changed
         assert settings.birth_date == date(1990, 1, 1)
         assert settings.life_expectancy == 75
         assert settings.language == SupportedLanguage.EN.value
         user_service.settings_repository.update_user_settings.assert_called_once_with(
-            settings
+            settings=settings
         )
 
 
@@ -1126,7 +1151,8 @@ class TestUserServiceDeleteUserProfile:
     including success and error scenarios.
     """
 
-    def test_delete_user_profile_success_all_components(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_success_all_components(self) -> None:
         """Test successful deletion of complete user profile.
 
         This test verifies that delete_user_profile correctly
@@ -1135,25 +1161,37 @@ class TestUserServiceDeleteUserProfile:
         user_service = UserService()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository.delete_user_settings.return_value = True
         user_service.subscription_repository.delete_subscription.return_value = True
         user_service.user_repository.delete_user.return_value = True
 
         # Should not raise any exception
-        user_service.delete_user_profile(123456789)
+        await user_service.delete_user_profile(123456789)
 
         # Verify all deletions were called in correct order
         user_service.settings_repository.delete_user_settings.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
         user_service.subscription_repository.delete_subscription.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
-        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+        user_service.user_repository.delete_user.assert_called_once_with(
+            telegram_id=123456789
+        )
 
-    def test_delete_user_profile_success_missing_settings(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_success_missing_settings(self) -> None:
         """Test successful deletion when settings don't exist.
 
         This test verifies that delete_user_profile works correctly
@@ -1162,25 +1200,37 @@ class TestUserServiceDeleteUserProfile:
         user_service = UserService()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository.delete_user_settings.return_value = False
         user_service.subscription_repository.delete_subscription.return_value = True
         user_service.user_repository.delete_user.return_value = True
 
         # Should not raise any exception
-        user_service.delete_user_profile(123456789)
+        await user_service.delete_user_profile(123456789)
 
         # Verify all deletions were attempted
         user_service.settings_repository.delete_user_settings.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
         user_service.subscription_repository.delete_subscription.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
-        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+        user_service.user_repository.delete_user.assert_called_once_with(
+            telegram_id=123456789
+        )
 
-    def test_delete_user_profile_success_missing_subscription(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_success_missing_subscription(self) -> None:
         """Test successful deletion when subscription doesn't exist.
 
         This test verifies that delete_user_profile works correctly
@@ -1189,25 +1239,37 @@ class TestUserServiceDeleteUserProfile:
         user_service = UserService()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository.delete_user_settings.return_value = True
         user_service.subscription_repository.delete_subscription.return_value = False
         user_service.user_repository.delete_user.return_value = True
 
         # Should not raise any exception
-        user_service.delete_user_profile(123456789)
+        await user_service.delete_user_profile(123456789)
 
         # Verify all deletions were attempted
         user_service.settings_repository.delete_user_settings.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
         user_service.subscription_repository.delete_subscription.assert_called_once_with(
-            123456789
+            telegram_id=123456789
         )
-        user_service.user_repository.delete_user.assert_called_once_with(123456789)
+        user_service.user_repository.delete_user.assert_called_once_with(
+            telegram_id=123456789
+        )
 
-    def test_delete_user_profile_user_not_found(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_user_not_found(self) -> None:
         """Test delete_user_profile when user doesn't exist.
 
         This test verifies that UserDeletionError is raised when
@@ -1216,16 +1278,26 @@ class TestUserServiceDeleteUserProfile:
         user_service = UserService()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.subscription_repository = MagicMock()
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository.delete_user_settings.return_value = True
         user_service.subscription_repository.delete_subscription.return_value = True
         user_service.user_repository.delete_user.return_value = False
 
         with pytest.raises(UserDeletionError, match="User 123456789 not found"):
-            user_service.delete_user_profile(123456789)
+            await user_service.delete_user_profile(123456789)
 
-    def test_delete_user_profile_general_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_delete_user_profile_general_exception(self) -> None:
         """Test delete_user_profile when an unexpected exception occurs.
 
         This test verifies that UserDeletionError is raised when
@@ -1234,6 +1306,9 @@ class TestUserServiceDeleteUserProfile:
         user_service = UserService()
 
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.settings_repository.delete_user_settings.side_effect = Exception(
             "Database error"
         )
@@ -1241,7 +1316,7 @@ class TestUserServiceDeleteUserProfile:
         with pytest.raises(
             UserDeletionError, match="Failed to delete user profile: Database error"
         ):
-            user_service.delete_user_profile(123456789)
+            await user_service.delete_user_profile(123456789)
 
 
 class TestUserServiceGetAllUsers:
@@ -1251,7 +1326,8 @@ class TestUserServiceGetAllUsers:
     focusing on edge cases and error scenarios.
     """
 
-    def test_get_all_users_with_incomplete_profiles(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_all_users_with_incomplete_profiles(self) -> None:
         """Test get_all_users when some users have incomplete profiles.
 
         This test verifies that get_all_users skips users with
@@ -1275,9 +1351,20 @@ class TestUserServiceGetAllUsers:
         user2.created_at = datetime.now(UTC)
 
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
         user_service.subscription_repository = MagicMock()
-        user_service.user_repository._get_all_entities.return_value = [user1, user2]
+        user_service.subscription_repository.get_subscription = AsyncMock()
+        user_service.subscription_repository.update_subscription = AsyncMock()
+        user_service.subscription_repository.delete_subscription = AsyncMock()
+        user_service.user_repository._get_all_entities = AsyncMock(
+            return_value=[user1, user2]
+        )
 
         # Mock settings and subscriptions - user2 will have missing settings
         settings1 = MagicMock()
@@ -1301,7 +1388,7 @@ class TestUserServiceGetAllUsers:
             mock_get_subscription
         )
 
-        result = user_service.get_all_users()
+        result = await user_service.get_all_users()
 
         # Should return both users (user2 with None settings is included)
         assert len(result) == 2
@@ -1310,7 +1397,8 @@ class TestUserServiceGetAllUsers:
         assert result[0].settings is not None
         assert result[1].settings is None
 
-    def test_get_all_users_repository_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_all_users_repository_exception(self) -> None:
         """Test get_all_users when repository raises exception.
 
         This test verifies that get_all_users returns empty list when
@@ -1318,15 +1406,19 @@ class TestUserServiceGetAllUsers:
         """
         user_service = UserService()
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.user_repository._get_all_entities.side_effect = Exception(
             "Database error"
         )
 
-        result = user_service.get_all_users()
+        result = await user_service.get_all_users()
 
         assert result == []
 
-    def test_get_all_users_profile_building_exception(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_all_users_profile_building_exception(self) -> None:
         """Test get_all_users when profile building raises exception.
 
         This test verifies that get_all_users skips users where
@@ -1343,15 +1435,21 @@ class TestUserServiceGetAllUsers:
         user1.created_at = datetime.now(UTC)
 
         user_service.user_repository = MagicMock()
+        user_service.user_repository.get_user = AsyncMock()
+        user_service.user_repository.delete_user = AsyncMock()
+        user_service.user_repository.get_all_users = AsyncMock()
         user_service.settings_repository = MagicMock()
-        user_service.user_repository._get_all_entities.return_value = [user1]
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
+        user_service.user_repository._get_all_entities = AsyncMock(return_value=[user1])
 
         # Mock settings retrieval to raise exception
         user_service.settings_repository.get_user_settings.side_effect = Exception(
             "Settings error"
         )
 
-        result = user_service.get_all_users()
+        result = await user_service.get_all_users()
 
         # Should return empty list as user1 profile building failed
         assert result == []

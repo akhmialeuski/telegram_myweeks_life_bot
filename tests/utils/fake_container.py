@@ -5,7 +5,7 @@ to replace the real ServiceContainer with mock objects and simplified
 implementations.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from src.core.enums import SupportedLanguage
 
@@ -18,7 +18,7 @@ class FakeServiceContainer:
     database connections or external dependencies.
 
     Attributes:
-        user_service: Mock user service
+        user_service: Mock user service with async methods
         life_calculator: Mock life calculator
         config: Mock configuration object
     """
@@ -31,7 +31,7 @@ class FakeServiceContainer:
 
         :returns: None
         """
-        # Create mock user service
+        # Create mock user service with AsyncMock for async methods
         self.user_service = MagicMock()
 
         # Create mock life calculator
@@ -47,17 +47,19 @@ class FakeServiceContainer:
         """Set up common mock behaviors for testing.
 
         This method configures default return values and behaviors
-        for the mock services to make testing easier.
+        for the mock services to make testing easier. Async methods
+        use AsyncMock to properly support await expressions.
 
         :returns: None
         """
-        # Set up user service mock behaviors
-        self.user_service.is_valid_user_profile.return_value = True
-        self.user_service.get_user_profile.return_value = MagicMock()
-        self.user_service.create_user_profile.return_value = MagicMock()
-        self.user_service.update_user_settings.return_value = None
-        self.user_service.update_user_subscription.return_value = None
-        self.user_service.delete_user_profile.return_value = None
+        # Set up user service async mock behaviors
+        self.user_service.is_valid_user_profile = AsyncMock(return_value=True)
+        self.user_service.get_user_profile = AsyncMock(return_value=MagicMock())
+        self.user_service.create_user_profile = AsyncMock(return_value=MagicMock())
+        self.user_service.update_user_settings = AsyncMock(return_value=None)
+        self.user_service.update_user_subscription = AsyncMock(return_value=None)
+        self.user_service.delete_user_profile = AsyncMock(return_value=None)
+        self.user_service.get_all_users = AsyncMock(return_value=[])
 
         # Set up life calculator mock behaviors
         self.life_calculator.return_value.calculate_age.return_value = 30

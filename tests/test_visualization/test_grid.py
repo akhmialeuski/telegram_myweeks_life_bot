@@ -1,7 +1,7 @@
 """Tests for grid visualization functionality."""
 
 from io import BytesIO
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import AsyncMock, Mock, mock_open, patch
 
 import pytest
 
@@ -110,6 +110,7 @@ class TestGenerateVisualization:
         self.mock_user_profile.settings = self.mock_user_settings
         self.mock_user_profile.subscription = self.mock_user_subscription
 
+    @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
     @patch("src.visualization.grid.LifeCalculatorEngine")
     @patch("src.visualization.grid.Image")
@@ -117,7 +118,7 @@ class TestGenerateVisualization:
     @patch("src.visualization.grid._load_font")
     @patch("src.i18n.use_locale")
     @patch("src.visualization.grid._parse_legend_labels")
-    def test_generate_visualization_with_db_user(
+    async def test_generate_visualization_with_db_user(
         self,
         mock_parse_legend,
         mock_use_locale,
@@ -136,7 +137,9 @@ class TestGenerateVisualization:
         :rtype: None
         """
         # Setup mocks
-        mock_user_service.get_user_profile.return_value = self.mock_user_profile
+        mock_user_service.get_user_profile = AsyncMock(
+            return_value=self.mock_user_profile
+        )
 
         mock_engine = Mock()
         mock_engine.calculate_weeks_lived.return_value = 1000
@@ -164,7 +167,7 @@ class TestGenerateVisualization:
         mock_parse_legend.return_value = ("Lived weeks", "Future weeks")
 
         # Test with database User object
-        result = generate_visualization(self.mock_user_profile)
+        result = await generate_visualization(self.mock_user_profile)
 
         # Verify result is BytesIO
         assert isinstance(result, BytesIO)
@@ -180,6 +183,7 @@ class TestGenerateVisualization:
         mock_image.new.assert_called_once()
         mock_image_draw.Draw.assert_called_once_with(mock_image_instance)
 
+    @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
     @patch("src.visualization.grid.LifeCalculatorEngine")
     @patch("src.visualization.grid.Image")
@@ -187,7 +191,7 @@ class TestGenerateVisualization:
     @patch("src.visualization.grid._load_font")
     @patch("src.i18n.use_locale")
     @patch("src.visualization.grid._parse_legend_labels")
-    def test_generate_visualization_with_telegram_user(
+    async def test_generate_visualization_with_telegram_user(
         self,
         mock_parse_legend,
         mock_use_locale,
@@ -206,7 +210,9 @@ class TestGenerateVisualization:
         :rtype: None
         """
         # Setup mocks
-        mock_user_service.get_user_profile.return_value = self.mock_user_profile
+        mock_user_service.get_user_profile = AsyncMock(
+            return_value=self.mock_user_profile
+        )
 
         mock_engine = Mock()
         mock_engine.calculate_weeks_lived.return_value = 500
@@ -240,7 +246,7 @@ class TestGenerateVisualization:
         mock_telegram_user.telegram_id = 67890
 
         # Test with Telegram User object
-        result = generate_visualization(mock_telegram_user)
+        result = await generate_visualization(mock_telegram_user)
 
         # Verify result is BytesIO
         assert isinstance(result, BytesIO)
@@ -248,6 +254,7 @@ class TestGenerateVisualization:
         # Verify user service was called with correct telegram_id
         mock_user_service.get_user_profile.assert_called_once_with(telegram_id=67890)
 
+    @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
     @patch("src.visualization.grid.LifeCalculatorEngine")
     @patch("src.visualization.grid.Image")
@@ -255,7 +262,7 @@ class TestGenerateVisualization:
     @patch("src.visualization.grid._load_font")
     @patch("src.i18n.use_locale")
     @patch("src.visualization.grid._parse_legend_labels")
-    def test_generate_visualization_with_int_user_id(
+    async def test_generate_visualization_with_int_user_id(
         self,
         mock_parse_legend,
         mock_use_locale,
@@ -274,7 +281,9 @@ class TestGenerateVisualization:
         :rtype: None
         """
         # Setup mocks
-        mock_user_service.get_user_profile.return_value = self.mock_user_profile
+        mock_user_service.get_user_profile = AsyncMock(
+            return_value=self.mock_user_profile
+        )
 
         mock_engine = Mock()
         mock_engine.calculate_weeks_lived.return_value = 2000
@@ -302,7 +311,7 @@ class TestGenerateVisualization:
         mock_parse_legend.return_value = ("Lived weeks", "Future weeks")
 
         # Test with integer user ID
-        result = generate_visualization(11111)
+        result = await generate_visualization(11111)
 
         # Verify result is BytesIO
         assert isinstance(result, BytesIO)
@@ -310,7 +319,8 @@ class TestGenerateVisualization:
         # Verify user service was called with correct telegram_id
         mock_user_service.get_user_profile.assert_called_once_with(telegram_id=11111)
 
-    def test_generate_visualization_with_unsupported_type(self) -> None:
+    @pytest.mark.asyncio
+    async def test_generate_visualization_with_unsupported_type(self) -> None:
         """Test generate_visualization with unsupported input type.
 
         This test verifies that TypeError is raised when provided
@@ -321,7 +331,7 @@ class TestGenerateVisualization:
         """
         # Test with unsupported type
         with pytest.raises(TypeError) as exc_info:
-            generate_visualization("invalid_input")
+            await generate_visualization("invalid_input")
 
         # Verify error message
         assert (
@@ -329,7 +339,8 @@ class TestGenerateVisualization:
             in str(exc_info.value)
         )
 
-    def test_generate_visualization_with_unsupported_object(self) -> None:
+    @pytest.mark.asyncio
+    async def test_generate_visualization_with_unsupported_object(self) -> None:
         """Test generate_visualization with object without required attributes.
 
         This test verifies that TypeError is raised when provided
@@ -345,7 +356,7 @@ class TestGenerateVisualization:
 
         # Test with unsupported object
         with pytest.raises(TypeError) as exc_info:
-            generate_visualization(mock_object)
+            await generate_visualization(mock_object)
 
         # Verify error message
         assert (
@@ -353,8 +364,11 @@ class TestGenerateVisualization:
             in str(exc_info.value)
         )
 
+    @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
-    def test_generate_visualization_user_not_found(self, mock_user_service) -> None:
+    async def test_generate_visualization_user_not_found(
+        self, mock_user_service
+    ) -> None:
         """Test generate_visualization when user profile is not found.
 
         This test verifies that ValueError is raised when user profile
@@ -364,15 +378,16 @@ class TestGenerateVisualization:
         :rtype: None
         """
         # Setup mock to return None (user not found)
-        mock_user_service.get_user_profile.return_value = None
+        mock_user_service.get_user_profile = AsyncMock(return_value=None)
 
         # Test with user not found
         with pytest.raises(ValueError) as exc_info:
-            generate_visualization(99999)
+            await generate_visualization(99999)
 
         # Verify error message
         assert "User profile not found for telegram_id: 99999" in str(exc_info.value)
 
+    @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
     @patch("src.visualization.grid.LifeCalculatorEngine")
     @patch("src.visualization.grid.Image")
@@ -380,7 +395,7 @@ class TestGenerateVisualization:
     @patch("src.visualization.grid._load_font")
     @patch("src.i18n.use_locale")
     @patch("src.visualization.grid._parse_legend_labels")
-    def test_generate_visualization_with_no_language_setting(
+    async def test_generate_visualization_with_no_language_setting(
         self,
         mock_parse_legend,
         mock_use_locale,
@@ -407,7 +422,9 @@ class TestGenerateVisualization:
         mock_user_profile_no_lang.settings = mock_user_settings_no_lang
 
         # Setup mocks
-        mock_user_service.get_user_profile.return_value = mock_user_profile_no_lang
+        mock_user_service.get_user_profile = AsyncMock(
+            return_value=mock_user_profile_no_lang
+        )
 
         mock_engine = Mock()
         mock_engine.calculate_weeks_lived.return_value = 100
@@ -435,7 +452,7 @@ class TestGenerateVisualization:
         mock_parse_legend.return_value = ("Lived weeks", "Future weeks")
 
         # Test with user without language setting
-        result = generate_visualization(mock_user_profile_no_lang)
+        result = await generate_visualization(mock_user_profile_no_lang)
 
         # Verify result is BytesIO
         assert isinstance(result, BytesIO)
