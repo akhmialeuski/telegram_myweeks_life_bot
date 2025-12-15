@@ -161,7 +161,8 @@ class TestUserService:
         assert service.settings_repository == mock_settings_repository
         assert service.subscription_repository == mock_subscription_repository
 
-    def test_initialize(
+    @pytest.mark.asyncio
+    async def test_initialize(
         self,
         user_service,
         mock_user_repository,
@@ -179,13 +180,14 @@ class TestUserService:
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
-        user_service.initialize()
+        await user_service.initialize()
         # initialize() should not call repository initialize methods
         mock_user_repository.initialize.assert_not_called()
         mock_settings_repository.initialize.assert_not_called()
         mock_subscription_repository.initialize.assert_not_called()
 
-    def test_close(
+    @pytest.mark.asyncio
+    async def test_close(
         self,
         user_service,
         mock_user_repository,
@@ -202,7 +204,7 @@ class TestUserService:
         :param mock_subscription_repository: Mock subscription repository
         :returns: None
         """
-        user_service.close()
+        await user_service.close()
         # close() should not call repository close methods
         mock_user_repository.close.assert_not_called()
         mock_settings_repository.close.assert_not_called()

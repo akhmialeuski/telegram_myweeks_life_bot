@@ -16,27 +16,38 @@ handlers:
     command: weeks
     callbacks: []
 
-  - module: src.bot.handlers.settings
-    class: SettingsHandler
+  - module: src.bot.handlers.settings.dispatcher
+    class: SettingsDispatcher
     command: settings
+    callbacks: []
+
+  - module: src.bot.handlers.settings.birth_date_handler
+    class: BirthDateHandler
+    command: settings_birth_date
     callbacks:
-      - method: handle_settings_callback
+      - method: handle_callback
         pattern: settings_birth_date
-      - method: handle_settings_callback
-        pattern: settings_language
-      - method: handle_settings_callback
-        pattern: settings_life_expectancy
-      - method: handle_language_callback
-        pattern: language_ru
-      - method: handle_language_callback
-        pattern: language_en
-      - method: handle_language_callback
-        pattern: language_ua
-      - method: handle_language_callback
-        pattern: language_by
-    text_input: handle_settings_input
+    text_input: handle_input
     waiting_states:
       - settings_birth_date
+
+  - module: src.bot.handlers.settings.language_handler
+    class: LanguageHandler
+    command: settings_language
+    callbacks:
+      - method: handle_callback
+        pattern: settings_language
+      - method: handle_selection_callback
+        pattern: language_.*
+
+  - module: src.bot.handlers.settings.life_expectancy_handler
+    class: LifeExpectancyHandler
+    command: settings_life_expectancy
+    callbacks:
+      - method: handle_callback
+        pattern: settings_life_expectancy
+    text_input: handle_input
+    waiting_states:
       - settings_life_expectancy
 
   - module: src.bot.handlers.visualize_handler

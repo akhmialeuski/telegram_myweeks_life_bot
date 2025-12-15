@@ -4,11 +4,13 @@ Tests the state persistence implementation that uses
 Telegram context.user_data for storing conversation state.
 """
 
+import time
 from unittest.mock import MagicMock
 
 import pytest
 
 from src.bot.conversations.persistence import (
+    CONTEXT_DATA_KEY,
     STATE_KEY,
     TIMESTAMP_KEY,
     TelegramContextPersistence,
@@ -196,3 +198,77 @@ class TestTelegramContextPersistence:
             context=mock_context,
         )
         assert mock_context.user_data[STATE_KEY] == "start_birth_date"
+
+    @pytest.mark.asyncio
+    async def test_is_state_valid_false_no_state_id(
+        self,
+        persistence: TelegramContextPersistence,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test is_state_valid returns False when state_id is missing.
+
+        :param persistence: TelegramContextPersistence instance
+        :type persistence: TelegramContextPersistence
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        # Manually set state without state_id
+        mock_context.user_data[STATE_KEY] = (
+            ConversationState.AWAITING_START_BIRTH_DATE.value
+        )
+        mock_context.user_data[TIMESTAMP_KEY] = time.time()
+        # STATE_ID_KEY is missing
+
+        is_valid = await persistence.is_state_valid(
+            user_id=12345,
+            expected_state=ConversationState.AWAITING_START_BIRTH_DATE,
+            context=mock_context,
+        )
+        assert is_valid is False
+
+    @pytest.mark.asyncio
+    async def test_get_context_data_default(
+        self,
+        persistence: TelegramContextPersistence,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test get_context_data returns empty dict by default.
+
+        :param persistence: TelegramContextPersistence instance
+        :type persistence: TelegramContextPersistence
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        data = await persistence.get_context_data(user_id=12345, context=mock_context)
+        assert data == {}
+
+    @pytest.mark.asyncio
+    async def test_set_and_get_context_data(
+        self,
+        persistence: TelegramContextPersistence,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test setting and retrieving context data.
+
+        :param persistence: TelegramContextPersistence instance
+        :type persistence: TelegramContextPersistence
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        test_data = {"key": "value", "number": 42}
+
+        await persistence.set_context_data(
+            user_id=12345,
+            data=test_data,
+            context=mock_context,
+        )
+
+        retrieved_data = await persistence.get_context_data(
+            user_id=12345,
+            context=mock_context,
+        )
+        assert retrieved_data == test_data
+        assert mock_context.user_data[CONTEXT_DATA_KEY] == test_data

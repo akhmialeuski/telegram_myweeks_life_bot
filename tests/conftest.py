@@ -1,19 +1,25 @@
 """Common test fixtures and configuration for all tests."""
 
+import os
+import sys  # noqa: E402
+import types  # noqa: E402
+from collections.abc import Iterator  # noqa: E402
+from typing import Any  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+
+# Set PTB_TIMEDELTA environment variable to suppress PTBDeprecationWarning
+os.environ.setdefault("PTB_TIMEDELTA", "1")
+
 # Ensure compatibility alias for legacy import paths in some modules
-import sys
-import types
-from collections.abc import Iterator
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-from telegram import Update
-from telegram.ext import Application, ContextTypes
 
-import src.core.life_calculator as _lc
-from src.bot.application import LifeWeeksBot
-from src.constants import (
+import pytest  # noqa: E402
+from telegram import Update  # noqa: E402
+from telegram.ext import Application, ContextTypes  # noqa: E402
+
+import src.core.life_calculator as _lc  # noqa: E402
+from src.bot.application import LifeWeeksBot  # noqa: E402
+from src.constants import (  # noqa: E402
     DEFAULT_LIFE_EXPECTANCY,
     DEFAULT_NOTIFICATIONS_DAY,
     DEFAULT_NOTIFICATIONS_ENABLED,
@@ -21,9 +27,10 @@ from src.constants import (
     DEFAULT_TIMEZONE,
     DEFAULT_USER_FIRST_NAME,
 )
-from src.enums import SubscriptionType, SupportedLanguage, WeekDay
+from src.enums import SubscriptionType, SupportedLanguage, WeekDay  # noqa: E402
 
 sys.modules.setdefault("core", types.ModuleType("core"))
+
 sys.modules["core.life_calculator"] = _lc
 # Alias missing class name used by some modules
 setattr(_lc, "LifeCalculator", _lc.LifeCalculatorEngine)

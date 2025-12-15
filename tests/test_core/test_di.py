@@ -225,6 +225,94 @@ class TestContainerDisposal:
         # Since we only registered as singleton, it should now be False
         assert container.is_registered(protocol=Service) is False
 
+    @pytest.mark.asyncio
+    async def test_dispose_handles_errors_gracefully(self) -> None:
+        """Test that dispose handles errors during cleanup.
+
+        This test verifies that if a service's close() method raises
+        an exception, the container logs the error and continues
+        disposing other services.
+
+        :returns: None
+        :rtype: None
+        """
+        container = Container()
+
+        class FailingService:
+            def close(self) -> None:
+                raise RuntimeError("Close failed")
+
+        class WorkingService:
+            closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        failing_instance = FailingService()
+        working_instance = WorkingService()
+
+        container.register_singleton(protocol=FailingService, instance=failing_instance)
+        container.register_singleton(protocol=WorkingService, instance=working_instance)
+
+        # Should not raise, should handle error gracefully
+        await container.dispose()
+
+        # Working service should still be closed despite failing service
+        assert working_instance.closed is True
+        # Singletons should be cleared even with errors
+        assert container.is_registered(protocol=FailingService) is False
+        assert container.is_registered(protocol=WorkingService) is False
+
+    @pytest.mark.asyncio
+    async def test_dispose_calls_dispose_method(self) -> None:
+        """Test that dispose calls dispose() on singletons.
+
+        This test verifies that the container properly disposes
+        singletons that have a dispose() method instead of close().
+
+        :returns: None
+        :rtype: None
+        """
+        container = Container()
+
+        class DisposableService:
+            disposed = False
+
+            def dispose(self) -> None:
+                self.disposed = True
+
+        instance = DisposableService()
+        container.register_singleton(protocol=DisposableService, instance=instance)
+
+        await container.dispose()
+
+        assert instance.disposed is True
+
+    @pytest.mark.asyncio
+    async def test_dispose_calls_async_dispose_method(self) -> None:
+        """Test that dispose awaits async dispose() methods.
+
+        This test verifies that the container properly awaits
+        async dispose methods during disposal.
+
+        :returns: None
+        :rtype: None
+        """
+        container = Container()
+
+        class AsyncDisposableService:
+            disposed = False
+
+            async def dispose(self) -> None:
+                self.disposed = True
+
+        instance = AsyncDisposableService()
+        container.register_singleton(protocol=AsyncDisposableService, instance=instance)
+
+        await container.dispose()
+
+        assert instance.disposed is True
+
 
 class TestDependencyNotRegisteredError:
     """Test suite for DependencyNotRegisteredError exception."""

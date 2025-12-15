@@ -5,6 +5,7 @@ for the Telegram bot application. It delegates handler registration to the
 plugin system and uses HandlerRegistry for centralized handler management.
 """
 
+import asyncio
 import multiprocessing
 from typing import Optional
 
@@ -235,7 +236,7 @@ class LifeWeeksBot:
         self._scheduler_client = None
 
         if hasattr(self, "services"):
-            self.services.cleanup()
+            asyncio.run(self.services.cleanup())
 
         logger.info("Life Weeks Bot stopped")
 
