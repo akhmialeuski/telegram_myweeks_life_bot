@@ -179,7 +179,7 @@ class ServiceContainer:
         """
         return self.scheduler_client
 
-    def cleanup(self) -> None:
+    async def cleanup(self) -> None:
         """Cleanup resources and close connections.
 
         This method should be called when shutting down the application
@@ -187,17 +187,17 @@ class ServiceContainer:
 
         :returns: None
         """
-        DatabaseManager().close()
+        await DatabaseManager().close()
 
     @classmethod
-    def reset_instance(cls) -> None:
+    async def reset_instance(cls) -> None:
         """Reset the singleton instance (mainly for testing).
 
         :returns: None
         """
         with cls._lock:
             if cls._instance:
-                cls._instance.cleanup()
+                await cls._instance.cleanup()
             cls._instance = None
             cls._initialized = False
             DatabaseManager.reset_instance()

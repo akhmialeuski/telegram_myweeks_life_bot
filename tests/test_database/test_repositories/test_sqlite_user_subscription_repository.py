@@ -38,7 +38,7 @@ class TestSQLiteUserSubscriptionRepository:
         repo = SQLiteUserSubscriptionRepository(temp_db_path)
         await repo.initialize()
         yield repo
-        repo.close()
+        await repo.close()
 
     def test_init_default_path(self) -> None:
         """Test repository initialization with default path.
@@ -90,7 +90,8 @@ class TestSQLiteUserSubscriptionRepository:
         with pytest.raises(SQLAlchemyError):
             await repo.initialize()
 
-    def test_close_success(self, repository) -> None:
+    @pytest.mark.asyncio
+    async def test_close_success(self, repository) -> None:
         """Test successful database connection closure.
 
         :param repository: Repository instance
@@ -98,7 +99,7 @@ class TestSQLiteUserSubscriptionRepository:
         :returns: None
         :rtype: None
         """
-        repository.close()
+        await repository.close()
         # Do not assert strict None to avoid relying on implementation detail
         assert hasattr(repository, "engine")
 

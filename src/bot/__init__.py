@@ -11,7 +11,10 @@ The bot application is responsible for:
 from .application import LifeWeeksBot
 from .handlers import (
     BaseHandler,
-    SettingsHandler,
+    BirthDateHandler,
+    LanguageHandler,
+    LifeExpectancyHandler,
+    SettingsDispatcher,
     StartHandler,
     UnknownHandler,
     WeeksHandler,
@@ -30,7 +33,10 @@ __all__ = [
     "LifeWeeksBot",
     "user_service",
     "BaseHandler",
-    "SettingsHandler",
+    "SettingsDispatcher",
+    "BirthDateHandler",
+    "LanguageHandler",
+    "LifeExpectancyHandler",
     "StartHandler",
     "UnknownHandler",
     "WeeksHandler",

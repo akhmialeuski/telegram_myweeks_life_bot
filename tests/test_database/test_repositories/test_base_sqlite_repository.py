@@ -11,7 +11,6 @@ from unittest.mock import Mock, patch
 import pytest
 import pytest_asyncio
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
 from src.database.models.user import User
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
@@ -156,58 +155,6 @@ class TestBaseSQLiteRepository:
         await repo.close()  # Should not raise exception
         assert repo.engine is None
 
-    @pytest.mark.skip(reason="Testing internal async session implementation")
-    @pytest.mark.asyncio
-    async def test_async_session_context_manager_success(self, repository) -> None:
-        """Test successful session context manager usage.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        from sqlalchemy import text
-
-        with repository.async_session() as session:
-            assert isinstance(session, Session)
-            # Test that we can execute a simple query
-            result = session.execute(text("SELECT 1"))
-            assert result.scalar() == 1
-
-    @pytest.mark.skip(reason="Testing internal async session implementation")
-    @pytest.mark.asyncio
-    async def test_async_session_not_initialized(self) -> None:
-        """Test session usage when repository not initialized.
-
-        :returns: None
-        :rtype: None
-        """
-        repo = BaseSQLiteRepository("test.db")
-        with pytest.raises(RuntimeError, match="Repository not initialized"):
-            with repo.async_session():
-                pass
-
-    @pytest.mark.skip(reason="Testing internal async implementation")
-    def test_session_rollback_on_error(self, repository) -> None:
-        """Test that session rolls back on error.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        with patch.object(repository, "SessionLocal") as mock_session_local:
-            mock_session = Mock()
-            mock_session_local.return_value = mock_session
-            mock_session.execute.side_effect = SQLAlchemyError("Test error")
-
-            with pytest.raises(SQLAlchemyError):
-                with repository.async_session() as session:
-                    session.execute("SELECT 1")
-
-            mock_session.rollback.assert_called_once()
-            mock_session.close.assert_called_once()
-
     def test_detach_instance_in_session(self, repository) -> None:
         """Test detaching instance that is in session.
 
@@ -288,22 +235,6 @@ class TestBaseSQLiteRepository:
         result = await repository._create_entity(duplicate_user, f"user {TEST_USER_ID}")
         assert result is False
 
-    @pytest.mark.skip(reason="Testing internal async implementation")
-    @pytest.mark.asyncio
-    async def test_create_entity_general_error(self, repository) -> None:
-        """Test entity creation with general error.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        with patch.object(repository, "session") as mock_session:
-            mock_session.side_effect = Exception("Test error")
-
-            result = await repository._create_entity(Mock(), "test entity")
-            assert result is False
-
     @pytest.mark.asyncio
     async def test_get_entity_by_telegram_id_success(
         self, repository, sample_user
@@ -340,24 +271,6 @@ class TestBaseSQLiteRepository:
         )
         assert result is None
 
-    @pytest.mark.skip(reason="Testing internal async implementation")
-    @pytest.mark.asyncio
-    async def test_get_entity_by_telegram_id_error(self, repository) -> None:
-        """Test entity retrieval with error.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        with patch.object(repository, "session") as mock_session:
-            mock_session.side_effect = Exception("Test error")
-
-            result = await repository._get_entity_by_telegram_id(
-                User, TEST_USER_ID, "user"
-            )
-            assert result is None
-
     @pytest.mark.asyncio
     async def test_delete_entity_by_telegram_id_success(
         self, repository, sample_user
@@ -393,24 +306,6 @@ class TestBaseSQLiteRepository:
             User, TEST_USER_ID_NONEXISTENT, "user"
         )
         assert result is False
-
-    @pytest.mark.skip(reason="Testing internal async implementation")
-    @pytest.mark.asyncio
-    async def test_delete_entity_by_telegram_id_error(self, repository) -> None:
-        """Test entity deletion with error.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        with patch.object(repository, "session") as mock_session:
-            mock_session.side_effect = Exception("Test error")
-
-            result = await repository._delete_entity_by_telegram_id(
-                User, TEST_USER_ID, "user"
-            )
-            assert result is False
 
     @pytest.mark.asyncio
     async def test_get_all_entities_success(self, repository, sample_user) -> None:
@@ -454,22 +349,6 @@ class TestBaseSQLiteRepository:
         results = await repository._get_all_entities(User, "users")
         assert results == []
 
-    @pytest.mark.skip(reason="Testing internal async implementation")
-    @pytest.mark.asyncio
-    async def test_get_all_entities_error(self, repository) -> None:
-        """Test retrieval of all entities with error.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        with patch.object(repository, "session") as mock_session:
-            mock_session.side_effect = Exception("Test error")
-
-            results = await repository._get_all_entities(User, "users")
-            assert results == []
-
     @pytest.mark.asyncio
     async def test_get_all_entities_detach_instances(
         self, repository, sample_user
@@ -490,24 +369,6 @@ class TestBaseSQLiteRepository:
 
             # Should be called once for each entity
             assert mock_detach.call_count == len(results)
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="AsyncSession configuration differs")
-    async def test_session_expire_on_commit_false(self, repository) -> None:
-        """Test that session is configured with expire_on_commit=False.
-
-        :param repository: Repository instance
-        :type repository: BaseSQLiteRepository
-        :returns: None
-        :rtype: None
-        """
-        # Check the session configuration
-        assert repository.SessionLocal is not None
-        session = repository.SessionLocal()
-        try:
-            assert session.expire_on_commit is False
-        finally:
-            session.close()
 
     def test_model_type_generic(self) -> None:
         """Test that ModelType generic works correctly.
@@ -688,44 +549,6 @@ class TestBaseSQLiteRepository:
             assert len(BaseSQLiteRepository._engines) == 0
             assert len(BaseSQLiteRepository._sessions) == 0
             assert len(BaseSQLiteRepository._initialized_once_logged) == 0
-
-        finally:
-            # Cleanup
-            if temp_path.exists():
-                temp_path.unlink()
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Engine registration cleared by other tests")
-    @pytest.mark.asyncio
-    async def test_multiple_repositories_same_path(self) -> None:
-        """Test multiple repositories with same path share engine and session.
-
-        :returns: None
-        :rtype: None
-        """
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
-            temp_path = Path(temp_file.name)
-
-        try:
-            # Create two repositories with same path
-            repo1 = BaseSQLiteRepository(db_path=temp_path)
-            repo2 = BaseSQLiteRepository(db_path=temp_path)
-
-            # Initialize both
-            repo1.initialize()
-            repo2.initialize()
-
-            # Verify they share the same engine
-            assert repo1.engine is repo2.engine
-            assert repo1.SessionLocal is repo2.SessionLocal
-
-            # Verify registry contains only one entry
-            db_key = str(temp_path.resolve())
-            assert db_key in BaseSQLiteRepository._engines
-            assert db_key in BaseSQLiteRepository._sessions
 
         finally:
             # Cleanup

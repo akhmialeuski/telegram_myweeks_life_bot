@@ -416,7 +416,8 @@ class TestLifeWeeksBot:
         mock_application_logger.warning.assert_called_once()
         warning_message = mock_application_logger.warning.call_args[0][0]
         assert "Rate limit exceeded" in warning_message
-        assert "60" in warning_message
+        # Accept both timedelta format (0:01:00) and integer format (60)
+        assert "0:01:00" in warning_message or "60" in warning_message
 
     def test_error_handler_handles_timed_out(
         self, bot: LifeWeeksBot, mock_application_logger: MagicMock

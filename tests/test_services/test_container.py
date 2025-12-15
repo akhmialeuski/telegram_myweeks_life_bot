@@ -81,7 +81,7 @@ class TestServiceContainer:
         from unittest.mock import AsyncMock, patch
 
         # Reset container to ensure fresh instance
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
 
         # Mock UserService
         with patch("src.services.container.UserService") as mock_user_service_cls:
@@ -101,76 +101,82 @@ class TestServiceContainer:
             # Verify initialization was called
             mock_service_instance.initialize.assert_awaited_once()
 
-    def test_cleanup_method(self) -> None:
+    @pytest.mark.asyncio
+    async def test_cleanup_method(self) -> None:
         """Test cleanup method closes database connections and cleans up resources.
 
         :returns: None
         :rtype: None
         """
-        from unittest.mock import Mock, patch
+        from unittest.mock import AsyncMock, patch
 
         container = ServiceContainer()
 
         # Mock DatabaseManager
         with patch("src.services.container.DatabaseManager") as mock_db_manager:
-            mock_db_instance = Mock()
+            mock_db_instance = AsyncMock()
             mock_db_manager.return_value = mock_db_instance
 
             # Test cleanup
-            container.cleanup()
+            await container.cleanup()
 
             # Verify database close was called
-            mock_db_instance.close.assert_called_once()
+            mock_db_instance.close.assert_awaited_once()
 
-    def test_reset_instance_with_existing_instance(self) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_instance_with_existing_instance(self) -> None:
         """Test reset_instance properly cleans up existing instance and resets state.
 
         :returns: None
         :rtype: None
         """
-        from unittest.mock import patch
+        from unittest.mock import AsyncMock, patch
 
         # Create first instance
         container1 = ServiceContainer()
 
         # Mock cleanup to verify it's called
-        with patch.object(container1, "cleanup") as mock_cleanup:
+        with patch.object(
+            container1, "cleanup", new_callable=AsyncMock
+        ) as mock_cleanup:
             # Reset instance
-            ServiceContainer.reset_instance()
+            await ServiceContainer.reset_instance()
 
             # Verify cleanup was called
-            mock_cleanup.assert_called_once()
+            mock_cleanup.assert_awaited_once()
 
             # Verify instance is reset
             assert ServiceContainer._instance is None
             assert not ServiceContainer._initialized
 
-    def test_reset_instance_without_existing_instance(self) -> None:
+    @pytest.mark.asyncio
+    async def test_reset_instance_without_existing_instance(self) -> None:
         """Test reset_instance works when no instance exists.
 
         :returns: None
         :rtype: None
         """
         # Reset instance first
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
 
         # Verify state is reset
         assert ServiceContainer._instance is None
         assert not ServiceContainer._initialized
 
         # Reset again should not raise error
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
         assert ServiceContainer._instance is None
         assert not ServiceContainer._initialized
 
-    def test_singleton_behavior_multiple_calls(self) -> None:
+    @pytest.mark.asyncio
+    async def test_singleton_behavior_multiple_calls(self) -> None:
         """Test singleton behavior with multiple get_instance calls.
 
         :returns: None
         :rtype: None
         """
         # Reset first
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
 
         # Get multiple instances
         container1 = ServiceContainer()
@@ -180,7 +186,8 @@ class TestServiceContainer:
         assert container1 is container2
         assert ServiceContainer._instance is container1
 
-    def test_singleton_thread_safety(self) -> None:
+    @pytest.mark.asyncio
+    async def test_singleton_thread_safety(self) -> None:
         """Test singleton thread safety.
 
         :returns: None
@@ -190,7 +197,7 @@ class TestServiceContainer:
         import time
 
         # Reset first
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
 
         results = []
 
@@ -219,7 +226,8 @@ class TestServiceContainer:
         for container in results[1:]:
             assert container is results[0]
 
-    def test_initialization_flag_behavior(self) -> None:
+    @pytest.mark.asyncio
+    async def test_initialization_flag_behavior(self) -> None:
         """Test initialization flag behavior.
 
         :returns: None
@@ -235,7 +243,7 @@ class TestServiceContainer:
         assert hasattr(ServiceContainer, "_initialized")
 
         # Reset instance
-        ServiceContainer.reset_instance()
+        await ServiceContainer.reset_instance()
 
         # Should not be initialized after reset
         assert not ServiceContainer._initialized

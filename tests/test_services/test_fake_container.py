@@ -5,6 +5,8 @@ Tests the FakeServiceContainer class which provides mock services for testing.
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.enums import SupportedLanguage
 from tests.utils.fake_container import FakeServiceContainer
 
@@ -127,7 +129,8 @@ class TestFakeServiceContainer:
         assert isinstance(message, str)
         assert "Mock message: test_key.test_sub_key (en)" in message
 
-    def test_cleanup(self) -> None:
+    @pytest.mark.asyncio
+    async def test_cleanup(self) -> None:
         """Test cleanup method.
 
         This test verifies that the cleanup method
@@ -139,7 +142,7 @@ class TestFakeServiceContainer:
         container = FakeServiceContainer()
 
         # Call some methods to create call history
-        container.user_service.get_user_profile(123)
+        await container.user_service.get_user_profile(123)
         container.life_calculator.return_value.calculate_age()
 
         # Verify that methods were called
