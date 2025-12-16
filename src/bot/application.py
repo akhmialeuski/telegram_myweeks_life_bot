@@ -20,6 +20,9 @@ from telegram.ext import (
 )
 
 from ..bot.event_listeners import register_event_listeners
+from ..core.exceptions import BotError
+from ..enums import SupportedLanguage
+from ..i18n import use_locale
 from ..scheduler.client import SchedulerClient
 from ..scheduler.worker import SchedulerWorker
 from ..services.container import ServiceContainer
@@ -361,7 +364,7 @@ class LifeWeeksBot:
         except Exception as error:
             logger.error(f"Failed to send error message: {error}", exc_info=True)
 
-    async def _error_handler(
+    async def _error_handler(  # noqa: C901
         self,
         update: Optional[Update],
         context: ContextTypes.DEFAULT_TYPE,
@@ -386,6 +389,31 @@ class LifeWeeksBot:
 
         if isinstance(error, NetworkError):
             logger.warning(f"Network error: {error}. Will retry automatically.")
+            return
+
+        if isinstance(error, BotError):
+            logger.warning(f"Bot error: {error}")
+            if update and update.effective_chat:
+                lang = SupportedLanguage.EN.value
+                if update.effective_user and update.effective_user.language_code:
+                    lang = update.effective_user.language_code
+
+                _, _, pgettext = use_locale(lang)
+                message = (
+                    pgettext(error.user_message_key, error.message)
+                    if error.user_message_key
+                    else error.message
+                )
+
+                try:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=message,
+                    )
+                except Exception as send_error:
+                    logger.error(
+                        f"Failed to send bot error message: {send_error}", exc_info=True
+                    )
             return
 
         logger.error(f"Unhandled exception: {error}", exc_info=error)

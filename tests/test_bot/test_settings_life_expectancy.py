@@ -102,7 +102,6 @@ class TestLifeExpectancyHandler:
         :returns: None
         """
         from src.events.domain_events import UserSettingsChangedEvent
-        from src.services.validation_service import ValidationResult
 
         mock_update.message.text = "85"
         mock_context.user_data = {
@@ -117,7 +116,7 @@ class TestLifeExpectancyHandler:
         handler.services.user_service.get_user_profile.return_value = mock_profile
 
         handler._validation_service.validate_life_expectancy = MagicMock(
-            return_value=ValidationResult.success(value=85)
+            return_value=85
         )
 
         with patch.object(handler, "send_message") as mock_send_message:
@@ -158,10 +157,8 @@ class TestLifeExpectancyHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import (
-            ERROR_INVALID_NUMBER,
-            ValidationResult,
-        )
+        from src.core.exceptions import ValidationError as CoreValidationError
+        from src.services.validation_service import ERROR_INVALID_NUMBER
 
         mock_update.message.text = "150"
         mock_context.user_data = {
@@ -171,7 +168,9 @@ class TestLifeExpectancyHandler:
         }
 
         handler._validation_service.validate_life_expectancy = MagicMock(
-            return_value=ValidationResult.failure(error_key=ERROR_INVALID_NUMBER)
+            side_effect=CoreValidationError(
+                message="Invalid number", error_key=ERROR_INVALID_NUMBER
+            )
         )
 
         with patch.object(handler, "send_message") as mock_send_message:
@@ -201,8 +200,6 @@ class TestLifeExpectancyHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import ValidationResult
-
         mock_update.message.text = "85"
         mock_context.user_data = {
             "waiting_for": ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY,
@@ -211,7 +208,7 @@ class TestLifeExpectancyHandler:
         }
 
         handler._validation_service.validate_life_expectancy = MagicMock(
-            return_value=ValidationResult.success(value=85)
+            return_value=85
         )
         handler.services.user_service.update_user_settings.side_effect = (
             UserNotFoundError("User not found")

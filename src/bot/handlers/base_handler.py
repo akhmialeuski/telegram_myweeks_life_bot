@@ -31,6 +31,7 @@ from telegram.ext import ContextTypes
 
 from ...contracts import UserServiceProtocol
 from ...core.dtos import UserProfileDTO
+from ...core.exceptions import BotError
 from ...i18n import use_locale
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -237,6 +238,21 @@ class BaseHandler(ABC):
                         user_info=cmd_context.user, fetch_profile=True
                     ):
                         return await func(update, context)
+
+                except BotError as error:
+                    # Handle expected bot errors with localized messages
+                    _, _, pgettext = use_locale(user_lang)
+                    message = (
+                        pgettext(error.user_message_key, error.message)
+                        if error.user_message_key
+                        else error.message
+                    )
+                    await self.send_error_message(
+                        update=update,
+                        cmd_context=cmd_context,
+                        error_message=message,
+                    )
+                    return None
 
                 except Exception as error:  # pylint: disable=broad-exception-caught
                     # Handle error through the centralized error handler

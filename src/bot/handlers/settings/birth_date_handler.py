@@ -5,7 +5,7 @@ viewing and modification of the user's birth date.
 """
 
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
 
 from babel.dates import format_date
 from telegram import Update
@@ -13,6 +13,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.conversations.states import ConversationState
+from src.core.exceptions import ValidationError as CoreValidationError
 from src.core.life_calculator import calculate_life_statistics
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.events.domain_events import UserSettingsChangedEvent
@@ -27,6 +28,7 @@ from src.services.validation_service import (
 from src.utils.config import BOT_NAME
 from src.utils.logger import get_logger
 
+from ..base_handler import CommandContext
 from .abstract_handler import AbstractSettingsHandler
 
 logger = get_logger(BOT_NAME)
@@ -160,67 +162,35 @@ class BirthDateHandler(AbstractSettingsHandler):
 
         try:
             # Validate input
-            validation_result = self._validation_service.validate_birth_date(
+            birth_date_value = self._validation_service.validate_birth_date(
                 input_str=message_text
             )
 
-            if not validation_result.is_valid:
-                await self._handle_validation_error(
-                    update=update,
-                    error_key=validation_result.error_key,
-                    lang=lang,
-                )
-                return
-
-            birth_date_value: date = validation_result.value
-
-            # Update database
-            await self.services.user_service.update_user_settings(
-                telegram_id=user_id, birth_date=birth_date_value
+            await self._update_and_notify(
+                cmd_context=cmd_context,
+                birth_date=birth_date_value,
             )
 
-            # Publish event
-            await self.services.event_bus.publish(
-                UserSettingsChangedEvent(
-                    user_id=user_id,
-                    setting_name="birth_date",
-                    new_value=birth_date_value,
-                    old_value=getattr(cmd_context.user_profile, "birth_date", None),
-                )
-            )
-
-            # Get updated profile only if needed for calculation
-            updated_profile = await self.services.user_service.get_user_profile(
-                telegram_id=user_id
-            )
-            stats = calculate_life_statistics(
-                birth_date=updated_profile.settings.birth_date,
-                life_expectancy=updated_profile.settings.life_expectancy or 80,
-            )
-
-            # Send success message
-            await self.send_message(
+            await self._send_update_success(
                 update=update,
-                message_text=pgettext(
-                    "settings.birth_date_updated",
-                    "✅ <b>Birth date successfully updated!</b>\n\n"
-                    "New date: <b>{new_birth_date}</b>\n"
-                    "New age: <b>{new_age} years</b>\n\n"
-                    "Use /weeks to see updated statistics",
-                ).format(
-                    new_birth_date=format_date(
-                        birth_date_value,
-                        format="dd.MM.yyyy",
-                        locale=normalize_babel_locale(lang),
-                    ),
-                    new_age=stats.age,
-                ),
+                user_id=user_id,
+                birth_date=birth_date_value,
+                lang=lang,
+                pgettext=pgettext,
             )
 
             await self._clear_waiting_state(user_id=user_id, context=context)
             logger.info(
                 f"{COMMAND_SETTINGS}: [{user_id}]: Updated birth date to {birth_date_value}"
             )
+
+        except CoreValidationError as error:
+            await self._handle_validation_error(
+                update=update,
+                error_key=error.error_key,
+                lang=lang,
+            )
+            return
 
         except (UserNotFoundError, UserSettingsUpdateError) as error:
             logger.error(
@@ -253,6 +223,86 @@ class BirthDateHandler(AbstractSettingsHandler):
                 cmd_context=cmd_context,
                 error_message=error_message,
             )
+
+    async def _update_and_notify(
+        self,
+        cmd_context: CommandContext,
+        birth_date: date,
+    ) -> None:
+        """Update birth date in database and publish event.
+
+        :param cmd_context: Command context
+        :type cmd_context: CommandContext
+        :param birth_date: New birth date
+        :type birth_date: date
+        :returns: None
+        """
+        user_id = cmd_context.user_id
+
+        # Update database
+        await self.services.user_service.update_user_settings(
+            telegram_id=user_id, birth_date=birth_date
+        )
+
+        # Publish event
+        await self.services.event_bus.publish(
+            UserSettingsChangedEvent(
+                user_id=user_id,
+                setting_name="birth_date",
+                new_value=birth_date,
+                old_value=getattr(cmd_context.user_profile, "birth_date", None),
+            )
+        )
+
+    async def _send_update_success(
+        self,
+        update: Update,
+        user_id: int,
+        birth_date: date,
+        lang: str,
+        pgettext: Any,
+    ) -> None:
+        """Send success message with updated statistics.
+
+        :param update: Telegram update object
+        :type update: Update
+        :param user_id: User ID
+        :type user_id: int
+        :param birth_date: New birth date
+        :type birth_date: date
+        :param lang: Language code
+        :type lang: str
+        :param pgettext: Localization function
+        :type pgettext: Any
+        :returns: None
+        """
+        # Get updated profile only if needed for calculation
+        updated_profile = await self.services.user_service.get_user_profile(
+            telegram_id=user_id
+        )
+        stats = calculate_life_statistics(
+            birth_date=updated_profile.settings.birth_date,
+            life_expectancy=updated_profile.settings.life_expectancy or 80,
+        )
+
+        # Send success message
+        await self.send_message(
+            update=update,
+            message_text=pgettext(
+                "settings.birth_date_updated",
+                "✅ <b>Birth date successfully updated!</b>\n\n"
+                "New date: <b>{new_birth_date}</b>\n"
+                "New age: <b>{new_age} years</b>\n\n"
+                "Use /weeks to see updated statistics",
+            ).format(
+                new_birth_date=format_date(
+                    birth_date,
+                    format="dd.MM.yyyy",
+                    locale=normalize_babel_locale(lang),
+                ),
+                new_age=stats.age,
+            ),
+        )
 
     async def _handle_validation_error(
         self,

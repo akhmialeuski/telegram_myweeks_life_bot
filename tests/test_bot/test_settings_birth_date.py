@@ -106,31 +106,75 @@ class TestBirthDateHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import (
-            ERROR_DATE_IN_FUTURE,
-            ValidationResult,
-        )
+        from src.core.exceptions import ValidationError as CoreValidationError
+        from src.services.validation_service import ERROR_DATE_IN_FUTURE
 
         # Mock ValidationService
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.failure(error_key=ERROR_DATE_IN_FUTURE)
+            side_effect=CoreValidationError(
+                message="Future date error", error_key=ERROR_DATE_IN_FUTURE
+            )
         )
 
-        mock_update.message.text = "01.01.2099"
+        mock_update.message.text = "2099-01-01"
         mock_context.user_data = {
             "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
             "waiting_timestamp": time.time(),
             "waiting_state_id": "test_id",
         }
 
-        with patch.object(handler, "send_message") as mock_send_message:
-            await handler.handle_input(mock_update, mock_context)
+        with patch.object(handler._persistence, "is_state_valid", return_value=True):
+            with patch.object(handler, "send_message") as mock_send_message:
+                await handler.handle_input(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
             assert (
                 "pgettext_birth_date.future_error_"
                 in mock_send_message.call_args.kwargs["message_text"]
             )
+
+    @pytest.mark.asyncio
+    async def test_handle_input_invalid_format_error(
+        self,
+        handler: BirthDateHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test birth date validation with invalid format.
+
+        :param handler: BirthDateHandler instance
+        :type handler: BirthDateHandler
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.core.exceptions import ValidationError as CoreValidationError
+        from src.services.validation_service import ERROR_INVALID_DATE_FORMAT
+
+        handler._validation_service.validate_birth_date = MagicMock(
+            side_effect=CoreValidationError(
+                message="Invalid date format", error_key=ERROR_INVALID_DATE_FORMAT
+            )
+        )
+
+        mock_update.message.text = "invalid-date"
+        mock_context.user_data = {
+            "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test_id",
+        }
+
+        with patch.object(handler._persistence, "is_state_valid", return_value=True):
+            with patch.object(handler, "send_message") as mock_send_message:
+                await handler.handle_input(mock_update, mock_context)
+
+                mock_send_message.assert_called_once()
+                assert (
+                    "pgettext_birth_date.format_error"
+                    in mock_send_message.call_args.kwargs["message_text"]
+                )
 
     @pytest.mark.asyncio
     async def test_handle_input_old_date(
@@ -149,10 +193,13 @@ class TestBirthDateHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import ERROR_DATE_TOO_OLD, ValidationResult
+        from src.core.exceptions import ValidationError as CoreValidationError
+        from src.services.validation_service import ERROR_DATE_TOO_OLD
 
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.failure(error_key=ERROR_DATE_TOO_OLD)
+            side_effect=CoreValidationError(
+                message="Old date error", error_key=ERROR_DATE_TOO_OLD
+            )
         )
 
         mock_update.message.text = "01.01.1800"
@@ -162,8 +209,9 @@ class TestBirthDateHandler:
             "waiting_state_id": "test_id",
         }
 
-        with patch.object(handler, "send_message") as mock_send_message:
-            await handler.handle_input(mock_update, mock_context)
+        with patch.object(handler._persistence, "is_state_valid", return_value=True):
+            with patch.object(handler, "send_message") as mock_send_message:
+                await handler.handle_input(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
             assert (
@@ -189,7 +237,6 @@ class TestBirthDateHandler:
         :returns: None
         """
         from src.events.domain_events import UserSettingsChangedEvent
-        from src.services.validation_service import ValidationResult
 
         test_date = date(1990, 3, 15)
         mock_update.message.text = TEST_BIRTH_DATE
@@ -208,7 +255,7 @@ class TestBirthDateHandler:
         handler.services.user_service.get_user_profile.return_value = mock_profile
 
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.success(value=test_date)
+            return_value=test_date
         )
 
         with patch.object(handler, "send_message") as mock_send_message:
@@ -248,8 +295,6 @@ class TestBirthDateHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import ValidationResult
-
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {
             "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
@@ -258,7 +303,7 @@ class TestBirthDateHandler:
         }
 
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.success(value=date(1990, 1, 1))
+            return_value=date(1990, 1, 1)
         )
         handler.services.user_service.update_user_settings.side_effect = (
             UserNotFoundError("User not found")
@@ -293,7 +338,6 @@ class TestBirthDateHandler:
         :returns: None
         """
         from src.database.service import UserSettingsUpdateError
-        from src.services.validation_service import ValidationResult
 
         mock_update.message.text = TEST_BIRTH_DATE
         mock_context.user_data = {
@@ -303,7 +347,7 @@ class TestBirthDateHandler:
         }
 
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.success(value=date(1990, 1, 1))
+            return_value=date(1990, 1, 1)
         )
         handler.services.user_service.update_user_settings.side_effect = (
             UserSettingsUpdateError("Failed to update settings")
@@ -398,46 +442,6 @@ class TestBirthDateHandler:
             )
 
     @pytest.mark.asyncio
-    async def test_handle_input_invalid_format_error(
-        self,
-        handler: BirthDateHandler,
-        mock_update: MagicMock,
-        mock_context: MagicMock,
-    ) -> None:
-        """Test handling of invalid date format error.
-
-        :param handler: BirthDateHandler instance
-        :type handler: BirthDateHandler
-        :param mock_update: Mocked update
-        :type mock_update: MagicMock
-        :param mock_context: Mocked context
-        :type mock_context: MagicMock
-        :returns: None
-        """
-        from src.services.validation_service import (
-            ERROR_INVALID_DATE_FORMAT,
-            ValidationResult,
-        )
-
-        mock_context.user_data = {
-            "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
-            "waiting_timestamp": time.time(),
-            "waiting_state_id": "test_id",
-        }
-
-        handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.failure(error_key=ERROR_INVALID_DATE_FORMAT)
-        )
-
-        with patch.object(handler, "send_message") as mock_send_message:
-            await handler.handle_input(mock_update, mock_context)
-            mock_send_message.assert_called_once()
-            assert (
-                "pgettext_birth_date.format_error_"
-                in mock_send_message.call_args.kwargs["message_text"]
-            )
-
-    @pytest.mark.asyncio
     async def test_handle_input_unknown_error(
         self,
         handler: BirthDateHandler,
@@ -454,7 +458,7 @@ class TestBirthDateHandler:
         :type mock_context: MagicMock
         :returns: None
         """
-        from src.services.validation_service import ValidationResult
+        from src.core.exceptions import ValidationError as CoreValidationError
 
         mock_context.user_data = {
             "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
@@ -463,7 +467,9 @@ class TestBirthDateHandler:
         }
 
         handler._validation_service.validate_birth_date = MagicMock(
-            return_value=ValidationResult.failure(error_key="unknown_error_key")
+            side_effect=CoreValidationError(
+                message="Unknown error", error_key="unknown_error_key"
+            )
         )
 
         with patch.object(handler, "send_message") as mock_send_message:
