@@ -130,5 +130,13 @@ class TestConversationState:
         assert STATE_TO_COMMAND[ConversationState.AWAITING_START_BIRTH_DATE] == "start"
         assert (
             STATE_TO_COMMAND[ConversationState.AWAITING_SETTINGS_BIRTH_DATE]
-            == "settings"
+            == "settings_birth_date"
+        )
+        assert (
+            STATE_TO_COMMAND[ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY]
+            == "settings_life_expectancy"
+        )
+        assert (
+            STATE_TO_COMMAND[ConversationState.AWAITING_SETTINGS_LANGUAGE]
+            == "settings_language"
         )

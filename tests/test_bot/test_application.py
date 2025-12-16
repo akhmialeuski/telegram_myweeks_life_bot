@@ -220,11 +220,11 @@ class TestLifeWeeksBot:
         bot.start()
         bot._app.run_polling.assert_called_once()
 
-    def test_stop_cleans_up_scheduler(
+    def test_post_shutdown_cleanup_cleans_up_scheduler(
         self,
         bot: LifeWeeksBot,
     ) -> None:
-        """Verify that stop() correctly stops the scheduler and clears the instance.
+        """Verify that _post_shutdown_cleanup correctly stops scheduler and clears resources.
 
         :param bot: The bot instance
         :type bot: LifeWeeksBot
@@ -232,14 +232,22 @@ class TestLifeWeeksBot:
         :rtype: None
         """
         mock_process = MagicMock()
-        mock_process.is_alive.return_value = True
+        # First call returns True (process running), second call returns False
+        # (after terminate+join, process stopped gracefully)
+        mock_process.is_alive.side_effect = [True, False]
         bot._scheduler_process = mock_process
-        bot._scheduler_client = MagicMock()
 
-        bot.stop()
+        mock_client = AsyncMock()
+        bot._scheduler_client = mock_client
 
+        mock_application = MagicMock()
+
+        _run_async(bot._post_shutdown_cleanup(mock_application))
+
+        mock_client.stop_listening.assert_awaited_once()
+        mock_client.shutdown.assert_awaited_once()
         mock_process.terminate.assert_called_once()
-        mock_process.join.assert_called_once()
+        mock_process.join.assert_called_once_with(timeout=5)
         assert bot._scheduler_process is None
         assert bot._scheduler_client is None
 

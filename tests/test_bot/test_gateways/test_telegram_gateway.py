@@ -266,3 +266,44 @@ class TestTelegramGatewaySendBatch:
         assert len(results) == 2
         assert results[0].success is True
         assert results[1].success is False
+
+
+class TestTelegramGatewayFormatMessage:
+    """Test class for TelegramNotificationGateway._format_message method."""
+
+    @pytest.fixture
+    def mock_bot(self) -> MagicMock:
+        """Provide mock Telegram Bot."""
+        bot = MagicMock()
+        bot.send_message = AsyncMock()
+        return bot
+
+    @pytest.fixture
+    def gateway(self, mock_bot: MagicMock) -> TelegramNotificationGateway:
+        """Provide gateway instance with mock bot."""
+        return TelegramNotificationGateway(bot=mock_bot)
+
+    @pytest.mark.asyncio
+    async def test_send_notification_without_title(
+        self,
+        gateway: TelegramNotificationGateway,
+        mock_bot: MagicMock,
+    ) -> None:
+        """Test notification delivery without title.
+
+        This test verifies that notification message is formatted
+        correctly when title is None (body only).
+        """
+        payload = NotificationPayload(
+            recipient_id=TEST_USER_ID,
+            message_type="weekly_summary",
+            title=None,
+            body="Just the body text",
+        )
+
+        await gateway.send_notification(payload=payload)
+
+        call_args = mock_bot.send_message.call_args
+        sent_text = call_args.kwargs.get("text")
+        assert sent_text == "Just the body text"
+        assert "<b>" not in sent_text

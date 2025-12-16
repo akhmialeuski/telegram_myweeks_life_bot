@@ -7,6 +7,7 @@ domains of the application, isolating string formatting and key management.
 from typing import Any, Protocol, runtime_checkable
 
 from . import templates
+from .dtos import UserProfileDTO, UserSubscriptionDTO
 from .message_context import MessageContext
 
 
@@ -58,18 +59,18 @@ class StartMessages:
         """
         self._i18n = i18n
 
-    def welcome_existing(self, first_name: str) -> str:
+    def welcome_existing(self, user: UserProfileDTO) -> str:
         """Generate welcome message for existing users.
 
-        :param first_name: User's first name
-        :type first_name: str
+        :param user: User profile DTO
+        :type user: UserProfileDTO
         :returns: Localized welcome message
         :rtype: str
         """
         return self._i18n.translate(
             key=templates.START_WELCOME_EXISTING_KEY,
             default=templates.START_WELCOME_EXISTING_DEFAULT,
-            first_name=first_name,
+            first_name=user.first_name,
         )
 
     def welcome_new(self, first_name: str) -> str:
@@ -233,16 +234,21 @@ class SubscriptionMessages:
         """
         self._i18n = i18n
 
-    def status_active(self, expiry_date: str, plan_name: str) -> str:
+    def status_active(self, subscription: UserSubscriptionDTO) -> str:
         """Generate active subscription status message.
 
-        :param expiry_date: Subscription expiry date
-        :type expiry_date: str
-        :param plan_name: Name of the subscription plan
-        :type plan_name: str
+        :param subscription: User subscription DTO containing all subscription info
+        :type subscription: UserSubscriptionDTO
         :returns: Localized status message
         :rtype: str
         """
+        expiry_date = (
+            subscription.expires_at.strftime("%Y-%m-%d")
+            if subscription.expires_at
+            else "N/A"
+        )
+        plan_name = subscription.subscription_type.value.title()
+
         return self._i18n.translate(
             key=templates.SUBSCRIPTION_STATUS_ACTIVE_KEY,
             default=templates.SUBSCRIPTION_STATUS_ACTIVE_DEFAULT,
@@ -303,18 +309,18 @@ class SubscriptionMessages:
             subscription_description=subscription_description,
         )
 
-    def already_active(self, subscription_type: str) -> str:
+    def already_active(self, subscription: UserSubscriptionDTO) -> str:
         """Generate already active subscription message.
 
-        :param subscription_type: Subscription type name
-        :type subscription_type: str
+        :param subscription: User subscription DTO
+        :type subscription: UserSubscriptionDTO
         :returns: Localized message
         :rtype: str
         """
         return self._i18n.translate(
             key=templates.SUBSCRIPTION_ALREADY_ACTIVE_KEY,
             default=templates.SUBSCRIPTION_ALREADY_ACTIVE_DEFAULT,
-            subscription_type=subscription_type,
+            subscription_type=subscription.subscription_type.value,
         )
 
     def change_success(

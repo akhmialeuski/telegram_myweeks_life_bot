@@ -185,6 +185,52 @@ class TestLifeCalculator:
         # Life percentage should be 1.0 (not more than 100%)
         assert stats.percentage_lived == 1.0
 
+    def test_zero_life_expectancy_returns_zero_percentage(self) -> None:
+        """Test percentage_lived returns 0.0 when life_expectancy is 0.
+
+        This test verifies that edge case where life_expectancy is 0
+        returns 0.0 for percentage_lived to avoid division by zero.
+        """
+        result = calculate_life_statistics(
+            birth_date=date(2000, 1, 1),
+            life_expectancy=0,
+            reference_date=date(2024, 6, 15),
+        )
+
+        assert result.percentage_lived == 0.0
+
+    def test_years_lived_property(self) -> None:
+        """Test years_lived cached property calculation.
+
+        This test verifies that years_lived is correctly calculated
+        from total_weeks_lived.
+        """
+        result = calculate_life_statistics(
+            birth_date=date(2000, 1, 1),
+            life_expectancy=80,
+            reference_date=date(2024, 6, 15),
+        )
+
+        # Should be total_weeks_lived // 52
+        expected_years = result.total_weeks_lived // 52
+        assert result.years_lived == expected_years
+
+    def test_weeks_in_current_year_property(self) -> None:
+        """Test weeks_in_current_year cached property calculation.
+
+        This test verifies that weeks_in_current_year is correctly
+        calculated as remainder of total_weeks_lived divided by 52.
+        """
+        result = calculate_life_statistics(
+            birth_date=date(2000, 1, 1),
+            life_expectancy=80,
+            reference_date=date(2024, 6, 15),
+        )
+
+        # Should be total_weeks_lived % 52
+        expected_weeks = result.total_weeks_lived % 52
+        assert result.weeks_in_current_year == expected_weeks
+
 
 class TestLeapYearHandlingV2:
     """Test suite for leap year edge case handling."""

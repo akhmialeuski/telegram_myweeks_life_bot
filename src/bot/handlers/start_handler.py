@@ -111,9 +111,7 @@ class StartHandler(BaseHandler):
             # User is already registered - send welcome back message
             await self.send_message(
                 update=update,
-                message_text=start_messages.welcome_existing(
-                    first_name=profile.first_name
-                ),
+                message_text=start_messages.welcome_existing(user=profile),
             )
             return
 

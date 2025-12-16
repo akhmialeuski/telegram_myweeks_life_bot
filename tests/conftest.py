@@ -287,7 +287,7 @@ def make_mock_user_profile():
         :rtype: MagicMock
         """
         mock_user = MagicMock()
-        mock_user.subscription.subscription_type = subscription_type.value
+        mock_user.subscription.subscription_type = subscription_type
         mock_user.settings.language = SupportedLanguage.EN.value
         return mock_user
 

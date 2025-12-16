@@ -5,7 +5,6 @@ for the Telegram bot application. It delegates handler registration to the
 plugin system and uses HandlerRegistry for centralized handler management.
 """
 
-import asyncio
 import multiprocessing
 from typing import Optional
 
@@ -100,6 +99,7 @@ class LifeWeeksBot:
         logger.info("Setting up bot application")
         builder = Application.builder().token(TOKEN)
         builder.post_init(self._post_init_scheduler_start)
+        builder.post_shutdown(self._post_shutdown_cleanup)
         self._app = builder.build()
 
         # Register global error handler
@@ -209,36 +209,6 @@ class LifeWeeksBot:
 
         logger.info("Starting Life Weeks Bot")
         self._app.run_polling()
-
-    def stop(self) -> None:
-        """Stop the bot and cleanup resources.
-
-        :returns: None
-        """
-        if self._scheduler_client:
-            # Try to shutdown gracefully
-            try:
-                # We can't await here easily if valid async context not present,
-                # but run_polling handles loop.
-                # However, cleaner to just terminate process if needed.
-                # Ideally we send SHUTDOWN command.
-                pass
-            except Exception:
-                pass
-
-        if self._scheduler_process and self._scheduler_process.is_alive():
-            logger.info("Stopping scheduler worker process...")
-            self._scheduler_process.terminate()
-            self._scheduler_process.join(timeout=5)
-            logger.info("Scheduler worker stopped")
-
-        self._scheduler_process = None
-        self._scheduler_client = None
-
-        if hasattr(self, "services"):
-            asyncio.run(self.services.cleanup())
-
-        logger.info("Life Weeks Bot stopped")
 
     async def _universal_text_handler(
         self,
@@ -498,3 +468,40 @@ class LifeWeeksBot:
                 logger.info("Scheduler worker is healthy and connected")
             else:
                 logger.warning("Scheduler worker health check failed")
+
+    async def _post_shutdown_cleanup(self, application: Application) -> None:
+        """Post-shutdown hook for graceful cleanup.
+
+        :param application: The Application instance
+        :type application: Application
+        :returns: None
+        """
+        logger.info("Running graceful shutdown cleanup...")
+
+        # Stop scheduler client listener first
+        if self._scheduler_client:
+            logger.info("Stopping scheduler client...")
+            try:
+                await self._scheduler_client.stop_listening()
+                await self._scheduler_client.shutdown()
+            except Exception as error:
+                logger.warning(f"Error stopping scheduler client: {error}")
+
+        # Terminate scheduler worker process
+        if self._scheduler_process and self._scheduler_process.is_alive():
+            logger.info("Terminating scheduler worker process...")
+            self._scheduler_process.terminate()
+            self._scheduler_process.join(timeout=5)
+            if self._scheduler_process.is_alive():
+                logger.warning("Worker didn't terminate gracefully, killing...")
+                self._scheduler_process.kill()
+                self._scheduler_process.join(timeout=2)
+
+        self._scheduler_process = None
+        self._scheduler_client = None
+
+        # Cleanup services
+        if hasattr(self, "services"):
+            await self.services.cleanup()
+
+        logger.info("Graceful shutdown completed")

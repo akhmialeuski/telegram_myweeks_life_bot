@@ -241,11 +241,10 @@ class TestGenerateVisualization:
 
         mock_parse_legend.return_value = ("Lived weeks", "Future weeks")
 
-        # Create mock Telegram User object
-        mock_telegram_user = Mock()
+        # Create mock Telegram User object with only 'id' attribute
+        # (no telegram_id) to test line 58 specifically
+        mock_telegram_user = Mock(spec=["id"])
         mock_telegram_user.id = 67890
-        # Ensure getattr works properly for telegram_id
-        mock_telegram_user.telegram_id = 67890
 
         # Test with Telegram User object
         result = await generate_visualization(mock_telegram_user)

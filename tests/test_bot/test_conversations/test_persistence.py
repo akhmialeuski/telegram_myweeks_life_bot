@@ -272,3 +272,69 @@ class TestTelegramContextPersistence:
         )
         assert retrieved_data == test_data
         assert mock_context.user_data[CONTEXT_DATA_KEY] == test_data
+
+    @pytest.mark.asyncio
+    async def test_is_state_valid_false_no_timestamp(
+        self,
+        persistence: TelegramContextPersistence,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test is_state_valid returns False when timestamp is None.
+
+        This test verifies that state validation fails when timestamp is missing.
+
+        :param persistence: TelegramContextPersistence instance
+        :type persistence: TelegramContextPersistence
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.bot.conversations.persistence import STATE_ID_KEY
+
+        # Manually set state with timestamp = None
+        mock_context.user_data[STATE_KEY] = (
+            ConversationState.AWAITING_START_BIRTH_DATE.value
+        )
+        mock_context.user_data[TIMESTAMP_KEY] = None  # No timestamp
+        mock_context.user_data[STATE_ID_KEY] = "test-id"
+
+        is_valid = await persistence.is_state_valid(
+            user_id=12345,
+            expected_state=ConversationState.AWAITING_START_BIRTH_DATE,
+            context=mock_context,
+        )
+        assert is_valid is False
+
+    @pytest.mark.asyncio
+    async def test_is_state_valid_false_expired(
+        self,
+        persistence: TelegramContextPersistence,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test is_state_valid returns False when state is expired.
+
+        This test verifies that state validation fails when state has expired.
+
+        :param persistence: TelegramContextPersistence instance
+        :type persistence: TelegramContextPersistence
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.bot.conversations.persistence import STATE_ID_KEY
+
+        # Set state with expired timestamp (10 minutes ago, timeout is 5 min)
+        expired_timestamp = time.time() - 600  # 10 minutes ago
+        mock_context.user_data[STATE_KEY] = (
+            ConversationState.AWAITING_START_BIRTH_DATE.value
+        )
+        mock_context.user_data[TIMESTAMP_KEY] = expired_timestamp
+        mock_context.user_data[STATE_ID_KEY] = "test-id"
+
+        is_valid = await persistence.is_state_valid(
+            user_id=12345,
+            expected_state=ConversationState.AWAITING_START_BIRTH_DATE,
+            context=mock_context,
+            max_age_seconds=300.0,  # 5 minutes
+        )
+        assert is_valid is False

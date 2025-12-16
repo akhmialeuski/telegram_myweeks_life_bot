@@ -17,7 +17,7 @@ from ..constants import (
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
-from ..core.dtos import UserProfileDTO
+from ..core.dtos import UserProfileDTO, UserSettingsDTO, UserSubscriptionDTO
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 from .models.user import User
@@ -321,14 +321,52 @@ class UserService:
             logger.error(f"Error creating user profile: {error}")
             return None
 
-    async def get_user_profile(self, telegram_id: int) -> Optional[User]:
+    def _to_dto(self, user: User) -> UserProfileDTO:
+        """Convert User model to UserProfileDTO.
+
+        :param user: User model instance
+        :type user: User
+        :returns: User profile DTO
+        :rtype: UserProfileDTO
+        :raises UserServiceError: If user data is incomplete
+        """
+        if not user.settings or not user.subscription:
+            raise UserServiceError(f"Incomplete user data for {user.telegram_id}")
+
+        settings_dto = UserSettingsDTO(
+            birth_date=user.settings.birth_date,
+            notifications=user.settings.notifications,
+            notifications_day=user.settings.notifications_day,
+            notifications_time=user.settings.notifications_time,
+            life_expectancy=user.settings.life_expectancy,
+            timezone=user.settings.timezone,
+            language=user.settings.language,
+        )
+
+        subscription_dto = UserSubscriptionDTO(
+            subscription_type=user.subscription.subscription_type,
+            is_active=user.subscription.is_active,
+            expires_at=user.subscription.expires_at,
+        )
+
+        return UserProfileDTO(
+            telegram_id=user.telegram_id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            created_at=user.created_at,
+            settings=settings_dto,
+            subscription=subscription_dto,
+        )
+
+    async def get_user_profile(self, telegram_id: int) -> Optional[UserProfileDTO]:
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Telegram user ID
         :type telegram_id: int
-        :returns: User object with complete settings and subscription if found,
+        :returns: User DTO with complete settings and subscription if found,
             None if user, settings, or subscription are missing
-        :rtype: Optional[User]
+        :rtype: Optional[UserProfileDTO]
         """
         try:
             user = await self.user_repository.get_user(telegram_id=telegram_id)
@@ -336,7 +374,8 @@ class UserService:
                 logger.warning(f"User {telegram_id} not found")
                 return None
 
-            # Create user object
+            # Create user object (temporarily for fetching relationships)
+            # In a real ORM scenario, eager loading would be better
             new_user = User(
                 telegram_id=user.telegram_id,
                 username=user.username,
@@ -373,7 +412,7 @@ class UserService:
                 )
                 return None
 
-            return new_user
+            return self._to_dto(new_user)
 
         except Exception as e:
             logger.error(f"Error getting user profile for {telegram_id}: {e}")
@@ -581,21 +620,21 @@ class UserService:
             logger.error(f"Failed to delete user profile for {telegram_id}: {e}")
             raise UserDeletionError(f"Failed to delete user profile: {e}")
 
-    async def get_all_users(self) -> list[User]:
+    async def get_all_users(self) -> list[UserProfileDTO]:
         """Get all users from the database.
 
         This method retrieves all users with their settings and subscriptions
         for sending weekly notifications.
 
         :returns: List of all users with their profiles
-        :rtype: list[User]
+        :rtype: list[UserProfileDTO]
         """
         try:
             users = await self.user_repository._get_all_entities(
                 model_class=User,
                 entity_name="users",
             )
-            complete_users: list[User] = []
+            complete_users: list[UserProfileDTO] = []
 
             for user in users:
                 try:
@@ -617,7 +656,7 @@ class UserService:
                     )
                     complete_user.settings = settings
                     complete_user.subscription = subscription
-                    complete_users.append(complete_user)
+                    complete_users.append(self._to_dto(complete_user))
 
                 except Exception as e:
                     logger.warning(

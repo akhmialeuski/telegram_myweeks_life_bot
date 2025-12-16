@@ -220,3 +220,101 @@ class TestLifeExpectancyHandler:
         with patch.object(handler, "send_error_message") as mock_send_error:
             await handler.handle_input(mock_update, mock_context)
             mock_send_error.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_returns_none(self, handler: LifeExpectancyHandler) -> None:
+        """Test that handle() method returns None.
+
+        :param handler: LifeExpectancyHandler instance
+        :type handler: LifeExpectancyHandler
+        :returns: None
+        :rtype: None
+        """
+        result = await handler.handle(MagicMock(), MagicMock())
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_handle_input_invalid_state(
+        self,
+        handler: LifeExpectancyHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handling of invalid or expired waiting state.
+
+        where
+        invalid or expired states are detected and cleared.
+
+        :param handler: LifeExpectancyHandler instance
+        :type handler: LifeExpectancyHandler
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update.message.text = "85"
+        # Set invalid state (wrong state type)
+        mock_context.user_data = {
+            "waiting_for": ConversationState.AWAITING_START_BIRTH_DATE,
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test_id",
+        }
+
+        mock_profile = MagicMock()
+        mock_profile.settings.language = "en"
+        handler.services.user_service.get_user_profile.return_value = mock_profile
+
+        await handler.handle_input(mock_update, mock_context)
+
+        # Verify state was cleared
+        assert "waiting_for" not in mock_context.user_data
+
+    @pytest.mark.asyncio
+    async def test_handle_input_general_exception(
+        self,
+        handler: LifeExpectancyHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handling of general exception during input processing.
+
+        where
+        general exceptions are caught and an error message is sent.
+
+        :param handler: LifeExpectancyHandler instance
+        :type handler: LifeExpectancyHandler
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        mock_update.message.text = "85"
+        mock_context.user_data = {
+            "waiting_for": ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY,
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test_id",
+        }
+
+        mock_profile = MagicMock()
+        mock_profile.settings.language = "en"
+        handler.services.user_service.get_user_profile.return_value = mock_profile
+
+        # Make validation service raise a general exception
+        handler._validation_service = MagicMock()
+        handler._validation_service.validate_life_expectancy.side_effect = Exception(
+            "Unexpected error"
+        )
+
+        with patch.object(handler, "send_error_message") as mock_send_error:
+            await handler.handle_input(mock_update, mock_context)
+
+            mock_send_error.assert_called_once()
+            call_args = mock_send_error.call_args.kwargs
+            assert (
+                "pgettext_settings.invalid_life_expectancy_"
+                in call_args["error_message"]
+            )

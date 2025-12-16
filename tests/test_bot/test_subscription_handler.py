@@ -374,3 +374,162 @@ class TestSubscriptionHandler:
                 "pgettext_subscription.change_error"
                 in mock_send_error.call_args.kwargs["error_message"]
             )
+
+    @pytest.mark.asyncio
+    async def test_handle_subscription_premium_user(
+        self,
+        handler: SubscriptionHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        make_mock_user_profile,
+    ) -> None:
+        """Test subscription management for premium user.
+
+        This test verifies that premium subscription content is displayed correctly when
+        premium_content() is called when user has premium subscription.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
+        # Create user with PREMIUM subscription
+        mock_user_profile = make_mock_user_profile(SubscriptionType.PREMIUM)
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        with patch.object(handler, "send_message") as mock_send_message:
+            await handler.handle(mock_update, mock_context)
+            mock_send_message.assert_called_once()
+            # Verify the message contains management content
+            call_args = mock_send_message.call_args
+            assert "message_text" in call_args.kwargs
+
+    @pytest.mark.asyncio
+    async def test_handle_subscription_callback_change_to_premium(
+        self,
+        handler: SubscriptionHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        make_mock_user_profile,
+        make_mock_callback_query,
+    ) -> None:
+        """Test successful subscription change from BASIC to PREMIUM.
+
+        This test verifies that subscription change to premium is handled correctly when
+        premium_content() is called during successful change to premium.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
+        mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.PREMIUM.value
+        )
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.update_user_subscription.return_value = None
+
+        with patch.object(handler, "edit_message") as mock_edit_message:
+            await handler.handle_subscription_callback(mock_update, mock_context)
+            mock_callback_query.answer.assert_called_once()
+            mock_edit_message.assert_called_once()
+            # Verify update was called with premium
+            handler.services.user_service.update_user_subscription.assert_called_once_with(
+                telegram_id=mock_update.effective_user.id,
+                subscription_type=SubscriptionType.PREMIUM,
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_subscription_callback_change_to_basic(
+        self,
+        handler: SubscriptionHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        make_mock_user_profile,
+        make_mock_callback_query,
+    ) -> None:
+        """Test successful subscription change from PREMIUM to BASIC.
+
+        This test verifies that subscription change to basic is handled correctly when
+        basic_info() is called during successful change to basic.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :param make_mock_callback_query: Fixture for creating mock callback queries
+        :type make_mock_callback_query: callable
+        :returns: None
+        :rtype: None
+        """
+        mock_user_profile = make_mock_user_profile(SubscriptionType.PREMIUM)
+        mock_callback_query = make_mock_callback_query(
+            mock_update, SubscriptionType.BASIC.value
+        )
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+        handler.services.user_service.update_user_subscription.return_value = None
+
+        with patch.object(handler, "edit_message") as mock_edit_message:
+            await handler.handle_subscription_callback(mock_update, mock_context)
+            mock_callback_query.answer.assert_called_once()
+            mock_edit_message.assert_called_once()
+            # Verify update was called with basic
+            handler.services.user_service.update_user_subscription.assert_called_once_with(
+                telegram_id=mock_update.effective_user.id,
+                subscription_type=SubscriptionType.BASIC,
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_subscription_internal_exception(
+        self,
+        handler: SubscriptionHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        make_mock_user_profile,
+    ) -> None:
+        """Test _handle_subscription exception handler.
+
+        This test verifies that internal exceptions during subscription handling are caught and
+        exceptions in _handle_subscription are caught and send_error_message is called.
+
+        :param handler: SubscriptionHandler instance from fixture
+        :type handler: SubscriptionHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :param make_mock_user_profile: Fixture for creating mock user profiles
+        :type make_mock_user_profile: callable
+        :returns: None
+        :rtype: None
+        """
+        mock_user_profile = make_mock_user_profile(SubscriptionType.BASIC)
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        with patch.object(
+            handler, "send_message", side_effect=Exception("Internal error")
+        ):
+            with patch.object(handler, "send_error_message") as mock_send_error:
+                await handler.handle(mock_update, mock_context)
+                mock_send_error.assert_called_once()

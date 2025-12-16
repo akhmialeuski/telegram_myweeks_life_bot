@@ -207,7 +207,7 @@ class SubscriptionHandler(BaseHandler):
                 await self.edit_message(
                     query=query,
                     message_text=messages.already_active(
-                        subscription_type=new_subscription_type.value
+                        subscription=user_profile.subscription
                     ),
                 )
                 return

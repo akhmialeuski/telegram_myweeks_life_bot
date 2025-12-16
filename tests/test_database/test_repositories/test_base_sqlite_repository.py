@@ -755,3 +755,144 @@ class TestBaseSQLiteRepository:
             # Cleanup
             if temp_path.exists():
                 temp_path.unlink()
+
+    @pytest.mark.asyncio
+    async def test_async_session_raises_runtime_error_when_not_initialized(
+        self,
+    ) -> None:
+        """Test async_session raises RuntimeError when SessionLocal is None.
+
+        :returns: None
+        :rtype: None
+        """
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            # Create repository WITHOUT initializing
+            repository = BaseSQLiteRepository(db_path=temp_path)
+
+            # SessionLocal should be None
+            assert repository.SessionLocal is None
+
+            # async_session should raise RuntimeError
+            with pytest.raises(RuntimeError, match="Repository not initialized"):
+                async with repository.async_session():
+                    pass
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    @pytest.mark.asyncio
+    async def test_get_all_entities_exception(
+        self, repository: BaseSQLiteRepository
+    ) -> None:
+        """Test _get_all_entities returns empty list on exception.
+
+        :param repository: Repository instance
+        :type repository: BaseSQLiteRepository
+        :returns: None
+        :rtype: None
+        """
+        # Mock async_session to raise an exception
+        with patch.object(
+            repository, "async_session", side_effect=Exception("Database error")
+        ):
+            result = await repository._get_all_entities(User, "users")
+
+            # Should return empty list on exception
+            assert result == []
+
+    def test_reset_instances_sync_without_running_loop(self) -> None:
+        """Test reset_instances uses asyncio.run when no running loop.
+
+        :returns: None
+        :rtype: None
+        """
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            # Add a mock engine to the registry
+            mock_engine = Mock()
+            mock_engine.dispose = Mock(return_value=None)
+            db_key = str(temp_path.resolve())
+            BaseSQLiteRepository._engines[db_key] = mock_engine
+
+            # Call reset_instances from a synchronous context (no running loop)
+            # This should use asyncio.run() path (line 204)
+            BaseSQLiteRepository.reset_instances()
+
+            # Verify engines were cleared
+            assert len(BaseSQLiteRepository._engines) == 0
+
+        finally:
+            # Cleanup
+            if temp_path.exists():
+                temp_path.unlink()
+
+    def test_init_double_check_lock_path(self) -> None:
+        """Test __init__ double-check lock returns early when already initialized.
+
+        - the return after
+        the double-check inside the lock.
+
+        :returns: None
+        :rtype: None
+        """
+        import tempfile
+        import threading
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+        try:
+            # Reset instances to start fresh
+            BaseSQLiteRepository.reset_instances()
+
+            results = []
+            errors = []
+
+            def create_repository():
+                """Create repository in a thread."""
+                try:
+                    repo = BaseSQLiteRepository(db_path=temp_path)
+                    results.append(repo)
+                except Exception as e:
+                    errors.append(e)
+
+            # Create multiple threads that try to initialize the same repository
+            threads = []
+            for _ in range(5):
+                thread = threading.Thread(target=create_repository)
+                threads.append(thread)
+
+            # Start all threads nearly simultaneously
+            for thread in threads:
+                thread.start()
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
+
+            # All should succeed and return the same instance
+            assert len(errors) == 0
+            assert len(results) == 5
+            # All should be the same singleton instance
+            for repo in results[1:]:
+                assert repo is results[0]
+
+        finally:
+            # Cleanup
+            BaseSQLiteRepository.reset_instances()
+            if temp_path.exists():
+                temp_path.unlink()

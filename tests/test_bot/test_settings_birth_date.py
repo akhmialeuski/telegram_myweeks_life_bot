@@ -264,6 +264,59 @@ class TestBirthDateHandler:
             UserNotFoundError("User not found")
         )
 
+        with patch.object(handler, "send_error_message") as mock_send_error:
+            await handler.handle_input(mock_update, mock_context)
+            mock_send_error.assert_called_once()
+            assert (
+                "pgettext_settings.error_"
+                in mock_send_error.call_args.kwargs["error_message"]
+            )
+
+    @pytest.mark.asyncio
+    async def test_handle_input_settings_update_error(
+        self,
+        handler: BirthDateHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handling of UserSettingsUpdateError during update.
+
+        This test verifies that UserSettingsUpdateError is properly caught
+        and an appropriate error message is sent to the user.
+
+        :param handler: BirthDateHandler instance
+        :type handler: BirthDateHandler
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.database.service import UserSettingsUpdateError
+        from src.services.validation_service import ValidationResult
+
+        mock_update.message.text = TEST_BIRTH_DATE
+        mock_context.user_data = {
+            "waiting_for": ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
+            "waiting_timestamp": time.time(),
+            "waiting_state_id": "test_id",
+        }
+
+        handler._validation_service.validate_birth_date = MagicMock(
+            return_value=ValidationResult.success(value=date(1990, 1, 1))
+        )
+        handler.services.user_service.update_user_settings.side_effect = (
+            UserSettingsUpdateError("Failed to update settings")
+        )
+
+        with patch.object(handler, "send_error_message") as mock_send_error:
+            await handler.handle_input(mock_update, mock_context)
+            mock_send_error.assert_called_once()
+            assert (
+                "pgettext_settings.error_"
+                in mock_send_error.call_args.kwargs["error_message"]
+            )
+
     @pytest.mark.asyncio
     async def test_handle_returns_none(
         self,
