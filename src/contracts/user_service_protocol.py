@@ -10,6 +10,7 @@ from datetime import date, time
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from src.core.dtos import UserProfileDTO
     from src.enums import SubscriptionType, WeekDay
 
     from ..database.models.user import User
@@ -28,13 +29,13 @@ class UserServiceProtocol(Protocol):
         - FakeUserService: In-memory implementation for testing
     """
 
-    async def get_user_profile(self, telegram_id: int) -> "User | None":
+    async def get_user_profile(self, telegram_id: int) -> "UserProfileDTO | None":
         """Get complete user profile with settings and subscription.
 
         :param telegram_id: Unique Telegram user identifier
         :type telegram_id: int
-        :returns: User object with settings and subscription if found, None otherwise
-        :rtype: Coroutine[Any, Any, User | None]
+        :returns: User DTO with settings and subscription if found, None otherwise
+        :rtype: Coroutine[Any, Any, UserProfileDTO | None]
         """
         ...
 
@@ -48,7 +49,7 @@ class UserServiceProtocol(Protocol):
         notifications_time: time | None = None,
         life_expectancy: int = 80,
         timezone: str = "UTC",
-    ) -> Coroutine[Any, Any, "User | None"]:
+    ) -> Coroutine[Any, Any, "UserProfileDTO | None"]:
         """Create new user with default settings.
 
         :param user_info: Telegram User object containing user details
@@ -67,8 +68,8 @@ class UserServiceProtocol(Protocol):
         :type life_expectancy: int
         :param timezone: User's timezone
         :type timezone: str
-        :returns: Created user object if successful, None otherwise
-        :rtype: Coroutine[Any, Any, User | None]
+        :returns: Created user DTO if successful, None otherwise
+        :rtype: Coroutine[Any, Any, UserProfileDTO | None]
         """
         ...
 

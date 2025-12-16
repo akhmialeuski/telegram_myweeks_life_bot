@@ -24,19 +24,19 @@ _CURRENT_CTX: ContextVar[Optional["MessageContext"]] = ContextVar(
 )
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MessageContext:
     """Per-call message rendering context.
 
     Encapsulates user profile retrieval and language resolution.
 
-    :param user_info: Telegram user object
+    :ivar user_info: Telegram user object
     :type user_info: TelegramUser
-    :param user_id: Telegram user id
+    :ivar user_id: Telegram user id
     :type user_id: int
-    :param user_profile: Optional resolved user profile
+    :ivar user_profile: Optional resolved user profile
     :type user_profile: Optional[User]
-    :param language: Resolved UI language code
+    :ivar language: Resolved UI language code
     :type language: str
     """
 
@@ -110,7 +110,7 @@ class MessageContext:
                 raise ValueError(
                     f"User profile not found for telegram_id: {self.user_info.id}"
                 )
-            self.user_profile = profile
+            object.__setattr__(self, "user_profile", profile)
         return self.user_profile
 
 

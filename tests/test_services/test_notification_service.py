@@ -30,24 +30,25 @@ class TestNotificationService:
         return AsyncMock()
 
     @pytest.fixture
-    def mock_life_calculator_class(self) -> MagicMock:
-        """Create mock life calculator class.
+    def mock_calculate_life_statistics(self) -> MagicMock:
+        """Mock calculate_life_statistics function.
 
-        :returns: Mocked life calculator class
+        :returns: Mocked function
         :rtype: MagicMock
         """
-        mock_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_instance.calculate_life_statistics.return_value = {
-            "age": 30,
-            "life_expectancy": 80,
-            "lived_weeks": 1560,
-            "remaining_weeks": 2600,
-            "total_weeks": 4160,
-            "progress_percent": 37.5,
-        }
-        mock_class.return_value = mock_instance
-        return mock_class
+        stats_mock = MagicMock()
+        stats_mock.age = 30
+        stats_mock.life_expectancy = 80
+        stats_mock.total_weeks_lived = 1560
+        stats_mock.remaining_weeks = 2600
+        stats_mock.total_weeks_expected = 4160
+        stats_mock.percentage_lived = 0.375
+
+        with patch(
+            "src.services.notification_service.calculate_life_statistics",
+            return_value=stats_mock,
+        ) as mock:
+            yield mock
 
     @pytest.fixture(autouse=True)
     def mock_use_locale(self) -> MagicMock:
@@ -69,20 +70,19 @@ class TestNotificationService:
     def service(
         self,
         mock_user_service: AsyncMock,
-        mock_life_calculator_class: MagicMock,
+        mock_calculate_life_statistics: MagicMock,
     ) -> NotificationService:
         """Create NotificationService instance for testing.
 
         :param mock_user_service: Mocked user service
         :type mock_user_service: AsyncMock
-        :param mock_life_calculator_class: Mocked life calculator class
-        :type mock_life_calculator_class: MagicMock
+        :param mock_calculate_life_statistics: Mocked calculator
+        :type mock_calculate_life_statistics: MagicMock
         :returns: NotificationService instance
         :rtype: NotificationService
         """
         return NotificationService(
             user_service=mock_user_service,
-            life_calculator_class=mock_life_calculator_class,
         )
 
     @pytest.mark.asyncio
@@ -90,7 +90,7 @@ class TestNotificationService:
         self,
         service: NotificationService,
         mock_user_service: AsyncMock,
-        mock_life_calculator_class: MagicMock,
+        mock_calculate_life_statistics: MagicMock,
     ) -> None:
         """Test successful generation of weekly summary.
 
@@ -113,10 +113,10 @@ class TestNotificationService:
         assert payload.metadata["stats"]["age"] == 30
 
         # Verify life calculator was used
-        mock_life_calculator_class.assert_called_once_with(mock_user)
-        mock_life_calculator_class.return_value.calculate_life_statistics.assert_called_once_with(
-            mock_user.birth_date
-        )
+        mock_calculate_life_statistics.assert_called_once()
+        # Verify call args
+        call_args = mock_calculate_life_statistics.call_args
+        assert call_args.kwargs["birth_date"] == mock_user.birth_date
 
     @pytest.mark.asyncio
     async def test_generate_weekly_summary_user_not_found(

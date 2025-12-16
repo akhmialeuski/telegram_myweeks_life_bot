@@ -12,12 +12,10 @@ from src.bootstrap import (
     configure_test_container,
 )
 from src.contracts import (
-    LifeCalculatorProtocol,
     NotificationGatewayProtocol,
     UserServiceProtocol,
 )
 from src.core.di import Container
-from src.core.life_calculator import LifeCalculatorEngine
 from src.services.container import ServiceContainer
 
 
@@ -46,11 +44,6 @@ class TestBootstrap:
         # Verify ServiceContainer registration (legacy)
         service_container = container.get(ServiceContainer)
         assert isinstance(service_container, ServiceContainer)
-
-        # Verify LifeCalculatorProtocol registration
-        # It's registered as a class, not an instance
-        calculator_class = container.get(LifeCalculatorProtocol)
-        assert calculator_class is LifeCalculatorEngine
 
     def test_configure_container_custom_config(self):
         """Test container configuration with custom settings."""

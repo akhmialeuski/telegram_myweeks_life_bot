@@ -17,6 +17,7 @@ from ..constants import (
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
+from ..core.dtos import UserProfileDTO
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 from .models.user import User
@@ -227,7 +228,7 @@ class UserService:
         ).time(),
         life_expectancy: int = DEFAULT_LIFE_EXPECTANCY,
         timezone: str = DEFAULT_TIMEZONE,
-    ) -> Optional[User]:
+    ) -> Optional[UserProfileDTO]:
         """Create new user with default settings.
 
         :param user_info: Telegram User object
@@ -246,7 +247,7 @@ class UserService:
         :param timezone: User's timezone
         :type timezone: str
         :returns: Created user object if successful, None otherwise
-        :rtype: Optional[User]
+        :rtype: Optional[UserProfileDTO]
         """
         try:
             # Check if user already exists

@@ -34,23 +34,29 @@ class TestSubscriptionHandler:
         return SubscriptionHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker) -> MagicMock:
-        """Mock use_locale to control translations.
+    def mock_localization(self, mocker) -> MagicMock:
+        """Configure localization service mock.
 
-        This fixture automatically mocks the use_locale function to return
-        predictable translation strings for testing purposes.
+        This fixture mocks the BabelI18nAdapter class used in the handler
+        to return predictable translation strings incorporating the key.
 
-        :param mocker: pytest-mock fixture for creating mocks
+        :param mocker: pytest-mock fixture
         :type mocker: pytest_mock.MockerFixture
-        :returns: Mocked pgettext function
+        :returns: Mocked translate method
         :rtype: MagicMock
         """
-        mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
+
+        def side_effect(key, default, **kwargs):
+            return f"pgettext_{key}_{default}"
+
+        mock_adapter = MagicMock()
+        mock_adapter.translate.side_effect = side_effect
+
         mocker.patch(
-            "src.bot.handlers.subscription_handler.use_locale",
-            return_value=(None, None, mock_pgettext),
+            "src.bot.handlers.subscription_handler.BabelI18nAdapter",
+            return_value=mock_adapter,
         )
-        return mock_pgettext
+        return mock_adapter.translate
 
     @pytest.fixture
     def make_mock_callback_query(self):
@@ -115,8 +121,10 @@ class TestSubscriptionHandler:
         mock_user_profile.settings.language = "en"
         mock_user_profile.subscription = MagicMock()
         mock_user_profile.subscription.subscription_type = SubscriptionType.BASIC
+        mock_user_profile.subscription.subscription_type = SubscriptionType.BASIC
 
-        handler.services.user_service.is_valid_user_profile.return_value = True
+        # Execute callback
+        await handler.handle_subscription_callback(mock_update, mock_context)
         handler.services.user_service.get_user_profile.return_value = mock_user_profile
 
         with patch.object(handler, "send_message") as mock_send_message:

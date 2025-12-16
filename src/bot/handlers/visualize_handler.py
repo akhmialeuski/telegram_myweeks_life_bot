@@ -20,6 +20,7 @@ from telegram.ext import ContextTypes
 
 from src.i18n import normalize_babel_locale, use_locale
 
+from ...core.life_calculator import calculate_life_statistics
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -64,7 +65,7 @@ class VisualizeHandler(BaseHandler):
 
         The visualization process:
         1. Retrieves user profile from database
-        2. Generates visual grid using LifeCalculatorEngine
+        2. Generates visual grid using calculate_life_statistics
         3. Creates image with weeks lived highlighted
         4. Generates caption with key statistics
         5. Sends both image and caption to user
@@ -119,8 +120,10 @@ class VisualizeHandler(BaseHandler):
         _, _, pgettext = use_locale(lang=lang)
 
         # Compute statistics for caption
-        calc_engine = self.services.get_life_calculator()(user=profile)
-        stats = calc_engine.get_life_statistics()
+        stats = calculate_life_statistics(
+            birth_date=profile.settings.birth_date,
+            life_expectancy=profile.settings.life_expectancy or 80,
+        )
 
         caption = pgettext(
             "visualize.info",
@@ -131,14 +134,14 @@ class VisualizeHandler(BaseHandler):
             "🟩 Green cells = weeks lived\n"
             "⬜ White cells = future weeks",
         ) % {
-            "age": format_decimal(stats["age"], locale=normalize_babel_locale(lang)),
+            "age": format_decimal(stats.age, locale=normalize_babel_locale(lang)),
             "weeks_lived": format_decimal(
-                stats["weeks_lived"],
+                stats.total_weeks_lived,
                 locale=normalize_babel_locale(lang),
                 format="#,##0",
             ),
             "life_percentage": format_percent(
-                stats["life_percentage"],
+                stats.percentage_lived,
                 locale=normalize_babel_locale(lang),
                 format="#0.1%",
             ),

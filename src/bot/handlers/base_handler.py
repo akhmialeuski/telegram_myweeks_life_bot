@@ -29,7 +29,8 @@ from telegram import CallbackQuery, InlineKeyboardMarkup, Update, User
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ...contracts import LifeCalculatorProtocol, UserServiceProtocol
+from ...contracts import UserServiceProtocol
+from ...core.dtos import UserProfileDTO
 from ...i18n import use_locale
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -45,14 +46,26 @@ HandlerMethod = Callable[[Update, ContextTypes.DEFAULT_TYPE], Any]
 DecoratedHandler = Callable[[HandlerMethod], HandlerMethod]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CommandContext:
-    """Data class for command context data."""
+    """Data class for command context data.
+
+    :ivar user: Telegram user object
+    :type user: User
+    :ivar user_id: Telegram user ID
+    :type user_id: int
+    :ivar language: User's preferred language code
+    :type language: str
+    :ivar user_profile: User's profile from database
+    :type user_profile: Optional[UserProfileDTO]
+    :ivar command_name: Name of the command being executed
+    :type command_name: Optional[str]
+    """
 
     user: User
     user_id: int
     language: str
-    user_profile: Optional[Any] = None
+    user_profile: Optional[UserProfileDTO] = None
     command_name: Optional[str] = None
 
 
@@ -66,7 +79,6 @@ class ServiceContainerProtocol(Protocol):
     """
 
     user_service: UserServiceProtocol
-    life_calculator: type[LifeCalculatorProtocol]
 
 
 class BaseHandler(ABC):

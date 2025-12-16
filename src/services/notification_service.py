@@ -8,7 +8,7 @@ mechanism (Telegram, email, etc.).
 from datetime import date
 
 from ..contracts.user_service_protocol import UserServiceProtocol
-from ..core.life_calculator import LifeCalculatorEngine
+from ..core.life_calculator import calculate_life_statistics
 from ..events.domain_events import NotificationPayload
 from ..i18n import use_locale
 from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
@@ -28,24 +28,19 @@ class NotificationService:
     that can be delivered via any notification gateway (Telegram, email, etc.).
 
     :ivar _user_service: User service for retrieving user data
-    :ivar _life_calculator_class: Life calculator class for statistics
     """
 
     def __init__(
         self,
         user_service: UserServiceProtocol,
-        life_calculator_class: type[LifeCalculatorEngine] = LifeCalculatorEngine,
     ) -> None:
         """Initialize the notification service.
 
         :param user_service: Service for user data access
         :type user_service: UserServiceProtocol
-        :param life_calculator_class: Life calculator class
-        :type life_calculator_class: type[LifeCalculatorEngine]
         :returns: None
         """
         self._user_service = user_service
-        self._life_calculator_class = life_calculator_class
 
     async def generate_weekly_summary(
         self,
@@ -84,8 +79,10 @@ class NotificationService:
             )
 
             # Calculate life statistics
-            calculator = self._life_calculator_class(user)
-            stats = calculator.calculate_life_statistics(user.birth_date)
+            stats = calculate_life_statistics(
+                birth_date=user.birth_date,
+                life_expectancy=user.settings.life_expectancy or 80,
+            )
 
             # Generate localized message
             _, _, pgettext = use_locale(user_lang)
@@ -107,12 +104,12 @@ class NotificationService:
                     birth_date=user.birth_date,
                     language=user_lang,
                 ),
-                "age": stats["age"],
-                "life_expectancy": stats["life_expectancy"],
-                "lived_weeks": stats["lived_weeks"],
-                "remaining_weeks": stats["remaining_weeks"],
-                "total_weeks": stats["total_weeks"],
-                "progress_percent": stats["progress_percent"],
+                "age": stats.age,
+                "life_expectancy": stats.life_expectancy,
+                "lived_weeks": stats.total_weeks_lived,
+                "remaining_weeks": stats.remaining_weeks,
+                "total_weeks": stats.total_weeks_expected,
+                "progress_percent": int(stats.percentage_lived * 100),
             }
 
             return NotificationPayload(
@@ -122,7 +119,14 @@ class NotificationService:
                 body=body,
                 metadata={
                     "language": user_lang,
-                    "stats": stats,
+                    "stats": {
+                        "age": stats.age,
+                        "life_expectancy": stats.life_expectancy,
+                        "lived_weeks": stats.total_weeks_lived,
+                        "remaining_weeks": stats.remaining_weeks,
+                        "total_weeks": stats.total_weeks_expected,
+                        "progress_percent": stats.percentage_lived,
+                    },
                 },
             )
 

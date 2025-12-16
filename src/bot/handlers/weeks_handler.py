@@ -20,6 +20,7 @@ from telegram.ext import ContextTypes
 
 from src.i18n import normalize_babel_locale, use_locale
 
+from ...core.life_calculator import calculate_life_statistics
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
@@ -63,7 +64,7 @@ class WeeksHandler(BaseHandler):
 
         The statistics calculation:
         1. Retrieves user profile from database
-        2. Uses LifeCalculatorEngine to compute various metrics
+        2. Uses calculate_life_statistics to compute various metrics
         3. Formats statistics into a localized message
         4. Sends the formatted message to the user
 
@@ -113,8 +114,10 @@ class WeeksHandler(BaseHandler):
         _, _, pgettext = use_locale(lang=lang)
 
         # Compute statistics
-        calc_engine = self.services.get_life_calculator()(user=profile)
-        stats = calc_engine.get_life_statistics()
+        stats = calculate_life_statistics(
+            birth_date=profile.settings.birth_date,
+            life_expectancy=profile.settings.life_expectancy or 80,
+        )
 
         message_text = pgettext(
             "weeks.statistics",
@@ -126,24 +129,24 @@ class WeeksHandler(BaseHandler):
             "🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n"
             "💡 Use /visualize to visualize your life weeks",
         ) % {
-            "age": format_decimal(stats["age"], locale=normalize_babel_locale(lang)),
+            "age": format_decimal(stats.age, locale=normalize_babel_locale(lang)),
             "weeks_lived": format_decimal(
-                stats["weeks_lived"],
+                stats.total_weeks_lived,
                 locale=normalize_babel_locale(lang),
                 format="#,##0",
             ),
             "remaining_weeks": format_decimal(
-                stats["remaining_weeks"],
+                stats.remaining_weeks,
                 locale=normalize_babel_locale(lang),
                 format="#,##0",
             ),
             "life_percentage": format_percent(
-                stats["life_percentage"],
+                stats.percentage_lived,
                 locale=normalize_babel_locale(lang),
                 format="#0.1%",
             ),
             "days_until_birthday": format_decimal(
-                stats["days_until_birthday"], locale=normalize_babel_locale(lang)
+                stats.days_until_birthday, locale=normalize_babel_locale(lang)
             ),
         }
 

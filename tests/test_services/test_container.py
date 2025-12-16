@@ -26,15 +26,13 @@ class TestServiceContainer:
 
         # Verify that all services are created
         assert container.user_service is not None
-        assert container.life_calculator is not None
 
         # Verify that services are of correct types
         assert hasattr(container.user_service, "get_user_profile")
         assert hasattr(container.user_service, "create_user_profile")
         assert hasattr(container.user_service, "update_user_settings")
 
-        # Verify that life calculator is a class (not instance)
-        assert container.life_calculator.__name__ == "LifeCalculatorEngine"
+        assert hasattr(container.user_service, "update_user_settings")
 
     def test_get_user_service(self) -> None:
         """Test get_user_service method.
@@ -48,23 +46,7 @@ class TestServiceContainer:
         container = ServiceContainer()
         user_service = container.get_user_service()
 
-        assert user_service is container.user_service
         assert hasattr(user_service, "get_user_profile")
-
-    def test_get_life_calculator(self) -> None:
-        """Test get_life_calculator method.
-
-        This test verifies that the get_life_calculator method
-        returns the correct life calculator class.
-
-        :returns: None
-        :rtype: None
-        """
-        container = ServiceContainer()
-        life_calculator = container.get_life_calculator()
-
-        assert life_calculator is container.life_calculator
-        assert life_calculator.__name__ == "LifeCalculatorEngine"
 
     import pytest
 

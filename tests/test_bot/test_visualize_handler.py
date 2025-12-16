@@ -64,7 +64,11 @@ class TestVisualizeHandler:
 
     @pytest.mark.asyncio
     async def test_handle_success(
-        self, handler: VisualizeHandler, mock_update: MagicMock, mock_context: MagicMock
+        self,
+        handler: VisualizeHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_user_profile: MagicMock,
     ) -> None:
         """Test successful visualization generation and sending.
 
@@ -77,6 +81,8 @@ class TestVisualizeHandler:
         :type mock_update: MagicMock
         :param mock_context: Mocked Telegram Context object
         :type mock_context: MagicMock
+        :param mock_user_profile: Mocked user profile
+        :type mock_user_profile: MagicMock
         :returns: None
         :rtype: None
         """
@@ -85,9 +91,13 @@ class TestVisualizeHandler:
             new_callable=AsyncMock,
         ) as mock_generate_visualization:
             handler.services.user_service.is_valid_user_profile.return_value = True
-            profile = MagicMock()
-            profile.settings = MagicMock(language="en")
-            handler.services.user_service.get_user_profile.return_value = profile
+
+            # Use proper fixture with all required fields (birth_date etc)
+            mock_user_profile.settings.language = "en"
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+
             mock_generate_visualization.return_value = MagicMock()
 
             await handler.handle(mock_update, mock_context)

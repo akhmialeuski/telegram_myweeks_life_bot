@@ -5,7 +5,7 @@ from typing import Any, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
-from ..core.life_calculator import LifeCalculatorEngine
+from ..core.life_calculator import calculate_life_statistics
 from ..database.service import user_service
 from ..utils.config import (
     CELL_SIZE,
@@ -75,9 +75,12 @@ async def generate_visualization(user_info: Any) -> BytesIO:
         else DEFAULT_LANGUAGE
     )
 
-    # Create calculator instance
-    calculator = LifeCalculatorEngine(user=user_profile)
-    weeks_lived: int = calculator.calculate_weeks_lived()
+    # Calculate life statistics
+    stats = calculate_life_statistics(
+        birth_date=user_profile.settings.birth_date,
+        life_expectancy=user_profile.settings.life_expectancy or 80,
+    )
+    weeks_lived: int = stats.total_weeks_lived
 
     width, height = calculate_grid_dimensions()
     image = Image.new("RGB", (width, height), COLORS["background"])
