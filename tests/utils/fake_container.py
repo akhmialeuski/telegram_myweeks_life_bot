@@ -46,6 +46,9 @@ class FakeServiceContainer:
         # Create mock notification service
         self.notification_service = MagicMock()
 
+        # Create mock localization service
+        self.localization_service = MagicMock()
+
         # Set up common mock behaviors
         self._setup_mock_behaviors()
 
@@ -69,6 +72,11 @@ class FakeServiceContainer:
         self.user_service.update_user_subscription = AsyncMock(return_value=None)
         self.user_service.delete_user_profile = AsyncMock(return_value=None)
         self.user_service.get_all_users = AsyncMock(return_value=[])
+
+        # Set up localization service mock behaviors
+        self.localization_service.translate = MagicMock(
+            return_value="Translated message"
+        )
 
         # Set up life calculator mock behaviors
         self.life_calculator.return_value.calculate_age.return_value = 30
@@ -144,3 +152,4 @@ class FakeServiceContainer:
         self.config.reset_mock()
         self.event_bus.reset_mock()
         self.notification_service.reset_mock()
+        self.localization_service.reset_mock()

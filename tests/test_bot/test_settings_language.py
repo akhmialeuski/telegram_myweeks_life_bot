@@ -195,3 +195,25 @@ class TestLanguageHandler:
                 "pgettext_settings.error_"
                 in mock_edit_message.call_args.kwargs["message_text"]
             )
+
+    @pytest.mark.asyncio
+    async def test_handle_returns_none(
+        self,
+        handler: LanguageHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test that handle() method returns None.
+
+        This test verifies the handle() method properly returns None.
+
+        :param handler: LanguageHandler instance
+        :type handler: LanguageHandler
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        result = await handler.handle(mock_update, mock_context)
+        assert result is None

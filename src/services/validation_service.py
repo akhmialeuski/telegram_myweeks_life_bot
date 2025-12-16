@@ -24,7 +24,7 @@ ERROR_VALUE_TOO_LOW = "value_too_low"
 ERROR_VALUE_TOO_HIGH = "value_too_high"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ValidationResult:
     """Result of input validation.
 

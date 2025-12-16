@@ -3,7 +3,7 @@
 Tests the BaseHandler class which provides common functionality.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from telegram import CallbackQuery, InlineKeyboardMarkup
@@ -190,3 +190,90 @@ class TestBaseHandler:
         assert result.language == SupportedLanguage.EN.value
         assert result.user_profile == mock_user_profile
         assert result.command_name is None
+
+    @pytest.mark.asyncio
+    async def test_wrap_with_registration_executes_wrapper(
+        self, handler: ConcreteHandler, mock_update: MagicMock, mock_context: MagicMock
+    ) -> None:
+        """Test wrapper execution for commands not requiring registration.
+
+        where the wrapper
+        for commands not requiring registration uses use_message_context.
+
+        :param handler: ConcreteHandler instance
+        :type handler: ConcreteHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        # Set command that doesn't require registration
+        handler.command_name = f"/{COMMAND_HELP}"
+
+        # Create a mock handler method
+        mock_handler_method = AsyncMock(return_value=None)
+
+        # Mock user profile
+        mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = SupportedLanguage.EN.value
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        # Get wrapped method
+        wrapped = handler._wrap_with_registration(mock_handler_method)
+
+        # Execute wrapped method
+        with patch("src.core.message_context.use_message_context"):
+            result = await wrapped(mock_update, mock_context)
+
+        # Verify handler was called
+        mock_handler_method.assert_called_once_with(mock_update, mock_context)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_require_registration_unregistered_user(
+        self, handler: ConcreteHandler, mock_update: MagicMock, mock_context: MagicMock
+    ) -> None:
+        """Test require_registration decorator with unregistered user.
+
+        where the decorator
+        sends a message to unregistered users.
+
+        :param handler: ConcreteHandler instance
+        :type handler: ConcreteHandler
+        :param mock_update: Mocked Telegram update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        # Set command that requires registration
+        handler.command_name = f"/{COMMAND_WEEKS}"
+
+        # Mock user service to return invalid profile
+        handler.services.user_service.is_valid_user_profile.return_value = False
+
+        # Mock user profile
+        mock_user_profile = MagicMock()
+        mock_user_profile.settings.language = SupportedLanguage.EN.value
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        # Create a mock handler method
+        mock_handler_method = AsyncMock(return_value=None)
+
+        # Get decorated method
+        decorated = handler.require_registration()(mock_handler_method)
+
+        # Execute decorated method
+        result = await decorated(mock_update, mock_context)
+
+        # Verify unregistered message was sent
+        mock_update.message.reply_text.assert_called_once()
+        call_args = mock_update.message.reply_text.call_args[0]
+        assert "not registered" in call_args[0].lower() or "pgettext" in call_args[0]
+
+        # Verify handler was NOT called
+        mock_handler_method.assert_not_called()
+        assert result is None

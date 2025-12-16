@@ -242,3 +242,36 @@ class TestAPSchedulerAdapter:
 
         mock_scheduler.running = False
         assert adapter.is_running is False
+
+    def test_get_first_field_value_no_expressions(
+        self,
+        adapter: APSchedulerAdapter,
+    ) -> None:
+        """Test _get_first_field_value when field has no expressions.
+
+        This test verifies that None is returned when the cron field
+        doesn't have any expressions.
+        """
+        # Create mock field with no expressions
+        mock_field = MagicMock()
+        mock_field.expressions = []
+
+        result = adapter._get_first_field_value(field=mock_field)
+
+        assert result is None
+
+    def test_get_first_field_value_no_expressions_attribute(
+        self,
+        adapter: APSchedulerAdapter,
+    ) -> None:
+        """Test _get_first_field_value when field has no expressions attribute.
+
+        This test verifies that None is returned when the cron field
+        doesn't have expressions attribute at all.
+        """
+        # Create mock field without expressions attribute
+        mock_field = MagicMock(spec=[])
+
+        result = adapter._get_first_field_value(field=mock_field)
+
+        assert result is None

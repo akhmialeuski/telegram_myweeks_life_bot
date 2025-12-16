@@ -16,17 +16,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .contracts import (
-    LifeCalculatorProtocol,
     UserServiceProtocol,
 )
 from .core.di import Container
-from .core.life_calculator import LifeCalculatorEngine
 from .database.service import UserService
 from .services.container import ServiceContainer
-
-# Sentinel key for LifeCalculator class registration
-# Used to distinguish class resolution from instance resolution
-LIFE_CALCULATOR_CLASS_KEY = "LifeCalculatorClass"
 
 
 @dataclass
@@ -83,14 +77,6 @@ def configure_container(config: AppConfig | None = None) -> Container:
     container.register_lazy_singleton(
         protocol=UserServiceProtocol,
         factory=lambda: UserService(),
-    )
-
-    # Register Life Calculator class for direct instantiation by handlers
-    # LifeCalculatorEngine requires a User object in its constructor,
-    # so we register the class itself rather than an instance
-    container.register_singleton(
-        protocol=LifeCalculatorProtocol,
-        instance=LifeCalculatorEngine,  # type: ignore[arg-type]
     )
 
     # Register legacy ServiceContainer for backward compatibility

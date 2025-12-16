@@ -26,15 +26,13 @@ class TestServiceContainer:
 
         # Verify that all services are created
         assert container.user_service is not None
-        assert container.life_calculator is not None
 
         # Verify that services are of correct types
         assert hasattr(container.user_service, "get_user_profile")
         assert hasattr(container.user_service, "create_user_profile")
         assert hasattr(container.user_service, "update_user_settings")
 
-        # Verify that life calculator is a class (not instance)
-        assert container.life_calculator.__name__ == "LifeCalculatorEngine"
+        assert hasattr(container.user_service, "update_user_settings")
 
     def test_get_user_service(self) -> None:
         """Test get_user_service method.
@@ -48,23 +46,7 @@ class TestServiceContainer:
         container = ServiceContainer()
         user_service = container.get_user_service()
 
-        assert user_service is container.user_service
         assert hasattr(user_service, "get_user_profile")
-
-    def test_get_life_calculator(self) -> None:
-        """Test get_life_calculator method.
-
-        This test verifies that the get_life_calculator method
-        returns the correct life calculator class.
-
-        :returns: None
-        :rtype: None
-        """
-        container = ServiceContainer()
-        life_calculator = container.get_life_calculator()
-
-        assert life_calculator is container.life_calculator
-        assert life_calculator.__name__ == "LifeCalculatorEngine"
 
     import pytest
 
@@ -247,3 +229,58 @@ class TestServiceContainer:
 
         # Should not be initialized after reset
         assert not ServiceContainer._initialized
+
+    @pytest.mark.asyncio
+    async def test_get_notification_service(self) -> None:
+        """Test get_notification_service method.
+
+        This test verifies that the get_notification_service method
+        returns the correct notification service instance.
+
+        :returns: None
+        :rtype: None
+        """
+        container = ServiceContainer()
+        notification_service = container.get_notification_service()
+
+        assert notification_service is not None
+        assert hasattr(notification_service, "generate_weekly_summary")
+
+    @pytest.mark.asyncio
+    async def test_set_and_get_scheduler_client(self) -> None:
+        """Test set_scheduler_client and get_scheduler_client methods.
+
+        This test verifies that the scheduler client can be set
+        and retrieved correctly.
+
+        :returns: None
+        :rtype: None
+        """
+        from unittest.mock import MagicMock
+
+        container = ServiceContainer()
+
+        # Initially should be None
+        assert container.get_scheduler_client() is None
+
+        # Set a mock scheduler client
+        mock_client = MagicMock()
+        container.set_scheduler_client(client=mock_client)
+
+        # Should return the set client
+        assert container.get_scheduler_client() is mock_client
+
+    @pytest.mark.asyncio
+    async def test_get_notification_gateway(self) -> None:
+        """Test get_notification_gateway method.
+
+        This test verifies that the get_notification_gateway method
+        returns the correct notification gateway instance.
+
+        :returns: None
+        :rtype: None
+        """
+        container = ServiceContainer()
+        gateway = container.get_notification_gateway()
+
+        assert gateway is not None

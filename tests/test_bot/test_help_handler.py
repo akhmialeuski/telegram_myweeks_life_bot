@@ -32,23 +32,28 @@ class TestHelpHandler:
         return HelpHandler(services)
 
     @pytest.fixture(autouse=True)
-    def mock_use_locale(self, mocker):
-        """Mock use_locale function to control translation behavior.
+    def mock_localization(self, mocker):
+        """Configure localization service mock.
 
-        This fixture automatically mocks the use_locale function to return
-        predictable translation strings for testing purposes.
+        This fixture mocks the BabelI18nAdapter class used in the handler
+        to return predictable translation strings incorporating the key.
 
-        :param mocker: Pytest mocker fixture
-        :type mocker: MockerFixture
-        :returns: Mocked pgettext function
+        :param mocker: pytest-mock fixture
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked translate method
         :rtype: MagicMock
         """
-        mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
-        mocker.patch(
-            "src.bot.handlers.help_handler.use_locale",
-            return_value=(None, None, mock_pgettext),
+        mock_adapter = MagicMock()
+        # Setup translate side effect
+        mock_adapter.translate.side_effect = (
+            lambda key, default, **kwargs: f"pgettext_{key}_{default}"
         )
-        return mock_pgettext
+
+        mocker.patch(
+            "src.bot.handlers.help_handler.BabelI18nAdapter",
+            return_value=mock_adapter,
+        )
+        return mock_adapter.translate
 
     def test_handler_creation(self, handler: HelpHandler) -> None:
         """Test that HelpHandler is created with correct command name.
@@ -85,6 +90,10 @@ class TestHelpHandler:
         :returns: None
         :rtype: None
         """
+        profile = MagicMock()
+        profile.settings.language = "en"
+        handler.services.user_service.get_user_profile.return_value = profile
+
         await handler.handle(mock_update, mock_context)
 
         mock_update.message.reply_text.assert_called_once()

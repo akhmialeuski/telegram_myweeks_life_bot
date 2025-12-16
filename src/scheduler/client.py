@@ -52,6 +52,7 @@ class SchedulerClient:
         # To strictly implement request-response over queues in async, we need a reader loop.
         self._response_futures: dict[str, asyncio.Future] = {}
         self._listening = False
+        self._listen_task: asyncio.Task | None = None
 
     async def start_listening(self) -> None:
         """Start listening for responses in the background.
@@ -62,7 +63,7 @@ class SchedulerClient:
             return
         self._listening = True
         logger.info("Scheduler client listener started")
-        asyncio.create_task(self._listen_loop())
+        self._listen_task = asyncio.create_task(self._listen_loop())
 
     async def _listen_loop(self) -> None:
         """Background loop to listen for responses."""
@@ -73,9 +74,33 @@ class SchedulerClient:
                     self._handle_response(response)
                 else:
                     await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                logger.info("Scheduler client listener cancelled")
+                break
             except Exception as error:
                 logger.error(f"Error in scheduler client listener: {error}")
                 await asyncio.sleep(1)
+
+    async def stop_listening(self) -> None:
+        """Stop the background listener gracefully.
+
+        :returns: None
+        """
+        if not self._listening:
+            return
+
+        self._listening = False
+        logger.info("Stopping scheduler client listener...")
+
+        if self._listen_task and not self._listen_task.done():
+            self._listen_task.cancel()
+            try:
+                await self._listen_task
+            except asyncio.CancelledError:
+                pass
+
+        self._listen_task = None
+        logger.info("Scheduler client listener stopped")
 
     def _handle_response(self, response: SchedulerResponse) -> None:
         """Handle a received response.

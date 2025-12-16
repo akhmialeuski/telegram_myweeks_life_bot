@@ -122,3 +122,57 @@ class TestUnknownHandler:
         call_args = handler.send_message.call_args
         message_text = call_args.kwargs["message_text"]
         assert "pgettext_unknown.command_" in message_text
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_command(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handling of unknown command starting with /.
+
+        This test verifies that unknown commands starting with / are handled correctly.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        # Set message text to an unknown command
+        mock_update.message.text = "/invalid_command"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_unknown_text_message(
+        self,
+        handler: UnknownHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test handling of unknown text message (not a command).
+
+        This test verifies that unknown text messages (not commands) are handled correctly.
+
+        :param handler: UnknownHandler instance
+        :type handler: UnknownHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        # Set message text to a plain text (not starting with /)
+        mock_update.message.text = "some random text message"
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()

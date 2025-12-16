@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
-from src.database.models.user import User
+from src.core.dtos import UserProfileDTO, UserSettingsDTO, UserSubscriptionDTO
 from src.database.models.user_settings import UserSettings
 from src.database.models.user_subscription import UserSubscription
 from src.database.repositories.sqlite.user_repository import SQLiteUserRepository
@@ -237,16 +237,29 @@ class TestUserService:
         mock_settings_repository.create_user_settings.return_value = True
         mock_subscription_repository.create_subscription.return_value = True
 
-        # Mock get_user_profile to return user after creation
-        created_user = User(
+        # Create a DTO that would be returned after successful profile creation
+        created_user_dto = UserProfileDTO(
             telegram_id=123456789,
             username="testuser",
             first_name="Test",
             last_name="User",
             created_at=datetime.now(UTC),
+            settings=UserSettingsDTO(
+                birth_date=date(1990, 1, 1),
+                notifications=True,
+                notifications_day=sample_settings.notifications_day,
+                notifications_time=sample_settings.notifications_time,
+                life_expectancy=sample_settings.life_expectancy,
+                timezone=sample_settings.timezone,
+                language=sample_settings.language,
+            ),
+            subscription=UserSubscriptionDTO(
+                subscription_type=SubscriptionType.BASIC,
+                is_active=True,
+                expires_at=datetime.now(UTC),
+            ),
         )
-        created_user.settings = sample_settings
-        user_service.get_user_profile = AsyncMock(side_effect=[None, created_user])
+        user_service.get_user_profile = AsyncMock(side_effect=[None, created_user_dto])
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -262,7 +275,11 @@ class TestUserService:
         )
 
         assert result is not None
+        assert isinstance(result, UserProfileDTO)
         assert result.telegram_id == 123456789
+        # Settings and subscription are now DTOs in the result
+        assert isinstance(result.settings, UserSettingsDTO)
+        assert isinstance(result.subscription, UserSubscriptionDTO)
         mock_user_repository.create_user.assert_called_once()
         mock_settings_repository.create_user_settings.assert_called_once()
         mock_subscription_repository.create_subscription.assert_called_once()
@@ -293,6 +310,13 @@ class TestUserService:
             subscription_type=SubscriptionType.BASIC,
         )
 
+        # Since get_user_profile now returns DTO converted from sample_user (which is a Model),
+        # we need to ensure sample_user has settings and subscription attached for conversion to work implicitly mock-wise.
+        # But here valid user is returned as model by side_effect.
+        # Wait, get_user_profile calls _to_dto.
+        # If sample_user is a MagicMock or User instance without proper attributes, _to_dto might fail or return DTO.
+        # The test sets side_effect return_value=sample_user, but get_user_profile is mocked on the service instance itself.
+        # So it returns exactly what we tell it.
         assert result == sample_user
 
     @pytest.mark.asyncio
@@ -476,9 +500,22 @@ class TestUserService:
         result = await user_service.get_user_profile(123456789)
 
         assert result is not None
+        assert isinstance(result, UserProfileDTO)
         assert result.telegram_id == 123456789
-        assert result.settings == sample_settings
-        assert result.subscription == sample_subscription
+
+        # Verify settings DTO matches sample settings model
+        assert isinstance(result.settings, UserSettingsDTO)
+        assert result.settings.birth_date == sample_settings.birth_date
+        assert result.settings.notifications == sample_settings.notifications
+
+        # Verify subscription DTO matches sample subscription model
+        assert isinstance(result.subscription, UserSubscriptionDTO)
+        assert (
+            result.subscription.subscription_type
+            == sample_subscription.subscription_type
+        )
+        assert result.subscription.is_active == sample_subscription.is_active
+
         mock_user_repository.get_user.assert_called_once_with(telegram_id=123456789)
         mock_settings_repository.get_user_settings.assert_called_once_with(
             telegram_id=123456789
@@ -567,6 +604,69 @@ class TestUserService:
         mock_user_repository.get_user.side_effect = Exception("Test error")
 
         result = await user_service.get_user_profile(123456789)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_user_profile_settings_repository_exception(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        sample_user,
+    ) -> None:
+        """Test user profile retrieval when settings repository raises exception.
+
+        This test verifies that exceptions during user creation are properly caught and
+        during settings retrieval is caught and logged.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param sample_user: Sample user object
+        :returns: None
+        :rtype: None
+        """
+        mock_user_repository.get_user.return_value = sample_user
+        mock_settings_repository.get_user_settings.side_effect = Exception(
+            "Settings repository error"
+        )
+
+        result = await user_service.get_user_profile(telegram_id=123456789)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_user_profile_subscription_repository_exception(
+        self,
+        user_service,
+        mock_user_repository,
+        mock_settings_repository,
+        mock_subscription_repository,
+        sample_user,
+        sample_settings,
+    ) -> None:
+        """Test user profile retrieval when subscription repository raises exception.
+
+        This test verifies that exceptions during settings update are properly caught and
+        during subscription retrieval is caught and logged.
+
+        :param user_service: UserService instance
+        :param mock_user_repository: Mock user repository
+        :param mock_settings_repository: Mock settings repository
+        :param mock_subscription_repository: Mock subscription repository
+        :param sample_user: Sample user object
+        :param sample_settings: Sample settings object
+        :returns: None
+        :rtype: None
+        """
+        mock_user_repository.get_user.return_value = sample_user
+        mock_settings_repository.get_user_settings.return_value = sample_settings
+        mock_subscription_repository.get_subscription.side_effect = Exception(
+            "Subscription repository error"
+        )
+
+        result = await user_service.get_user_profile(telegram_id=123456789)
 
         assert result is None
 
@@ -1392,12 +1492,25 @@ class TestUserServiceGetAllUsers:
 
         result = await user_service.get_all_users()
 
-        # Should return both users (user2 with None settings is included)
-        assert len(result) == 2
+        # Should return both users (user2 with None settings is included but skipped by get_all_users logic?
+        # Wait, get_all_users logic:
+        # for user in users: try: get settings... if fail continue... append _to_dto(user)
+        # _to_dto raises error if settings/subscription missing.
+        # So user2 checks for settings -> returns None.
+        # get_all_users implementation:
+        # settings = await ...
+        # subscription = await ...
+        # complete_user = User(...)
+        # complete_user.settings = settings
+        # ...
+        # append(self._to_dto(complete_user))
+        # _to_dto checks: if not user.settings or not user.subscription: raise
+        # So if settings is None, _to_dto raises, caught by except in loop -> continue.
+        # So user2 is SKIPPED.
+
+        assert len(result) == 1
         assert result[0].telegram_id == 111
-        assert result[1].telegram_id == 222
-        assert result[0].settings is not None
-        assert result[1].settings is None
+        assert isinstance(result[0], UserProfileDTO)
 
     @pytest.mark.asyncio
     async def test_get_all_users_repository_exception(self) -> None:

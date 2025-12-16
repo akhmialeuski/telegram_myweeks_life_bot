@@ -16,15 +16,19 @@ from typing import Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from src.core.messages import SubscriptionMessages
 from src.enums import SubscriptionType
-from src.i18n import use_locale
 
 from ...database.service import UserSubscriptionUpdateError
 from ...services.container import ServiceContainer
+from ...services.i18n_adapter import BabelI18nAdapter
 from ...utils.config import BOT_NAME, BUYMEACOFFEE_URL
 from ...utils.logger import get_logger
 from ..constants import COMMAND_SUBSCRIPTION
 from .base_handler import BaseHandler
+
+# from src.i18n import use_locale # This line is removed as pgettext is no longer used
+
 
 # Initialize logger for this module
 logger = get_logger(BOT_NAME)
@@ -105,7 +109,10 @@ class SubscriptionHandler(BaseHandler):
                 if profile and profile.settings and profile.settings.language
                 else (user.language_code or "en")
             )
-            _, _, pgettext = use_locale(lang=lang)
+
+            # Use helpers
+            i18n = BabelI18nAdapter(lang=lang)
+            messages = SubscriptionMessages(i18n=i18n)
 
             # Create subscription selection keyboard
             keyboard = []
@@ -122,39 +129,16 @@ class SubscriptionHandler(BaseHandler):
 
             # Prepare description for current subscription (optional)
             if current_subscription == SubscriptionType.BASIC:
-                subscription_description = pgettext(
-                    "subscription.basic_info",
-                    "💡 <b>Basic Subscription</b>\n\n"
-                    "You are using the basic version of the bot with core functionality.\n\n"
-                    "🔗 <b>Support the project:</b>\n"
-                    "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-                    "• Donate: {buymeacoffee_url}\n\n"
-                    "Your support helps develop the bot! 🙏",
-                ).format(buymeacoffee_url=BUYMEACOFFEE_URL)
-            else:
-                subscription_description = pgettext(
-                    "subscription.premium_content",
-                    "✨ <b>Premium Content</b>\n\n"
-                    "🧠 <b>Psychology of Time:</b>\n"
-                    "Research shows that time visualization helps make more conscious decisions. When we see the limitation of our weeks, we begin to value each one.\n\n"
-                    "📊 <b>Interesting Facts:</b>\n"
-                    "• Average person spends 26 years sleeping (about 1,352 weeks)\n"
-                    "• 11 years working (572 weeks)\n"
-                    "• 5 years eating and cooking (260 weeks)\n"
-                    "• 4 years commuting (208 weeks)\n\n"
-                    "🎯 <b>Daily Tip:</b> Try doing something new every week - it will help make life more fulfilling and memorable!",
+                subscription_description = messages.basic_info(
+                    buymeacoffee_url=BUYMEACOFFEE_URL
                 )
+            else:
+                subscription_description = messages.premium_content()
 
             # Send current subscription message
             await self.send_message(
                 update=update,
-                message_text=pgettext(
-                    "subscription.management",
-                    "🔐 <b>Subscription Management</b>\n\n"
-                    "Current subscription: <b>{subscription_type}</b>\n"
-                    "{subscription_description}\n\n"
-                    "Select new subscription type:",
-                ).format(
+                message_text=messages.management(
                     subscription_type=current_subscription.value,
                     subscription_description=subscription_description,
                 ),
@@ -202,7 +186,10 @@ class SubscriptionHandler(BaseHandler):
             if profile and profile.settings and profile.settings.language
             else (user.language_code or "en")
         )
-        _, _, pgettext = use_locale(lang=lang)
+
+        # Use helpers
+        i18n = BabelI18nAdapter(lang=lang)
+        messages = SubscriptionMessages(i18n=i18n)
 
         try:
             # Answer the callback query to remove loading state
@@ -219,10 +206,9 @@ class SubscriptionHandler(BaseHandler):
             if current_subscription == new_subscription_type:
                 await self.edit_message(
                     query=query,
-                    message_text=pgettext(
-                        "subscription.already_active",
-                        "ℹ️ You already have an active <b>{subscription_type}</b> subscription",
-                    ).format(subscription_type=new_subscription_type.value),
+                    message_text=messages.already_active(
+                        subscription=user_profile.subscription
+                    ),
                 )
                 return
 
@@ -234,39 +220,16 @@ class SubscriptionHandler(BaseHandler):
 
             # Prepare description for new subscription
             if new_subscription_type == SubscriptionType.BASIC:
-                subscription_description = pgettext(
-                    "subscription.basic_info",
-                    "💡 <b>Basic Subscription</b>\n\n"
-                    "You are using the basic version of the bot with core functionality.\n\n"
-                    "🔗 <b>Support the project:</b>\n"
-                    "• GitHub: https://github.com/your-project/lifeweeks-bot\n"
-                    "• Donate: {buymeacoffee_url}\n\n"
-                    "Your support helps develop the bot! 🙏",
-                ).format(buymeacoffee_url=BUYMEACOFFEE_URL)
-            else:
-                subscription_description = pgettext(
-                    "subscription.premium_content",
-                    "✨ <b>Premium Content</b>\n\n"
-                    "🧠 <b>Psychology of Time:</b>\n"
-                    "Research shows that time visualization helps make more conscious decisions. When we see the limitation of our weeks, we begin to value each one.\n\n"
-                    "📊 <b>Interesting Facts:</b>\n"
-                    "• Average person spends 26 years sleeping (about 1,352 weeks)\n"
-                    "• 11 years working (572 weeks)\n"
-                    "• 5 years eating and cooking (260 weeks)\n"
-                    "• 4 years commuting (208 weeks)\n\n"
-                    "🎯 <b>Daily Tip:</b> Try doing something new every week - it will help make life more fulfilling and memorable!",
+                subscription_description = messages.basic_info(
+                    buymeacoffee_url=BUYMEACOFFEE_URL
                 )
+            else:
+                subscription_description = messages.premium_content()
 
             # Show success message
             await self.edit_message(
                 query=query,
-                message_text=pgettext(
-                    "subscription.change_success",
-                    "✅ <b>Subscription successfully changed!</b>\n\n"
-                    "New subscription: <b>{subscription_type}</b>\n"
-                    "{subscription_description}\n\n"
-                    "Changes took effect immediately.",
-                ).format(
+                message_text=messages.change_success(
                     subscription_type=new_subscription_type.value,
                     subscription_description=subscription_description,
                 ),
@@ -280,18 +243,12 @@ class SubscriptionHandler(BaseHandler):
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=pgettext(
-                    "subscription.change_failed",
-                    "❌ Failed to change subscription. Please try again later.",
-                ),
+                error_message=messages.change_failed(),
             )
 
         except Exception:
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=pgettext(
-                    "subscription.change_error",
-                    "❌ An error occurred while changing subscription",
-                ),
+                error_message=messages.change_error(),
             )

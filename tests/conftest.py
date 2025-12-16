@@ -1,23 +1,18 @@
 """Common test fixtures and configuration for all tests."""
 
 import os
-import sys  # noqa: E402
-import types  # noqa: E402
-from collections.abc import Iterator  # noqa: E402
-from typing import Any  # noqa: E402
-from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
-
-# Set PTB_TIMEDELTA environment variable to suppress PTBDeprecationWarning
-os.environ.setdefault("PTB_TIMEDELTA", "1")
-
-# Ensure compatibility alias for legacy import paths in some modules
-
+from collections.abc import Iterator
+from datetime import date
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest  # noqa: E402
 from telegram import Update  # noqa: E402
 from telegram.ext import Application, ContextTypes  # noqa: E402
 
-import src.core.life_calculator as _lc  # noqa: E402
+# Set PTB_TIMEDELTA environment variable to suppress PTBDeprecationWarning
+os.environ.setdefault("PTB_TIMEDELTA", "1")
+
 from src.bot.application import LifeWeeksBot  # noqa: E402
 from src.constants import (  # noqa: E402
     DEFAULT_LIFE_EXPECTANCY,
@@ -28,12 +23,6 @@ from src.constants import (  # noqa: E402
     DEFAULT_USER_FIRST_NAME,
 )
 from src.enums import SubscriptionType, SupportedLanguage, WeekDay  # noqa: E402
-
-sys.modules.setdefault("core", types.ModuleType("core"))
-
-sys.modules["core.life_calculator"] = _lc
-# Alias missing class name used by some modules
-setattr(_lc, "LifeCalculator", _lc.LifeCalculatorEngine)
 
 
 class MockerFixture:
@@ -298,7 +287,8 @@ def make_mock_user_profile():
         :rtype: MagicMock
         """
         mock_user = MagicMock()
-        mock_user.subscription.subscription_type = subscription_type.value
+        mock_user.subscription.subscription_type = subscription_type
+        mock_user.settings.language = SupportedLanguage.EN.value
         return mock_user
 
     return _make
@@ -313,10 +303,20 @@ def mock_user_profile() -> MagicMock:
     """
     user = MagicMock()
     user.telegram_id = TEST_USER_ID
-    user.birth_date = "15.03.1990"
-    user.language = SupportedLanguage.EN.value
-    user.life_expectancy = DEFAULT_LIFE_EXPECTANCY
+    user.birth_date = date(1990, 3, 15)
+
+    # Setup settings mock
+    user.settings = MagicMock()
+    user.settings.language = SupportedLanguage.EN.value
+    user.settings.life_expectancy = DEFAULT_LIFE_EXPECTANCY
+    user.settings.birth_date = user.birth_date
+
     user.subscription_type = SubscriptionType.BASIC
+    # Ensure subscription is also set up if needed, though DTO has it at top level?
+    # UserProfileDTO has subscription: UserSubscriptionDTO
+    user.subscription = MagicMock()
+    user.subscription.subscription_type = SubscriptionType.BASIC
+
     return user
 
 
@@ -329,10 +329,18 @@ def mock_premium_user_profile() -> MagicMock:
     """
     user = MagicMock()
     user.telegram_id = TEST_USER_ID
-    user.birth_date = "15.03.1990"
-    user.language = SupportedLanguage.EN.value
-    user.life_expectancy = DEFAULT_LIFE_EXPECTANCY
+    user.birth_date = date(1990, 3, 15)
+
+    # Setup settings mock
+    user.settings = MagicMock()
+    user.settings.language = SupportedLanguage.EN.value
+    user.settings.life_expectancy = DEFAULT_LIFE_EXPECTANCY
+    user.settings.birth_date = user.birth_date
+
     user.subscription_type = SubscriptionType.PREMIUM
+    user.subscription = MagicMock()
+    user.subscription.subscription_type = SubscriptionType.PREMIUM
+
     return user
 
 

@@ -64,7 +64,11 @@ class TestVisualizeHandler:
 
     @pytest.mark.asyncio
     async def test_handle_success(
-        self, handler: VisualizeHandler, mock_update: MagicMock, mock_context: MagicMock
+        self,
+        handler: VisualizeHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_user_profile: MagicMock,
     ) -> None:
         """Test successful visualization generation and sending.
 
@@ -77,6 +81,8 @@ class TestVisualizeHandler:
         :type mock_update: MagicMock
         :param mock_context: Mocked Telegram Context object
         :type mock_context: MagicMock
+        :param mock_user_profile: Mocked user profile
+        :type mock_user_profile: MagicMock
         :returns: None
         :rtype: None
         """
@@ -85,9 +91,13 @@ class TestVisualizeHandler:
             new_callable=AsyncMock,
         ) as mock_generate_visualization:
             handler.services.user_service.is_valid_user_profile.return_value = True
-            profile = MagicMock()
-            profile.settings = MagicMock(language="en")
-            handler.services.user_service.get_user_profile.return_value = profile
+
+            # Use proper fixture with all required fields (birth_date etc)
+            mock_user_profile.settings.language = "en"
+            handler.services.user_service.get_user_profile.return_value = (
+                mock_user_profile
+            )
+
             mock_generate_visualization.return_value = MagicMock()
 
             await handler.handle(mock_update, mock_context)
@@ -167,3 +177,48 @@ class TestVisualizeHandler:
         mock_update.message.reply_photo.assert_called_once()
         call_args = mock_update.message.reply_photo.call_args
         assert "pgettext_visualize.info_" in call_args.kwargs["caption"]
+
+    @pytest.mark.asyncio
+    async def test_handle_visualize_exception(
+        self,
+        handler: VisualizeHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_user_profile: MagicMock,
+    ) -> None:
+        """Test visualization generation handles exception.
+
+        This test verifies that exceptions during visualization generation are caught and
+        the exception during generate_visualization is caught and logged.
+
+        :param handler: VisualizeHandler instance
+        :type handler: VisualizeHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :param mock_user_profile: Mocked user profile with settings
+        :type mock_user_profile: MagicMock
+        :returns: None
+        :rtype: None
+        """
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        # Ensure mock user profile has proper settings structure
+        if not getattr(mock_user_profile, "settings", None):
+            mock_user_profile.settings = MagicMock()
+        mock_user_profile.settings.language = "en"
+
+        with patch(
+            "src.bot.handlers.visualize_handler.generate_visualization",
+            new_callable=AsyncMock,
+        ) as mock_generate_visualization:
+            # Make generate_visualization raise an exception
+            mock_generate_visualization.side_effect = Exception("Generation failed")
+
+            result = await handler.handle(mock_update, mock_context)
+
+            # Handler should return None and not send photo
+            assert result is None
+            mock_update.message.reply_photo.assert_not_called()

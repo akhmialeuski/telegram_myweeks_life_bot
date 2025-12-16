@@ -13,7 +13,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.conversations.states import ConversationState
-from src.core.life_calculator import LifeCalculatorEngine
+from src.core.life_calculator import calculate_life_statistics
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import normalize_babel_locale, use_locale
@@ -193,7 +193,10 @@ class BirthDateHandler(AbstractSettingsHandler):
             updated_profile = await self.services.user_service.get_user_profile(
                 telegram_id=user_id
             )
-            calculator = LifeCalculatorEngine(user=updated_profile)
+            stats = calculate_life_statistics(
+                birth_date=updated_profile.settings.birth_date,
+                life_expectancy=updated_profile.settings.life_expectancy or 80,
+            )
 
             # Send success message
             await self.send_message(
@@ -210,7 +213,7 @@ class BirthDateHandler(AbstractSettingsHandler):
                         format="dd.MM.yyyy",
                         locale=normalize_babel_locale(lang),
                     ),
-                    new_age=calculator.calculate_age(),
+                    new_age=stats.age,
                 ),
             )
 

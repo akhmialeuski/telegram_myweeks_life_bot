@@ -330,3 +330,31 @@ class TestEventBus:
 
         # Original list should not be affected
         assert len(event_bus.get_handlers(event_type=UserRegisteredEvent)) == 1
+
+    @patch("src.events.event_bus.logger")
+    def test_unsubscribe_nonexistent_handler_logs_warning(
+        self,
+        mock_logger: MagicMock,
+        event_bus: EventBus,
+    ) -> None:
+        """Test unsubscribing a handler that was never subscribed.
+
+        This test verifies that attempting to unsubscribe a handler
+        that is not registered logs a warning message.
+        """
+
+        async def handler(event: UserRegisteredEvent) -> None:
+            pass
+
+        async def other_handler(event: UserRegisteredEvent) -> None:
+            pass
+
+        # Subscribe only one handler
+        event_bus.subscribe(event_type=UserRegisteredEvent, handler=handler)
+
+        # Try to unsubscribe a different handler that was never subscribed
+        event_bus.unsubscribe(event_type=UserRegisteredEvent, handler=other_handler)
+
+        # Should log a warning
+        mock_logger.warning.assert_called_once()
+        assert "other_handler" in str(mock_logger.warning.call_args)

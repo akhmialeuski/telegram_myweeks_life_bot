@@ -112,7 +112,7 @@ class TestGenerateVisualization:
 
     @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
-    @patch("src.visualization.grid.LifeCalculatorEngine")
+    @patch("src.visualization.grid.calculate_life_statistics")
     @patch("src.visualization.grid.Image")
     @patch("src.visualization.grid.ImageDraw")
     @patch("src.visualization.grid._load_font")
@@ -141,9 +141,9 @@ class TestGenerateVisualization:
             return_value=self.mock_user_profile
         )
 
-        mock_engine = Mock()
-        mock_engine.calculate_weeks_lived.return_value = 1000
-        mock_calculator.return_value = mock_engine
+        mock_stats = Mock()
+        mock_stats.total_weeks_lived = 1000
+        mock_calculator.return_value = mock_stats
 
         mock_image_instance = Mock()
         mock_image.new.return_value = mock_image_instance
@@ -176,8 +176,10 @@ class TestGenerateVisualization:
         mock_user_service.get_user_profile.assert_called_once_with(telegram_id=12345)
 
         # Verify calculator was created and called
-        mock_calculator.assert_called_once_with(user=self.mock_user_profile)
-        mock_engine.calculate_weeks_lived.assert_called_once()
+        mock_calculator.assert_called_once_with(
+            birth_date=self.mock_user_profile.settings.birth_date,
+            life_expectancy=self.mock_user_profile.settings.life_expectancy,
+        )
 
         # Verify image creation
         mock_image.new.assert_called_once()
@@ -185,7 +187,7 @@ class TestGenerateVisualization:
 
     @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
-    @patch("src.visualization.grid.LifeCalculatorEngine")
+    @patch("src.visualization.grid.calculate_life_statistics")
     @patch("src.visualization.grid.Image")
     @patch("src.visualization.grid.ImageDraw")
     @patch("src.visualization.grid._load_font")
@@ -214,9 +216,9 @@ class TestGenerateVisualization:
             return_value=self.mock_user_profile
         )
 
-        mock_engine = Mock()
-        mock_engine.calculate_weeks_lived.return_value = 500
-        mock_calculator.return_value = mock_engine
+        mock_stats = Mock()
+        mock_stats.total_weeks_lived = 500
+        mock_calculator.return_value = mock_stats
 
         mock_image_instance = Mock()
         mock_image.new.return_value = mock_image_instance
@@ -239,11 +241,10 @@ class TestGenerateVisualization:
 
         mock_parse_legend.return_value = ("Lived weeks", "Future weeks")
 
-        # Create mock Telegram User object
-        mock_telegram_user = Mock()
+        # Create mock Telegram User object with only 'id' attribute
+        # (no telegram_id) to test line 58 specifically
+        mock_telegram_user = Mock(spec=["id"])
         mock_telegram_user.id = 67890
-        # Ensure getattr works properly for telegram_id
-        mock_telegram_user.telegram_id = 67890
 
         # Test with Telegram User object
         result = await generate_visualization(mock_telegram_user)
@@ -256,7 +257,7 @@ class TestGenerateVisualization:
 
     @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
-    @patch("src.visualization.grid.LifeCalculatorEngine")
+    @patch("src.visualization.grid.calculate_life_statistics")
     @patch("src.visualization.grid.Image")
     @patch("src.visualization.grid.ImageDraw")
     @patch("src.visualization.grid._load_font")
@@ -285,9 +286,9 @@ class TestGenerateVisualization:
             return_value=self.mock_user_profile
         )
 
-        mock_engine = Mock()
-        mock_engine.calculate_weeks_lived.return_value = 2000
-        mock_calculator.return_value = mock_engine
+        mock_stats = Mock()
+        mock_stats.total_weeks_lived = 2000
+        mock_calculator.return_value = mock_stats
 
         mock_image_instance = Mock()
         mock_image.new.return_value = mock_image_instance
@@ -389,7 +390,7 @@ class TestGenerateVisualization:
 
     @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
-    @patch("src.visualization.grid.LifeCalculatorEngine")
+    @patch("src.visualization.grid.calculate_life_statistics")
     @patch("src.visualization.grid.Image")
     @patch("src.visualization.grid.ImageDraw")
     @patch("src.visualization.grid._load_font")
@@ -426,9 +427,9 @@ class TestGenerateVisualization:
             return_value=mock_user_profile_no_lang
         )
 
-        mock_engine = Mock()
-        mock_engine.calculate_weeks_lived.return_value = 100
-        mock_calculator.return_value = mock_engine
+        mock_stats = Mock()
+        mock_stats.total_weeks_lived = 100
+        mock_calculator.return_value = mock_stats
 
         mock_image_instance = Mock()
         mock_image.new.return_value = mock_image_instance

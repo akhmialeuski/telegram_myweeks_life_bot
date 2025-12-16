@@ -28,6 +28,8 @@ from src.services.validation_service import (
     ValidationService,
 )
 
+from ...core.life_calculator import calculate_life_statistics
+from ...core.messages import ErrorMessages, RegistrationMessages, StartMessages
 from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -99,39 +101,30 @@ class StartHandler(BaseHandler):
             profile = await self.services.user_service.get_user_profile(
                 telegram_id=user_id
             )
-            _, _, pgettext = use_locale(
-                lang=profile.settings.language or user.language_code
-            )
+            lang = profile.settings.language or user.language_code
+            _, _, pgettext = use_locale(lang)
+
+            # Setup I18n and Messages
+            i18n = SimpleI18nAdapter(pgettext)
+            start_messages = StartMessages(i18n)
 
             # User is already registered - send welcome back message
             await self.send_message(
                 update=update,
-                message_text=pgettext(
-                    "start.welcome_existing",
-                    "👋 Hello, %(first_name)s! Welcome back to LifeWeeksBot!\n\n"
-                    "You are already registered and ready to track your life weeks.\n\n"
-                    "Use /weeks to view your life weeks.\n"
-                    "Use /help for help.",
-                )
-                % {"first_name": profile.first_name},
+                message_text=start_messages.welcome_existing(user=profile),
             )
             return
 
         # For new users, use Telegram language
         lang = user.language_code or SupportedLanguage.EN.value
         _, _, pgettext = use_locale(lang=lang)
+        i18n = SimpleI18nAdapter(pgettext)
+        start_messages = StartMessages(i18n)
 
         # User needs to register - request birth date
         await self.send_message(
             update=update,
-            message_text=pgettext(
-                "start.welcome_new",
-                "👋 Hello, %(first_name)s! Welcome to LifeWeeksBot!\n\n"
-                "This bot will help you track the weeks of your life.\n\n"
-                "📅 Please enter your birth date in DD.MM.YYYY format\n"
-                "For example: 15.03.1990",
-            )
-            % {"first_name": user.first_name},
+            message_text=start_messages.welcome_new(first_name=user.first_name),
         )
 
         # Set waiting state using FSM persistence
@@ -164,6 +157,9 @@ class StartHandler(BaseHandler):
 
         # For validation errors, use Telegram language since user not registered yet
         lang = user.language_code or SupportedLanguage.EN.value
+        _, _, pgettext = use_locale(lang)
+        i18n = SimpleI18nAdapter(pgettext)
+        error_messages = ErrorMessages(i18n)
 
         try:
             # Validate birth date using ValidationService
@@ -175,7 +171,7 @@ class StartHandler(BaseHandler):
                 await self._handle_validation_error(
                     update=update,
                     error_key=validation_result.error_key,
-                    lang=lang,
+                    messages=error_messages,
                 )
                 return
 
@@ -207,15 +203,11 @@ class StartHandler(BaseHandler):
             logger.error(
                 f"{self.command_name}: [{user_id}]: Registration error: {error}"
             )
-            _, _, pgettext = use_locale(lang=lang)
+            reg_messages = RegistrationMessages(i18n)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=pgettext(
-                    "registration.error",
-                    "❌ An error occurred during registration.\n"
-                    "Try again or contact the administrator.",
-                ),
+                error_message=reg_messages.error(),
             )
             # Clear waiting state on error
             await self._persistence.clear_state(user_id=user_id, context=context)
@@ -225,15 +217,11 @@ class StartHandler(BaseHandler):
                 f"{self.command_name}: [{user_id}]: Error in handle_birth_date_input: {error}"
             )
             # Fallback error handling
-            _, _, pgettext = use_locale(lang=lang)
+            reg_messages = RegistrationMessages(i18n)
             await self.send_error_message(
                 update=update,
                 cmd_context=cmd_context,
-                error_message=pgettext(
-                    "registration.error",
-                    "❌ An error occurred during registration.\n"
-                    "Try again or contact the administrator.",
-                ),
+                error_message=reg_messages.error(),
             )
             await self._persistence.clear_state(user_id=user_id, context=context)
 
@@ -241,7 +229,7 @@ class StartHandler(BaseHandler):
         self,
         update: Update,
         error_key: str | None,
-        lang: str,
+        messages: ErrorMessages,
     ) -> None:
         """Handle validation error by sending appropriate error message.
 
@@ -249,35 +237,31 @@ class StartHandler(BaseHandler):
         :type update: Update
         :param error_key: Error key from validation service
         :type error_key: str | None
-        :param lang: Language code for error messages
-        :type lang: str
+        :param messages: Error messages instance
+        :type messages: ErrorMessages
         :returns: None
         """
-        _, _, pgettext = use_locale(lang=lang)
-
         match error_key:
             case _ if error_key == ERROR_DATE_IN_FUTURE:
                 await self.send_message(
                     update=update,
-                    message_text=pgettext(
-                        "birth_date.future_error",
-                        "❌ Birth date cannot be in the future!\n"
-                        "Please enter a valid date in DD.MM.YYYY format",
-                    ),
+                    message_text=messages.birth_date_future(),
                 )
             case _ if error_key == ERROR_DATE_TOO_OLD:
                 await self.send_message(
                     update=update,
-                    message_text=pgettext(
-                        "birth_date.old_error",
-                        "❌ Birth date is too old!\n"
-                        "Please enter a valid date in DD.MM.YYYY format",
-                    ),
+                    message_text=messages.birth_date_too_old(),
                 )
             case _ if error_key == ERROR_INVALID_DATE_FORMAT:
-                await self._send_date_format_error(update=update, lang=lang)
+                await self.send_message(
+                    update=update,
+                    message_text=messages.birth_date_format(),
+                )
             case _:
-                await self._send_date_format_error(update=update, lang=lang)
+                await self.send_message(
+                    update=update,
+                    message_text=messages.birth_date_format(),
+                )
 
     async def _add_user_to_scheduler(
         self, context: ContextTypes.DEFAULT_TYPE, user_id: int
@@ -291,8 +275,6 @@ class StartHandler(BaseHandler):
         """
         try:
             # Publish event to trigger scheduler addition
-            # We assume the event bus is available in services
-            # Accessing via property to ensure type safety if using updated container
             event_bus = self.services.event_bus
 
             await event_bus.publish(
@@ -345,55 +327,55 @@ class StartHandler(BaseHandler):
             else lang
         )
         _, _, pgettext = use_locale(lang=final_lang)
+        i18n = SimpleI18nAdapter(pgettext)
+        reg_messages = RegistrationMessages(i18n)
 
-        calc_engine = self.services.get_life_calculator()(user=profile)
-        stats = calc_engine.get_life_statistics()
+        # Calculate life statistics directly
+        stats = calculate_life_statistics(
+            birth_date=profile.settings.birth_date,
+            life_expectancy=profile.settings.life_expectancy or 80,
+        )
+
+        formatted_date = format_date(
+            birth_date,
+            format="dd.MM.yyyy",
+            locale=normalize_babel_locale(final_lang),
+        )
+        formatted_age = format_decimal(
+            stats.age, locale=normalize_babel_locale(final_lang)
+        )
+        formatted_weeks = format_decimal(
+            stats.total_weeks_lived,
+            locale=normalize_babel_locale(final_lang),
+            format="#,##0",
+        )
+        formatted_remaining = format_decimal(
+            stats.remaining_weeks,
+            locale=normalize_babel_locale(final_lang),
+            format="#,##0",
+        )
+        formatted_percent = format_percent(
+            stats.percentage_lived,
+            locale=normalize_babel_locale(final_lang),
+            format="#0.1%",
+        )
 
         # Send success message with calculated statistics
         await self.send_message(
             update=update,
-            message_text=pgettext(
-                "registration.success",
-                "✅ Great! You have successfully registered!\n\n"
-                "📅 Birth date: %(birth_date)s\n"
-                "🎂 Age: %(age)s years\n"
-                "📊 Weeks lived: %(weeks_lived)s\n"
-                "⏳ Remaining weeks: %(remaining_weeks)s\n"
-                "📈 Life progress: %(life_percentage)s\n\n"
-                "Now you can use commands:\n"
-                "• /weeks - show life weeks\n"
-                "• /visualize - visualize weeks\n"
-                "• /help - help",
-            )
-            % {
-                "birth_date": format_date(
-                    birth_date,
-                    format="dd.MM.yyyy",
-                    locale=normalize_babel_locale(final_lang),
-                ),
-                "age": format_decimal(
-                    stats["age"], locale=normalize_babel_locale(final_lang)
-                ),
-                "weeks_lived": format_decimal(
-                    stats["weeks_lived"],
-                    locale=normalize_babel_locale(final_lang),
-                    format="#,##0",
-                ),
-                "remaining_weeks": format_decimal(
-                    stats["remaining_weeks"],
-                    locale=normalize_babel_locale(final_lang),
-                    format="#,##0",
-                ),
-                "life_percentage": format_percent(
-                    stats["life_percentage"],
-                    locale=normalize_babel_locale(final_lang),
-                    format="#0.1%",
-                ),
-            },
+            message_text=reg_messages.success(
+                birth_date=formatted_date,
+                age=formatted_age,
+                weeks_lived=formatted_weeks,
+                remaining_weeks=formatted_remaining,
+                life_percentage=formatted_percent,
+            ),
         )
 
     async def _send_date_format_error(self, update: Update, lang: str) -> None:
         """Send date format error message.
+
+        Deprecated: Use ErrorMessages.birth_date_format() instead.
 
         :param update: The update object containing the birth date input
         :type update: Update
@@ -401,13 +383,20 @@ class StartHandler(BaseHandler):
         :type lang: str
         """
         _, _, pgettext = use_locale(lang=lang)
+        i18n = SimpleI18nAdapter(pgettext)
+        error_messages = ErrorMessages(i18n)
 
         await self.send_message(
             update=update,
-            message_text=pgettext(
-                "birth_date.format_error",
-                "❌ Invalid date format!\n"
-                "Please enter date in DD.MM.YYYY format\n"
-                "For example: 15.03.1990",
-            ),
+            message_text=error_messages.birth_date_format(),
         )
+
+
+class SimpleI18nAdapter:
+    """Adapter for wrapping pgettext to match I18nServiceProtocol."""
+
+    def __init__(self, pgettext_func):
+        self._pgettext = pgettext_func
+
+    def translate(self, key: str, default: str, **kwargs) -> str:
+        return self._pgettext(key, default) % kwargs

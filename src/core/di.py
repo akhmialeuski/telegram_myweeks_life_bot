@@ -83,10 +83,6 @@ class Container(ServiceProvider):
     Example:
         >>> container = Container()
         >>> container.register_singleton(UserServiceProtocol, user_service)
-        >>> container.register_factory(
-        ...     CalculatorProtocol,
-        ...     lambda: LifeCalculatorEngine()
-        ... )
         >>> service = container.get(UserServiceProtocol)
     """
 

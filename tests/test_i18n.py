@@ -137,8 +137,75 @@ class TestI18n:
         name = i18n._get_display_name_fallback(locale_obj, "ru")
         assert name == "Russian"
 
-    def test_get_display_name_fallback_error(self):
+    def test_get_display_name_fallback_error(self) -> None:
         """Test get_display_name_fallback error."""
         locale_obj = Locale("en")
         name = i18n._get_display_name_fallback(locale_obj, "invalid_lang_code")
         assert name is None
+
+    def test_get_localized_language_name_locale_is_none(self) -> None:
+        """Test get_localized_language_name when Locale module is None.
+
+        This test verifies behavior when Locale is None (babel not installed).
+        """
+        with patch.object(i18n, "Locale", None):
+            name = get_localized_language_name("ru", "en")
+            assert name == "ru"
+
+    def test_get_language_name_with_fallbacks_all_fail(self) -> None:
+        """Test _get_language_name_with_fallbacks when all fallback methods fail.
+
+        This test verifies behavior when all fallback strategies fail.
+        """
+        mock_locale = MagicMock()
+        # get_language_name fails
+        mock_locale.get_language_name.side_effect = LookupError
+        # languages is not a dict (or doesn't have the key)
+        mock_locale.languages = None
+
+        with patch("src.i18n._parse_locale_safely", return_value=mock_locale):
+            with patch("src.i18n._get_display_name_fallback", return_value=None):
+                name = i18n._get_language_name_with_fallbacks("xx", "en")
+                assert name is None
+
+    def test_get_language_name_from_dict_non_dict_languages(self) -> None:
+        """Test _get_language_name_from_dict when languages is not a dict.
+
+        This test verifies behavior when languages attribute is not a dict.
+        """
+        mock_locale = MagicMock()
+        mock_locale.languages = "not a dict"
+
+        name = i18n._get_language_name_from_dict(mock_locale, "en")
+        assert name is None
+
+    def test_get_language_name_from_dict_none_languages(self) -> None:
+        """Test _get_language_name_from_dict when languages is None.
+
+        This test verifies behavior when languages attribute is None.
+        """
+        mock_locale = MagicMock()
+        mock_locale.languages = None
+
+        name = i18n._get_language_name_from_dict(mock_locale, "en")
+        assert name is None
+
+    def test_get_language_name_with_fallbacks_display_name_success(self) -> None:
+        """Test _get_language_name_with_fallbacks when display_name_fallback succeeds.
+
+        This test verifies behavior when dict lookup fails but display_name_fallback
+        returns a valid name.
+        """
+        mock_locale = MagicMock()
+        # get_language_name fails
+        mock_locale.get_language_name.side_effect = LookupError
+        # languages dict doesn't have the key (returns None from dict lookup)
+        mock_locale.languages = {}
+
+        with patch("src.i18n._parse_locale_safely", return_value=mock_locale):
+            # display_name_fallback succeeds and returns the name
+            with patch(
+                "src.i18n._get_display_name_fallback", return_value="Test Language"
+            ):
+                name = i18n._get_language_name_with_fallbacks("xx", "en")
+                assert name == "Test Language"

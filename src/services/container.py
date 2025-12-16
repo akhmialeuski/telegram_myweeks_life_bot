@@ -13,11 +13,11 @@ from telegram import Bot
 
 from ..bot.gateways.telegram_gateway import TelegramNotificationGateway
 from ..contracts.notification_gateway_protocol import NotificationGatewayProtocol
-from ..core.life_calculator import LifeCalculatorEngine
 from ..database.service import DatabaseManager, UserService
 from ..events.event_bus import EventBus
 from ..scheduler.client import SchedulerClient
 from ..utils.config import TOKEN
+from .i18n_adapter import BabelI18nAdapter
 from .notification_service import NotificationService
 
 
@@ -32,7 +32,6 @@ class ServiceContainer:
     Attributes:
         config: Application configuration object
         user_service: User management service
-        life_calculator: Life statistics calculator
         localization_service: Message localization service
         event_bus: Event bus for domain events
         notification_service: Notification generation service
@@ -75,9 +74,6 @@ class ServiceContainer:
         # Initialize database services
         self.user_service = UserService()
 
-        # Initialize life calculator
-        self.life_calculator = LifeCalculatorEngine
-
         # Initialize event bus
         self.event_bus = EventBus()
 
@@ -88,8 +84,10 @@ class ServiceContainer:
         # Initialize notification service
         self.notification_service = NotificationService(
             user_service=self.user_service,
-            life_calculator_class=self.life_calculator,
         )
+
+        # Initialize localization service with default language
+        self.localization_service = BabelI18nAdapter(lang="en")
 
         # Scheduler client (initialized externally)
         self.scheduler_client: Optional[SchedulerClient] = None
@@ -129,14 +127,6 @@ class ServiceContainer:
         :rtype: UserService
         """
         return self.user_service
-
-    def get_life_calculator(self) -> type[LifeCalculatorEngine]:
-        """Get the life calculator class.
-
-        :returns: Life calculator class
-        :rtype: type[LifeCalculatorEngine]
-        """
-        return self.life_calculator
 
     def get_event_bus(self) -> EventBus:
         """Get the event bus instance.

@@ -70,7 +70,7 @@ CALLBACK_INPUT_STATES: frozenset[ConversationState] = frozenset(
 # Mapping from states to their handler commands
 STATE_TO_COMMAND: dict[ConversationState, str] = {
     ConversationState.AWAITING_START_BIRTH_DATE: "start",
-    ConversationState.AWAITING_SETTINGS_BIRTH_DATE: "settings",
-    ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY: "settings",
-    ConversationState.AWAITING_SETTINGS_LANGUAGE: "settings",
+    ConversationState.AWAITING_SETTINGS_BIRTH_DATE: "settings_birth_date",
+    ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY: "settings_life_expectancy",
+    ConversationState.AWAITING_SETTINGS_LANGUAGE: "settings_language",
 }
