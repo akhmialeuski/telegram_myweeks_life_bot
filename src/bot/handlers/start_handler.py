@@ -18,6 +18,7 @@ from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.core.exceptions import ValidationError as CoreValidationError
 from src.enums import SupportedLanguage
 from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import normalize_babel_locale, use_locale
@@ -37,7 +38,7 @@ from ...utils.logger import get_logger
 from ..constants import COMMAND_START
 from ..conversations.persistence import TelegramContextPersistence
 from ..conversations.states import ConversationState
-from .base_handler import BaseHandler
+from .base_handler import BaseHandler, CommandContext
 
 # Initialize logger for this module
 logger = get_logger(BOT_NAME)
@@ -149,6 +150,19 @@ class StartHandler(BaseHandler):
         :type context: ContextTypes.DEFAULT_TYPE
         :returns: None
         """
+        await self._process_registration(update, context)
+
+    async def _process_registration(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Process registration input and validation.
+
+        :param update: Telegram update object
+        :type update: Update
+        :param context: Telegram context object
+        :type context: ContextTypes.DEFAULT_TYPE
+        :returns: None
+        """
         # Extract user information using the new helper method
         cmd_context = await self._extract_command_context(update=update)
         user = cmd_context.user
@@ -163,40 +177,26 @@ class StartHandler(BaseHandler):
 
         try:
             # Validate birth date using ValidationService
-            validation_result = self._validation_service.validate_birth_date(
+            birth_date = self._validation_service.validate_birth_date(
                 input_str=birth_date_text
             )
 
-            if not validation_result.is_valid:
-                await self._handle_validation_error(
-                    update=update,
-                    error_key=validation_result.error_key,
-                    messages=error_messages,
-                )
-                return
-
-            birth_date: date = validation_result.value
-
-            # Create user profile
-            await self.services.user_service.create_user_profile(
-                user_info=user,
+            await self._complete_registration(
+                cmd_context=cmd_context,
                 birth_date=birth_date,
-            )
-
-            # Add user to notification scheduler
-            await self._add_user_to_scheduler(context=context, user_id=user_id)
-
-            # Send success message with calculated statistics
-            await self._send_registration_success_message(
                 update=update,
                 context=context,
-                user_id=user_id,
-                birth_date=birth_date,
                 lang=lang,
+                i18n=i18n,
             )
 
-            # Clear waiting state
-            await self._persistence.clear_state(user_id=user_id, context=context)
+        except CoreValidationError as error:
+            await self._handle_validation_error(
+                update=update,
+                error_key=error.error_key,
+                messages=error_messages,
+            )
+            return
 
         except (UserRegistrationError, UserServiceError) as error:
             # Handle all database errors with a single error message
@@ -224,6 +224,58 @@ class StartHandler(BaseHandler):
                 error_message=reg_messages.error(),
             )
             await self._persistence.clear_state(user_id=user_id, context=context)
+
+    async def _complete_registration(
+        self,
+        cmd_context: CommandContext,
+        birth_date: date,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        lang: str,
+        i18n: "SimpleI18nAdapter",
+    ) -> None:
+        """Complete the registration process.
+
+        Creates user profile, adds to scheduler, sends success message,
+        and clears waiting state.
+
+        :param cmd_context: Command context
+        :type cmd_context: CommandContext
+        :param birth_date: Validated birth date
+        :type birth_date: date
+        :param update: Telegram update object
+        :type update: Update
+        :param context: Telegram context object
+        :type context: ContextTypes.DEFAULT_TYPE
+        :param lang: Language code
+        :type lang: str
+        :param i18n: I18n adapter
+        :type i18n: SimpleI18nAdapter
+        :returns: None
+        """
+        user_id = cmd_context.user_id
+        user = cmd_context.user
+
+        # Create user profile
+        await self.services.user_service.create_user_profile(
+            user_info=user,
+            birth_date=birth_date,
+        )
+
+        # Add user to notification scheduler
+        await self._add_user_to_scheduler(context=context, user_id=user_id)
+
+        # Send success message with calculated statistics
+        await self._send_registration_success_message(
+            update=update,
+            context=context,
+            user_id=user_id,
+            birth_date=birth_date,
+            lang=lang,
+        )
+
+        # Clear waiting state
+        await self._persistence.clear_state(user_id=user_id, context=context)
 
     async def _handle_validation_error(
         self,

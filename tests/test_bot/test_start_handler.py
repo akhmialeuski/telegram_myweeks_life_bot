@@ -321,22 +321,19 @@ class TestStartHandler:
         :returns: None
         :rtype: None
         """
-        from unittest.mock import patch
-
-        from src.services.validation_service import ValidationResult
+        from src.core.exceptions import ValidationError as CoreValidationError
 
         mock_context.user_data["waiting_for"] = "start_birth_date"
         mock_update.message.text = "15.03.1990"
 
-        # Mock validation to return unknown error code
-        with patch.object(
-            handler._validation_service, "validate_birth_date"
-        ) as mock_validate:
-            mock_validate.return_value = ValidationResult.failure(
-                error_key="UNKNOWN_ERROR_CODE"
+        # Mock validation to raise ValidationError
+        handler._validation_service.validate_birth_date = MagicMock(
+            side_effect=CoreValidationError(
+                message="Unknown error", error_key="UNKNOWN_ERROR_CODE"
             )
+        )
 
-            await handler.handle_birth_date_input(mock_update, mock_context)
+        await handler.handle_birth_date_input(mock_update, mock_context)
 
         # Should send format error message (default case)
         mock_update.message.reply_text.assert_called_once()
@@ -390,13 +387,11 @@ class TestStartHandler:
         :returns: None
         :rtype: None
         """
-        from src.services.validation_service import ValidationResult
-
         birth_date = date(1990, 3, 15)
         with patch.object(
             handler._validation_service, "validate_birth_date"
         ) as mock_validate:
-            mock_validate.return_value = ValidationResult.success(value=birth_date)
+            mock_validate.return_value = birth_date
             handler.services.user_service.create_user_profile.return_value = None
 
             # Mock get_user_profile to return None (simulating fetch failure)
@@ -442,15 +437,13 @@ class TestStartHandler:
         :returns: None
         :rtype: None
         """
-        from src.services.validation_service import ValidationResult
-
         birth_date = date(1990, 3, 15)
 
         # Mock validation success
         with patch.object(
             handler._validation_service, "validate_birth_date"
         ) as mock_validate:
-            mock_validate.return_value = ValidationResult.success(value=birth_date)
+            mock_validate.return_value = birth_date
 
             # Mock user creation
             handler.services.user_service.create_user_profile.return_value = None

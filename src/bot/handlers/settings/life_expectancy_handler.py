@@ -4,7 +4,7 @@ This module provides the LifeExpectancyHandler class which handles the
 viewing and modification of the user's expected life expectancy.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from babel.numbers import format_decimal
 from telegram import Update
@@ -12,6 +12,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.conversations.states import ConversationState
+from src.core.exceptions import ValidationError as CoreValidationError
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
 from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import normalize_babel_locale, use_locale
@@ -20,6 +21,7 @@ from src.services.validation_service import ValidationService
 from src.utils.config import BOT_NAME
 from src.utils.logger import get_logger
 
+from ..base_handler import CommandContext
 from .abstract_handler import AbstractSettingsHandler
 
 logger = get_logger(BOT_NAME)
@@ -123,7 +125,6 @@ class LifeExpectancyHandler(AbstractSettingsHandler):
         user_id = cmd_context.user_id
         message_text = update.message.text
         lang = cmd_context.language
-        profile = cmd_context.user_profile
         _, _, pgettext = use_locale(lang=lang)
 
         logger.info(
@@ -146,51 +147,35 @@ class LifeExpectancyHandler(AbstractSettingsHandler):
 
         try:
             # Validate input
-            validation_result = self._validation_service.validate_life_expectancy(
+            life_expectancy = self._validation_service.validate_life_expectancy(
                 input_str=message_text
             )
 
-            if not validation_result.is_valid:
-                await self._handle_validation_error(
-                    update=update,
-                    error_key=validation_result.error_key,
-                    lang=lang,
-                )
-                return
-
-            life_expectancy: int = validation_result.value
-
-            # Update database
-            await self.services.user_service.update_user_settings(
-                telegram_id=user_id, life_expectancy=life_expectancy
+            await self._update_and_notify(
+                cmd_context=cmd_context,
+                life_expectancy=life_expectancy,
             )
 
-            # Publish event
-            await self.services.event_bus.publish(
-                UserSettingsChangedEvent(
-                    user_id=user_id,
-                    setting_name="life_expectancy",
-                    new_value=life_expectancy,
-                    old_value=getattr(
-                        getattr(profile, "settings", None), "life_expectancy", None
-                    ),
-                )
-            )
-
-            message_text_out = pgettext(
-                "settings.life_expectancy_updated",
-                "✅ <b>Expected life expectancy updated!</b>\n\n"
-                "New value: <b>{new_life_expectancy} years</b>\n\n"
-                "Use /weeks to see updated statistics",
-            ).format(
-                new_life_expectancy=format_decimal(
-                    life_expectancy, locale=normalize_babel_locale(lang)
-                )
-            )
-            await self.send_message(
+            await self._send_update_success(
                 update=update,
-                message_text=message_text_out,
+                life_expectancy=life_expectancy,
+                lang=lang,
+                pgettext=pgettext,
             )
+
+            await self._clear_waiting_state(user_id=user_id, context=context)
+            logger.info(
+                f"{COMMAND_SETTINGS}: [{user_id}]: "
+                f"Updated life expectancy to {life_expectancy}"
+            )
+
+        except CoreValidationError as error:
+            await self._handle_validation_error(
+                update=update,
+                error_key=error.error_key,
+                lang=lang,
+            )
+            return
 
             await self._clear_waiting_state(user_id=user_id, context=context)
             logger.info(
@@ -226,6 +211,74 @@ class LifeExpectancyHandler(AbstractSettingsHandler):
                 cmd_context=cmd_context,
                 error_message=error_message,
             )
+
+    async def _update_and_notify(
+        self,
+        cmd_context: CommandContext,
+        life_expectancy: int,
+    ) -> None:
+        """Update life expectancy in database and publish event.
+
+        :param cmd_context: Command context
+        :type cmd_context: CommandContext
+        :param life_expectancy: New life expectancy
+        :type life_expectancy: int
+        :returns: None
+        """
+        user_id = cmd_context.user_id
+
+        # Update database
+        await self.services.user_service.update_user_settings(
+            telegram_id=user_id, life_expectancy=life_expectancy
+        )
+
+        # Publish event
+        await self.services.event_bus.publish(
+            UserSettingsChangedEvent(
+                user_id=user_id,
+                setting_name="life_expectancy",
+                new_value=life_expectancy,
+                old_value=getattr(
+                    getattr(cmd_context.user_profile, "settings", None),
+                    "life_expectancy",
+                    None,
+                ),
+            )
+        )
+
+    async def _send_update_success(
+        self,
+        update: Update,
+        life_expectancy: int,
+        lang: str,
+        pgettext: Any,
+    ) -> None:
+        """Send success message with updated statistics.
+
+        :param update: Telegram update object
+        :type update: Update
+        :param life_expectancy: New life expectancy
+        :type life_expectancy: int
+        :param lang: Language code
+        :type lang: str
+        :param pgettext: Localization function
+        :type pgettext: Any
+        :returns: None
+        """
+        message_text_out = pgettext(
+            "settings.life_expectancy_updated",
+            "✅ <b>Expected life expectancy updated!</b>\n\n"
+            "New value: <b>{new_life_expectancy} years</b>\n\n"
+            "Use /weeks to see updated statistics",
+        ).format(
+            new_life_expectancy=format_decimal(
+                life_expectancy, locale=normalize_babel_locale(lang)
+            )
+        )
+        await self.send_message(
+            update=update,
+            message_text=message_text_out,
+        )
 
     async def _handle_validation_error(
         self,

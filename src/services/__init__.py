@@ -5,6 +5,6 @@ for managing dependencies across the application.
 """
 
 from .container import ServiceContainer
-from .validation_service import ValidationResult, ValidationService
+from .validation_service import ValidationService
 
-__all__ = ["ServiceContainer", "ValidationResult", "ValidationService"]
+__all__ = ["ServiceContainer", "ValidationService"]
