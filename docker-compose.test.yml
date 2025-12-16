@@ -1,0 +1,46 @@
+# Docker Compose configuration for integration testing
+# =====================================================
+#
+# This file sets up a Local Bot API Server for network integration tests.
+# The Local Bot API Server allows testing with real Telegram API in a
+# controlled environment.
+#
+# Usage:
+#   docker-compose -f docker-compose.test.yml up -d
+#   pytest tests/integration/network/ -m network -v
+#   docker-compose -f docker-compose.test.yml down
+#
+# Prerequisites:
+#   - Obtain API ID and API Hash from https://my.telegram.org
+#   - Create a test bot via @BotFather
+#   - Configure env.test.example → .env.test
+
+version: '3.8'
+
+services:
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram-bot-api-test
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+    ports:
+      - "8081:8081"
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    command: >
+      --local
+      --http-ip-address=0.0.0.0
+      --http-port=8081
+      --verbosity=3
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  telegram-bot-api-data:
+    driver: local

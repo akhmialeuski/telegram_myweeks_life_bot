@@ -67,7 +67,9 @@ addopts = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests (mock-based)",
+    "network: marks tests requiring network access to Telegram API",
+    "req: alias for network tests (PTB convention)",
     "unit: marks tests as unit tests"
 ]
 
