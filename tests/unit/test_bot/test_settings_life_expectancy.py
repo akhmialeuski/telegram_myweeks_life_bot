@@ -24,7 +24,7 @@ class TestLifeExpectancyHandler:
         :returns: Configured LifeExpectancyHandler instance
         :rtype: LifeExpectancyHandler
         """
-        from tests.utils.fake_container import FakeServiceContainer
+        from tests.unit.utils.fake_container import FakeServiceContainer
 
         services = FakeServiceContainer()
         return LifeExpectancyHandler(services)

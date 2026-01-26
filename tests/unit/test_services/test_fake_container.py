@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.enums import SupportedLanguage
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestFakeServiceContainer:

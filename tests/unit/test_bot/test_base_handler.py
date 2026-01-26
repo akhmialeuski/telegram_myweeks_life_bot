@@ -12,7 +12,7 @@ from telegram.constants import ParseMode
 from src.bot.constants import COMMAND_HELP, COMMAND_START, COMMAND_WEEKS
 from src.bot.handlers.base_handler import BaseHandler, CommandContext
 from src.enums import SupportedLanguage
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestBaseHandler:

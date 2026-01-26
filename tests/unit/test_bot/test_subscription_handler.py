@@ -28,7 +28,7 @@ class TestSubscriptionHandler:
         :returns: Configured SubscriptionHandler instance with fake service container
         :rtype: SubscriptionHandler
         """
-        from tests.utils.fake_container import FakeServiceContainer
+        from tests.unit.utils.fake_container import FakeServiceContainer
 
         services = FakeServiceContainer()
         return SubscriptionHandler(services)

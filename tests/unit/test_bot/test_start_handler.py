@@ -11,7 +11,7 @@ import pytest
 from src.bot.handlers.start_handler import StartHandler
 from src.database.service import UserRegistrationError, UserServiceError
 from src.events.domain_events import UserSettingsChangedEvent
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestStartHandler:

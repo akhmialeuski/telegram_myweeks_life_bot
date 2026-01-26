@@ -11,7 +11,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_WEEKS
 from src.bot.handlers.weeks_handler import WeeksHandler
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestWeeksHandler:

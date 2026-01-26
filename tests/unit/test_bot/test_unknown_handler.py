@@ -10,7 +10,7 @@ import pytest
 
 from src.bot.constants import COMMAND_UNKNOWN
 from src.bot.handlers.unknown_handler import UnknownHandler
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestUnknownHandler:

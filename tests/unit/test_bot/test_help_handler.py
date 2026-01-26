@@ -11,7 +11,7 @@ from telegram.constants import ParseMode
 
 from src.bot.constants import COMMAND_HELP
 from src.bot.handlers.help_handler import HelpHandler
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestHelpHandler:

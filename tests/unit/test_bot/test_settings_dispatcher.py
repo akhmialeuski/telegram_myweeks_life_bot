@@ -9,7 +9,7 @@ import pytest
 
 from src.bot.handlers.settings.dispatcher import SettingsDispatcher
 from src.enums import SubscriptionType
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestSettingsDispatcher:
@@ -66,7 +66,7 @@ class TestSettingsDispatcher:
         mock_profile.subscription.subscription_type = SubscriptionType.BASIC
         mock_profile.settings.language = "en"
         mock_profile.settings.life_expectancy = 80
-        mock_profile.birth_date = None  # Add birth_date attribute
+        mock_profile.settings.birth_date = None
 
         # Mock _extract_command_context to return proper CommandContext
         mock_cmd_context = CommandContext(
@@ -117,7 +117,7 @@ class TestSettingsDispatcher:
         mock_profile.subscription.subscription_type = SubscriptionType.PREMIUM
         mock_profile.settings.language = "en"
         mock_profile.settings.life_expectancy = 80
-        mock_profile.birth_date = None  # Add birth_date attribute
+        mock_profile.settings.birth_date = None
 
         # Mock _extract_command_context to return proper CommandContext
         mock_cmd_context = CommandContext(

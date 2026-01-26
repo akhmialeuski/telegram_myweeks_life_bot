@@ -10,7 +10,7 @@ import pytest
 from src.bot.constants import COMMAND_CANCEL
 from src.bot.handlers.cancel_handler import CancelHandler
 from src.database.service import UserDeletionError, UserServiceError
-from tests.utils.fake_container import FakeServiceContainer
+from tests.unit.utils.fake_container import FakeServiceContainer
 
 
 class TestCancelHandler:

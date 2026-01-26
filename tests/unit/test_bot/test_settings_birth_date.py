@@ -28,7 +28,7 @@ class TestBirthDateHandler:
         :returns: Configured BirthDateHandler instance
         :rtype: BirthDateHandler
         """
-        from tests.utils.fake_container import FakeServiceContainer
+        from tests.unit.utils.fake_container import FakeServiceContainer
 
         services = FakeServiceContainer()
         return BirthDateHandler(services)
