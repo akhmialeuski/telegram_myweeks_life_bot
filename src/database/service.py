@@ -36,25 +36,57 @@ logger = get_logger(f"{BOT_NAME}.DatabaseService")
 
 
 class DatabaseManager:
-    """Manager for database repositories (repositories are already singletons)."""
+    """Manager for database repositories (repositories are already singletons).
+
+    :param db_path: Optional path to SQLite database file. If None, uses default.
+    :type db_path: str | None
+    """
 
     _instance: Optional["DatabaseManager"] = None
     _lock: threading.Lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs) -> "DatabaseManager":
+    def __new__(
+        cls,
+        db_path: str | None = None,
+    ) -> "DatabaseManager":
+        """Create singleton instance of DatabaseManager.
+
+        :param db_path: Optional path to SQLite database file
+        :type db_path: str | None
+        :returns: DatabaseManager instance
+        :rtype: DatabaseManager
+        """
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super(DatabaseManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize DatabaseManager with repositories.
+
+        :param db_path: Optional path to SQLite database file. If None, uses default.
+        :type db_path: str | None
+        :returns: None
+        """
         # Prevent re-initialization in singleton
         if hasattr(self, "_initialized") and self._initialized:
             return
-        self.user_repository = SQLiteUserRepository()
-        self.settings_repository = SQLiteUserSettingsRepository()
-        self.subscription_repository = SQLiteUserSubscriptionRepository()
+
+        # Store db_path for later use
+        self._db_path = db_path
+
+        # Initialize repositories with custom db_path if provided
+        if db_path:
+            self.user_repository = SQLiteUserRepository(db_path=db_path)
+            self.settings_repository = SQLiteUserSettingsRepository(db_path=db_path)
+            self.subscription_repository = SQLiteUserSubscriptionRepository(
+                db_path=db_path
+            )
+        else:
+            self.user_repository = SQLiteUserRepository()
+            self.settings_repository = SQLiteUserSettingsRepository()
+            self.subscription_repository = SQLiteUserSubscriptionRepository()
 
         # Mark as initialized to prevent re-initialization on subsequent __init__ calls
         self._initialized = True

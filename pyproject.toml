@@ -52,7 +52,7 @@ known_third_party = ["telegram", "pytest", "alembic", "sqlalchemy"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/integration"]
 pythonpath = [".", "src"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]

@@ -86,11 +86,11 @@ class SettingsDispatcher(BaseHandler):
 
             birth_date_value = (
                 format_date(
-                    profile.birth_date,
+                    profile.settings.birth_date,
                     format="dd.MM.yyyy",
                     locale=normalize_babel_locale(lang),
                 )
-                if getattr(profile, "birth_date", None)
+                if profile and profile.settings and profile.settings.birth_date
                 else pgettext("not.set", "Not set")
             )
             language_name = get_localized_language_name(
