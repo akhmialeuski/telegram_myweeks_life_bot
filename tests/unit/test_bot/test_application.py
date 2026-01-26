@@ -598,13 +598,17 @@ class TestLifeWeeksBot:
         bot._scheduler_client = mock_client
         mock_application = MagicMock()
 
+        # Mock restoration to avoid side effects
+        bot._restore_scheduled_jobs = AsyncMock()
+
         _run_async(bot._post_init_scheduler_start(mock_application))
 
         mock_client.start_listening.assert_awaited_once()
         mock_client.health_check.assert_awaited_once()
-        mock_application_logger.info.assert_called_with(
+        mock_application_logger.info.assert_any_call(
             "Scheduler worker is healthy and connected"
         )
+        bot._restore_scheduled_jobs.assert_awaited_once()
 
     def test_post_init_scheduler_start_without_scheduler(
         self,
