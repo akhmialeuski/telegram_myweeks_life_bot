@@ -4,6 +4,7 @@ This module contains tests for the WeeksHandler class which handles
 the /weeks command and displays life statistics in weeks format.
 """
 
+from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
@@ -110,6 +111,56 @@ class TestWeeksHandler:
         call_args = mock_update.message.reply_text.call_args
         assert "pgettext_weeks.statistics_" in call_args.kwargs["text"]
         assert call_args.kwargs["parse_mode"] == ParseMode.HTML
+
+    @pytest.mark.asyncio
+    async def test_handle_custom_life_expectancy(
+        self,
+        handler: WeeksHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_user_profile: MagicMock,
+        mocker,
+    ) -> None:
+        """Test life weeks statistics with custom life expectancy.
+
+        This test verifies that the handle method correctly uses
+        custom life expectancy from user settings in the formatted message.
+
+        :param handler: WeeksHandler instance
+        :type handler: WeeksHandler
+        :param mock_update: Mocked Telegram Update object
+        :type mock_update: MagicMock
+        :param mock_context: Mocked Telegram Context object
+        :type mock_context: MagicMock
+        :param mock_user_profile: Mocked user profile with settings
+        :type mock_user_profile: MagicMock
+        :param mocker: Pytest mocker fixture
+        :type mocker: MockerFixture
+        :returns: None
+        :rtype: None
+        """
+        # Re-mock pgettext to return message as is for formatting check
+        mock_pgettext = MagicMock(side_effect=lambda c, m: m)
+        mocker.patch(
+            "src.bot.handlers.weeks_handler.use_locale",
+            return_value=(None, None, mock_pgettext),
+        )
+
+        handler.services.user_service.is_valid_user_profile.return_value = True
+        handler.services.user_service.get_user_profile.return_value = mock_user_profile
+
+        # Setup custom life expectancy
+        if not getattr(mock_user_profile, "settings", None):
+            mock_user_profile.settings = MagicMock()
+        mock_user_profile.settings.life_expectancy = 120
+        mock_user_profile.settings.language = "en"
+        mock_user_profile.settings.birth_date = date(1990, 1, 1)
+
+        await handler.handle(mock_update, mock_context)
+
+        mock_update.message.reply_text.assert_called_once()
+        reply_text = mock_update.message.reply_text.call_args.kwargs["text"]
+        assert "(until 120 years)" in reply_text
 
     @pytest.mark.asyncio
     async def test_handle_not_registered(

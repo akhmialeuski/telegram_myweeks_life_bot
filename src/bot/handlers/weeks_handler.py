@@ -20,6 +20,7 @@ from telegram.ext import ContextTypes
 
 from src.i18n import normalize_babel_locale, use_locale
 
+from ...constants import DEFAULT_LIFE_EXPECTANCY
 from ...core.life_calculator import calculate_life_statistics
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
@@ -114,9 +115,10 @@ class WeeksHandler(BaseHandler):
         _, _, pgettext = use_locale(lang=lang)
 
         # Compute statistics
+        life_expectancy = profile.settings.life_expectancy or DEFAULT_LIFE_EXPECTANCY
         stats = calculate_life_statistics(
             birth_date=profile.settings.birth_date,
-            life_expectancy=profile.settings.life_expectancy or 80,
+            life_expectancy=life_expectancy,
         )
 
         message_text = pgettext(
@@ -124,7 +126,7 @@ class WeeksHandler(BaseHandler):
             "📊 <b>Your life statistics:</b>\n\n"
             "🎂 <b>Age:</b> %(age)s years\n"
             "📅 <b>Weeks lived:</b> %(weeks_lived)s\n"
-            "⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n"
+            "⏳ <b>Remaining weeks (until %(life_expectancy)s years):</b> %(remaining_weeks)s\n"
             "📈 <b>Life progress:</b> %(life_percentage)s\n"
             "🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n"
             "💡 Use /visualize to visualize your life weeks",
@@ -134,6 +136,9 @@ class WeeksHandler(BaseHandler):
                 stats.total_weeks_lived,
                 locale=normalize_babel_locale(lang),
                 format="#,##0",
+            ),
+            "life_expectancy": format_decimal(
+                life_expectancy, locale=normalize_babel_locale(lang)
             ),
             "remaining_weeks": format_decimal(
                 stats.remaining_weeks,
