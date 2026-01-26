@@ -20,8 +20,9 @@ from telegram.ext import (
 )
 
 from ..bot.event_listeners import register_event_listeners
+from ..contracts.scheduler_port_protocol import ScheduleTrigger
 from ..core.exceptions import BotError
-from ..enums import SupportedLanguage
+from ..enums import SupportedLanguage, WeekDay
 from ..i18n import use_locale
 from ..scheduler.client import SchedulerClient
 from ..scheduler.worker import SchedulerWorker
@@ -496,6 +497,86 @@ class LifeWeeksBot:
                 logger.info("Scheduler worker is healthy and connected")
             else:
                 logger.warning("Scheduler worker health check failed")
+
+            # Restore scheduled jobs from database
+            await self._restore_scheduled_jobs()
+
+    async def _restore_scheduled_jobs(self) -> None:
+        """Restore scheduled jobs from database on startup.
+
+        Iterates through all users and reschedules weekly notifications
+        for those with active subscriptions and enabled notifications.
+
+        :returns: None
+        """
+        if not self._scheduler_client:
+            logger.warning("Scheduler client not initialized, skipping restoration")
+            return
+
+        logger.info("Restoring scheduled jobs...")
+        try:
+            users = await self.services.user_service.get_all_users()
+            count = 0
+
+            # Mapping from WeekDay enum to int (0=Monday, 6=Sunday)
+            weekday_map = {
+                WeekDay.MONDAY: 0,
+                WeekDay.TUESDAY: 1,
+                WeekDay.WEDNESDAY: 2,
+                WeekDay.THURSDAY: 3,
+                WeekDay.FRIDAY: 4,
+                WeekDay.SATURDAY: 5,
+                WeekDay.SUNDAY: 6,
+            }
+
+            for user in users:
+                # Check if user needs a scheduled job
+                if (
+                    user.settings.notifications
+                    and user.subscription
+                    and user.subscription.is_active
+                ):
+                    try:
+                        # Convert enum to int (0-6)
+                        day_int = weekday_map.get(user.settings.notifications_day)
+                        if day_int is None:
+                            logger.warning(
+                                f"Invalid notification day {user.settings.notifications_day} "
+                                f"for user {user.telegram_id}"
+                            )
+                            continue
+
+                        # Create trigger using user settings
+                        trigger = ScheduleTrigger(
+                            day_of_week=day_int,
+                            hour=user.settings.notifications_time.hour,
+                            minute=user.settings.notifications_time.minute,
+                            # Default to UTC if not set, or user's timezone
+                            timezone=user.settings.timezone or "UTC",
+                        )
+
+                        job_id = f"weekly_{user.telegram_id}"
+
+                        # Schedule the job
+                        # We use fire-and-forget or await depending on needs.
+                        # Since this is startup, awaiting ensures we don't spam queue too fast
+                        # and ensures consistency.
+                        await self._scheduler_client.schedule_job(
+                            job_id=job_id,
+                            trigger=trigger,
+                            user_id=user.telegram_id,
+                            job_type="weekly_summary",
+                        )
+                        count += 1
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to restore job for user {user.telegram_id}: {e}"
+                        )
+
+            logger.info(f"Restored {count} scheduled jobs")
+
+        except Exception as error:
+            logger.error(f"Failed to restore scheduled jobs: {error}", exc_info=True)
 
     async def _post_shutdown_cleanup(self, application: Application) -> None:
         """Post-shutdown hook for graceful cleanup.
