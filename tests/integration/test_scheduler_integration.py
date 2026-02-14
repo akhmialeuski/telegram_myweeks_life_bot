@@ -103,7 +103,7 @@ class TestSchedulerJobRestoration:
 
         # --- ASSERT: Verify job parameters ---
         assert kwargs["user_id"] == telegram_id, "User ID should match"
-        assert kwargs["job_id"] == f"weekly_{telegram_id}", "Job ID should be correct"
+        assert kwargs["job_id"] == f"notification_{telegram_id}", "Job ID should be correct"
         assert kwargs["job_type"] == "weekly_summary", "Job type should be correct"
 
         # --- ASSERT: Verify trigger configuration ---

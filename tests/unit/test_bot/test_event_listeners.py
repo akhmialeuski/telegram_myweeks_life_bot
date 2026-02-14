@@ -92,7 +92,7 @@ class TestEventListeners:
 
         mock_client.schedule_job.assert_awaited_once()
         call_kwargs = mock_client.schedule_job.call_args[1]
-        assert call_kwargs["job_id"] == "weekly_123"
+        assert call_kwargs["job_id"] == "notification_123"
         assert call_kwargs["user_id"] == 123
         assert isinstance(call_kwargs["trigger"], ScheduleTrigger)
         assert call_kwargs["trigger"].day_of_week == 3
@@ -115,7 +115,7 @@ class TestEventListeners:
 
         await handle_user_settings_changed(event)
 
-        mock_client.remove_job.assert_awaited_once_with("weekly_123")
+        mock_client.remove_job.assert_awaited_once_with("notification_123")
         mock_client.schedule_job.assert_not_called()
 
     @pytest.mark.asyncio
@@ -159,7 +159,7 @@ class TestEventListeners:
 
         await handle_user_deleted(event)
 
-        mock_client.remove_job.assert_awaited_once_with("weekly_123")
+        mock_client.remove_job.assert_awaited_once_with("notification_123")
 
     @pytest.mark.asyncio
     async def test_handle_user_deleted_not_found(

@@ -534,7 +534,7 @@ class LifeWeeksBot:
                             )
                             continue
 
-                        job_id = f"weekly_{user.telegram_id}"
+                        job_id = f"notification_{user.telegram_id}"
 
                         # Schedule the job
                         # We use fire-and-forget or await depending on needs.

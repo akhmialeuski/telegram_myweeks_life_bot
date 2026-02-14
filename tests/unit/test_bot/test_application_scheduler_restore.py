@@ -94,7 +94,7 @@ class TestSchedulerRestoration:
         _, kwargs = call_args
 
         assert kwargs["user_id"] == 123
-        assert kwargs["job_id"] == "weekly_123"
+        assert kwargs["job_id"] == "notification_123"
         assert kwargs["job_type"] == "weekly_summary"
 
         trigger = kwargs["trigger"]
