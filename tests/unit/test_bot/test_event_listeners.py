@@ -125,7 +125,9 @@ class TestEventListeners:
         mock_user_service: AsyncMock,
     ):
         """Test handling schedule failure (logs error)."""
-        mock_user_service.get_user_profile.return_value = MagicMock()
+        user = MagicMock()
+        user.settings.notifications_day = WeekDay.MONDAY
+        mock_user_service.get_user_profile.return_value = user
         mock_client.schedule_job.return_value = False
         event = UserSettingsChangedEvent(user_id=123, setting_name="birth_date")
 

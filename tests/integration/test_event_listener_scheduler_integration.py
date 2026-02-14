@@ -24,7 +24,18 @@ class TestEventListenerSchedulerIntegration:
         self,
         test_service_container: ServiceContainer,
     ) -> None:
-        """Ensure scheduler trigger uses user's persisted day/time/timezone."""
+        """Ensure scheduler trigger uses user's persisted day/time/timezone.
+
+        This test verifies that when a `UserSettingsChangedEvent` occurs, the
+        event listener fetches the complete user profile (including settings)
+        and uses those specific settings to reschedule the notification job,
+        rather than using default values.
+
+        :param test_service_container: The service container fixture.
+        :type test_service_container: ServiceContainer
+        :return: None
+        """
+        # Arrange: Create a user with specific non-default notification settings
         user_service = test_service_container.user_service
         telegram_id = 401030178
 
@@ -36,13 +47,14 @@ class TestEventListenerSchedulerIntegration:
 
         await user_service.create_user_profile(
             user_info=mock_user,
-            birth_date=date(1991, 2, 3),
+            birth_date=date(year=1991, month=2, day=3),
             notifications=True,
             notifications_day=WeekDay.WEDNESDAY,
-            notifications_time=time(14, 30),
+            notifications_time=time(hour=14, minute=30),
             timezone="Europe/Warsaw",
         )
 
+        # Arrange: Mock the scheduler client to capture the schedule_job call
         scheduler_client = AsyncMock()
         scheduler_client.schedule_job.return_value = True
 
@@ -55,12 +67,14 @@ class TestEventListenerSchedulerIntegration:
             setting_name="notifications_time",
         )
 
+        # Act: Trigger the event listener
         with patch(
-            "src.bot.event_listeners.ServiceContainer",
+            target="src.bot.event_listeners.ServiceContainer",
             return_value=container_for_listener,
         ):
-            await handle_user_settings_changed(event)
+            await handle_user_settings_changed(event=event)
 
+        # Assert: Verify schedule_job was called with the correct trigger params
         scheduler_client.schedule_job.assert_awaited_once()
         call_kwargs = scheduler_client.schedule_job.call_args.kwargs
         trigger = call_kwargs["trigger"]
@@ -68,6 +82,8 @@ class TestEventListenerSchedulerIntegration:
         assert call_kwargs["job_id"] == f"weekly_{telegram_id}"
         assert call_kwargs["user_id"] == telegram_id
         assert call_kwargs["job_type"] == "weekly_summary"
+
+        # Verify specific settings were used (Wednesday=2, 14:30, Warsaw)
         assert trigger.day_of_week == 2
         assert trigger.hour == 14
         assert trigger.minute == 30

@@ -92,11 +92,7 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
     day = user.settings.notifications_day or DEFAULT_NOTIFICATIONS_DAY
     day_int = WEEKDAY_MAP.get(day)
     if day_int is None:
-        logger.error(
-            "Invalid notifications_day '%s' for user %s",
-            day,
-            event.user_id,
-        )
+        logger.error("Invalid notifications_day '%s' for user %s", day, event.user_id)
         return
 
     notification_time = (
