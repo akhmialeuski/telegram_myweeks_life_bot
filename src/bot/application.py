@@ -20,9 +20,8 @@ from telegram.ext import (
 )
 
 from ..bot.event_listeners import register_event_listeners
-from ..contracts.scheduler_port_protocol import ScheduleTrigger
 from ..core.exceptions import BotError
-from ..enums import SupportedLanguage, WeekDay
+from ..enums import SupportedLanguage
 from ..i18n import use_locale
 from ..scheduler.client import SchedulerClient
 from ..scheduler.worker import SchedulerWorker
@@ -30,6 +29,7 @@ from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .constants import COMMAND_UNKNOWN
+from .notification_schedule import build_notification_trigger
 from .conversations.states import STATE_TO_COMMAND, ConversationState
 from .plugins.loader import HandlerConfig, PluginLoader
 from .registry import HandlerRegistry
@@ -518,17 +518,6 @@ class LifeWeeksBot:
             users = await self.services.user_service.get_all_users()
             count = 0
 
-            # Mapping from WeekDay enum to int (0=Monday, 6=Sunday)
-            weekday_map = {
-                WeekDay.MONDAY: 0,
-                WeekDay.TUESDAY: 1,
-                WeekDay.WEDNESDAY: 2,
-                WeekDay.THURSDAY: 3,
-                WeekDay.FRIDAY: 4,
-                WeekDay.SATURDAY: 5,
-                WeekDay.SUNDAY: 6,
-            }
-
             for user in users:
                 # Check if user needs a scheduled job
                 if (
@@ -537,23 +526,13 @@ class LifeWeeksBot:
                     and user.subscription.is_active
                 ):
                     try:
-                        # Convert enum to int (0-6)
-                        day_int = weekday_map.get(user.settings.notifications_day)
-                        if day_int is None:
+                        trigger = build_notification_trigger(user.settings)
+                        if trigger is None:
                             logger.warning(
-                                f"Invalid notification day {user.settings.notifications_day} "
-                                f"for user {user.telegram_id}"
+                                "Invalid notification schedule for user %s",
+                                user.telegram_id,
                             )
                             continue
-
-                        # Create trigger using user settings
-                        trigger = ScheduleTrigger(
-                            day_of_week=day_int,
-                            hour=user.settings.notifications_time.hour,
-                            minute=user.settings.notifications_time.minute,
-                            # Default to UTC if not set, or user's timezone
-                            timezone=user.settings.timezone or "UTC",
-                        )
 
                         job_id = f"weekly_{user.telegram_id}"
 

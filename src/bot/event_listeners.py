@@ -4,15 +4,7 @@ This module defines event handlers that subscribe to domain events and
 trigger appropriate actions on the scheduler via the SchedulerClient.
 """
 
-from datetime import datetime
-
-from ..constants import (
-    DEFAULT_NOTIFICATIONS_DAY,
-    DEFAULT_NOTIFICATIONS_TIME,
-    DEFAULT_TIMEZONE,
-)
-from ..contracts.scheduler_port_protocol import ScheduleTrigger
-from ..enums import WeekDay
+from .notification_schedule import build_notification_trigger
 from ..events.domain_events import (
     UserDeletedEvent,
     UserSettingsChangedEvent,
@@ -23,16 +15,6 @@ from ..utils.logger import get_logger
 
 logger = get_logger(f"{BOT_NAME}.EventListeners")
 
-
-WEEKDAY_MAP = {
-    WeekDay.MONDAY: 0,
-    WeekDay.TUESDAY: 1,
-    WeekDay.WEDNESDAY: 2,
-    WeekDay.THURSDAY: 3,
-    WeekDay.FRIDAY: 4,
-    WeekDay.SATURDAY: 5,
-    WeekDay.SUNDAY: 6,
-}
 
 
 async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
@@ -89,26 +71,10 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
         await client.remove_job(f"weekly_{event.user_id}")
         return
 
-    day = user.settings.notifications_day or DEFAULT_NOTIFICATIONS_DAY
-    day_int = WEEKDAY_MAP.get(day)
-    if day_int is None:
-        logger.error("Invalid notifications_day '%s' for user %s", day, event.user_id)
+    trigger = build_notification_trigger(user.settings)
+    if trigger is None:
+        logger.error("Invalid notification schedule for user %s", event.user_id)
         return
-
-    notification_time = (
-        user.settings.notifications_time
-        or datetime.strptime(
-            DEFAULT_NOTIFICATIONS_TIME,
-            "%H:%M:%S",
-        ).time()
-    )
-
-    trigger = ScheduleTrigger(
-        day_of_week=day_int,
-        hour=notification_time.hour,
-        minute=notification_time.minute,
-        timezone=user.settings.timezone or DEFAULT_TIMEZONE,
-    )
 
     job_id = f"weekly_{event.user_id}"
 

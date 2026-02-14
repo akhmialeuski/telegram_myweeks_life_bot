@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database.constants import MAX_TIMEZONE_LENGTH, USER_SETTINGS_TABLE, USERS_TABLE
 from src.database.models.base import Base
-from src.enums import WeekDay
+from src.enums import NotificationFrequency, WeekDay
 
 
 class UserSettings(Base):
@@ -26,6 +26,8 @@ class UserSettings(Base):
     :param language: User's language preference (use values from SupportedLanguage)
     :param notifications: Whether notifications are enabled
     :param notifications_time: Time of day for notifications
+    :param notification_frequency: Notification frequency (daily/weekly/monthly)
+    :param notifications_month_day: Day of month for monthly notifications
     :param updated_at: Last update timestamp
     """
 
@@ -48,6 +50,10 @@ class UserSettings(Base):
         Enum(WeekDay), nullable=True
     )
     notifications_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
+    notification_frequency: Mapped[NotificationFrequency] = mapped_column(
+        Enum(NotificationFrequency), nullable=False, default=NotificationFrequency.WEEKLY
+    )
+    notifications_month_day: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Life expectancy and timezone
     life_expectancy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

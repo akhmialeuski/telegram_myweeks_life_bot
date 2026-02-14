@@ -62,3 +62,11 @@ class SupportedLanguage(StrEnum):
     EN = "en"
     UA = "ua"
     BY = "by"
+
+
+class NotificationFrequency(StrEnum):
+    """Notification delivery frequency enumeration."""
+
+    DAILY = auto()
+    WEEKLY = auto()
+    MONTHLY = auto()

@@ -189,6 +189,7 @@ class SchedulerClient:
             "job_id": job_id,
             "trigger": {
                 "day_of_week": trigger.day_of_week,
+                "day_of_month": trigger.day_of_month,
                 "hour": trigger.hour,
                 "minute": trigger.minute,
                 "timezone": trigger.timezone,
@@ -235,6 +236,7 @@ class SchedulerClient:
             "job_id": job_id,
             "trigger": {
                 "day_of_week": trigger.day_of_week,
+                "day_of_month": trigger.day_of_month,
                 "hour": trigger.hour,
                 "minute": trigger.minute,
                 "timezone": trigger.timezone,

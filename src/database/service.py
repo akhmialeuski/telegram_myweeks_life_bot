@@ -8,12 +8,14 @@ import threading
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Optional
 
-from src.enums import SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 
 from ..constants import (
     DEFAULT_LIFE_EXPECTANCY,
+    DEFAULT_NOTIFICATION_FREQUENCY,
     DEFAULT_NOTIFICATIONS_DAY,
     DEFAULT_NOTIFICATIONS_ENABLED,
+    DEFAULT_NOTIFICATIONS_MONTH_DAY,
     DEFAULT_NOTIFICATIONS_TIME,
     DEFAULT_TIMEZONE,
 )
@@ -260,6 +262,8 @@ class UserService:
         ).time(),
         life_expectancy: int = DEFAULT_LIFE_EXPECTANCY,
         timezone: str = DEFAULT_TIMEZONE,
+        notification_frequency: NotificationFrequency = DEFAULT_NOTIFICATION_FREQUENCY,
+        notifications_month_day: int = DEFAULT_NOTIFICATIONS_MONTH_DAY,
     ) -> Optional[UserProfileDTO]:
         """Create new user with default settings.
 
@@ -278,6 +282,10 @@ class UserService:
         :type life_expectancy: int
         :param timezone: User's timezone
         :type timezone: str
+        :param notification_frequency: Notification frequency
+        :type notification_frequency: NotificationFrequency
+        :param notifications_month_day: Day of month for monthly notifications
+        :type notifications_month_day: int
         :returns: Created user object if successful, None otherwise
         :rtype: Optional[UserProfileDTO]
         """
@@ -306,6 +314,8 @@ class UserService:
                 notifications_time=notifications_time,
                 life_expectancy=life_expectancy,
                 timezone=timezone,
+                notification_frequency=notification_frequency,
+                notifications_month_day=notifications_month_day,
                 updated_at=datetime.now(UTC),
             )
 
@@ -372,6 +382,8 @@ class UserService:
             notifications_time=user.settings.notifications_time,
             life_expectancy=user.settings.life_expectancy,
             timezone=user.settings.timezone,
+            notification_frequency=user.settings.notification_frequency,
+            notifications_month_day=user.settings.notifications_month_day,
             language=user.settings.language,
         )
 
@@ -520,6 +532,10 @@ class UserService:
         birth_date: Optional[date] = None,
         life_expectancy: Optional[int] = None,
         language: Optional[str] = None,
+        notifications_day: Optional[WeekDay] = None,
+        notifications_time: Optional[time] = None,
+        notification_frequency: Optional[NotificationFrequency] = None,
+        notifications_month_day: Optional[int] = None,
     ) -> None:
         """Update user settings.
 
@@ -531,6 +547,14 @@ class UserService:
         :type life_expectancy: Optional[int]
         :param language: New language preference (optional)
         :type language: Optional[str]
+        :param notifications_day: New notifications weekday (for weekly mode)
+        :type notifications_day: Optional[WeekDay]
+        :param notifications_time: New notifications time
+        :type notifications_time: Optional[time]
+        :param notification_frequency: New notification frequency
+        :type notification_frequency: Optional[NotificationFrequency]
+        :param notifications_month_day: New day of month for monthly notifications
+        :type notifications_month_day: Optional[int]
         :raises UserSettingsUpdateError: If settings update fails
         :raises UserNotFoundError: If user settings not found
         """
@@ -558,6 +582,30 @@ class UserService:
             if language is not None:
                 settings.language = language
                 logger.info(f"Updated language for user {telegram_id} to {language}")
+
+            if notifications_day is not None:
+                settings.notifications_day = notifications_day
+                logger.info(
+                    f"Updated notifications day for user {telegram_id} to {notifications_day}"
+                )
+
+            if notifications_time is not None:
+                settings.notifications_time = notifications_time
+                logger.info(
+                    f"Updated notifications time for user {telegram_id} to {notifications_time}"
+                )
+
+            if notification_frequency is not None:
+                settings.notification_frequency = notification_frequency
+                logger.info(
+                    f"Updated notification frequency for user {telegram_id} to {notification_frequency}"
+                )
+
+            if notifications_month_day is not None:
+                settings.notifications_month_day = notifications_month_day
+                logger.info(
+                    f"Updated notifications month day for user {telegram_id} to {notifications_month_day}"
+                )
 
             success = await self.settings_repository.update_user_settings(
                 settings=settings

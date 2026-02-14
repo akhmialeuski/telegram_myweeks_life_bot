@@ -22,7 +22,7 @@ from src.database.repositories.sqlite.user_settings_repository import (
 from src.database.repositories.sqlite.user_subscription_repository import (
     SQLiteUserSubscriptionRepository,
 )
-from src.enums import SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 from tests.conftest import (
     DEFAULT_LIFE_EXPECTANCY,
     DEFAULT_TIMEZONE,
@@ -83,6 +83,8 @@ def sample_settings() -> UserSettings:
         timezone=DEFAULT_TIMEZONE,
         notifications=True,
         notifications_time=time(9, 0),
+        notification_frequency=NotificationFrequency.WEEKLY,
+        notifications_month_day=None,
         updated_at=datetime.now(UTC),
     )
 

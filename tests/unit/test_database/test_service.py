@@ -249,6 +249,8 @@ class TestUserService:
                 notifications=True,
                 notifications_day=sample_settings.notifications_day,
                 notifications_time=sample_settings.notifications_time,
+                notification_frequency=sample_settings.notification_frequency,
+                notifications_month_day=sample_settings.notifications_month_day,
                 life_expectancy=sample_settings.life_expectancy,
                 timezone=sample_settings.timezone,
                 language=sample_settings.language,

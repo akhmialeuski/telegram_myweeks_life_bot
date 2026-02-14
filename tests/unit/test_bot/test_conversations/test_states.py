@@ -110,6 +110,10 @@ class TestConversationState:
         assert ConversationState.AWAITING_START_BIRTH_DATE in TEXT_INPUT_STATES
         assert ConversationState.AWAITING_SETTINGS_BIRTH_DATE in TEXT_INPUT_STATES
         assert ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY in TEXT_INPUT_STATES
+        assert (
+            ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE
+            in TEXT_INPUT_STATES
+        )
         assert ConversationState.IDLE not in TEXT_INPUT_STATES
 
     def test_callback_input_states_contains_expected(self) -> None:
@@ -139,4 +143,10 @@ class TestConversationState:
         assert (
             STATE_TO_COMMAND[ConversationState.AWAITING_SETTINGS_LANGUAGE]
             == "settings_language"
+        )
+        assert (
+            STATE_TO_COMMAND[
+                ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE
+            ]
+            == "settings_notification_schedule"
         )

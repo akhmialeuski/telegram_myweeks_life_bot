@@ -30,6 +30,7 @@ DAY_OF_WEEK_MAP = {
     5: "sat",
     6: "sun",
 }
+DAILY_WILDCARD = "*"
 
 
 class APSchedulerAdapter:
@@ -190,9 +191,15 @@ class APSchedulerAdapter:
         :returns: APScheduler CronTrigger
         :rtype: CronTrigger
         """
-        day_of_week = DAY_OF_WEEK_MAP.get(trigger.day_of_week, "mon")
+        if isinstance(trigger.day_of_week, str):
+            day_of_week = trigger.day_of_week
+        else:
+            day_of_week = DAY_OF_WEEK_MAP.get(trigger.day_of_week, "mon")
+
+        day = trigger.day_of_month if trigger.day_of_month is not None else DAILY_WILDCARD
 
         return CronTrigger(
+            day=day,
             day_of_week=day_of_week,
             hour=trigger.hour,
             minute=trigger.minute,
@@ -214,18 +221,20 @@ class APSchedulerAdapter:
             # CronTrigger has fields
             try:
                 fields = job.trigger.fields
-                day_of_week_field = fields[4]  # day_of_week is 5th field
+                day_field = fields[2]
+                day_of_week_field = fields[4]
                 hour_field = fields[5]
                 minute_field = fields[6]
 
-                # Get first value from expression
+                day = self._get_first_field_value(day_field)
                 day_of_week = self._get_first_field_value(day_of_week_field)
                 hour = self._get_first_field_value(hour_field)
                 minute = self._get_first_field_value(minute_field)
 
-                if all(v is not None for v in [day_of_week, hour, minute]):
+                if hour is not None and minute is not None:
                     trigger_info = ScheduleTrigger(
-                        day_of_week=day_of_week,
+                        day_of_week=day_of_week if day_of_week is not None else DAILY_WILDCARD,
+                        day_of_month=day,
                         hour=hour,
                         minute=minute,
                         timezone=str(job.trigger.timezone),

@@ -25,6 +25,15 @@ def get_settings_keyboard(pgettext) -> InlineKeyboardMarkup:
                 callback_data="settings_life_expectancy",
             )
         ],
+        [
+            InlineKeyboardButton(
+                text=pgettext(
+                    "buttons.change_notification_schedule",
+                    "🔔 Change reminder schedule (Premium)",
+                ),
+                callback_data="settings_notification_schedule",
+            )
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
