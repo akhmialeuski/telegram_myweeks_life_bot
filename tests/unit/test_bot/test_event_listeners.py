@@ -3,6 +3,7 @@
 Tests the event handlers that bridge domain events to scheduler actions.
 """
 
+from datetime import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,6 +14,7 @@ from src.bot.event_listeners import (
     register_event_listeners,
 )
 from src.contracts.scheduler_port_protocol import ScheduleTrigger
+from src.enums import WeekDay
 from src.events.domain_events import UserDeletedEvent, UserSettingsChangedEvent
 
 
@@ -75,10 +77,16 @@ class TestEventListeners:
         mock_client: AsyncMock,
         mock_user_service: AsyncMock,
     ):
-        """Test successful scheduling on settings change."""
-        mock_user_service.get_user_profile.return_value = MagicMock()
+        """Test successful scheduling with user notification preferences."""
+        user = MagicMock()
+        user.settings.notifications = True
+        user.settings.notifications_day = WeekDay.THURSDAY
+        user.settings.notifications_time = time(16, 45)
+        user.settings.timezone = "Europe/Warsaw"
+        mock_user_service.get_user_profile.return_value = user
+
         mock_client.schedule_job.return_value = True
-        event = UserSettingsChangedEvent(user_id=123, setting_name="birth_date")
+        event = UserSettingsChangedEvent(user_id=123, setting_name="notifications_day")
 
         await handle_user_settings_changed(event)
 
@@ -87,6 +95,28 @@ class TestEventListeners:
         assert call_kwargs["job_id"] == "weekly_123"
         assert call_kwargs["user_id"] == 123
         assert isinstance(call_kwargs["trigger"], ScheduleTrigger)
+        assert call_kwargs["trigger"].day_of_week == 3
+        assert call_kwargs["trigger"].hour == 16
+        assert call_kwargs["trigger"].minute == 45
+        assert call_kwargs["trigger"].timezone == "Europe/Warsaw"
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_changed_notifications_disabled_removes_job(
+        self,
+        mock_client: AsyncMock,
+        mock_user_service: AsyncMock,
+    ):
+        """Test disabled notifications remove existing scheduled job."""
+        user = MagicMock()
+        user.settings.notifications = False
+        mock_user_service.get_user_profile.return_value = user
+
+        event = UserSettingsChangedEvent(user_id=123, setting_name="notifications")
+
+        await handle_user_settings_changed(event)
+
+        mock_client.remove_job.assert_awaited_once_with("weekly_123")
+        mock_client.schedule_job.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_settings_changed_schedule_failure(
@@ -95,7 +125,9 @@ class TestEventListeners:
         mock_user_service: AsyncMock,
     ):
         """Test handling schedule failure (logs error)."""
-        mock_user_service.get_user_profile.return_value = MagicMock()
+        user = MagicMock()
+        user.settings.notifications_day = WeekDay.MONDAY
+        mock_user_service.get_user_profile.return_value = user
         mock_client.schedule_job.return_value = False
         event = UserSettingsChangedEvent(user_id=123, setting_name="birth_date")
 
