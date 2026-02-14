@@ -88,7 +88,7 @@ TEST_LAST_NAME_ALT = "User2"
 TEST_TIMEZONE_EST = "EST"
 
 # Test scheduler and message values
-TEST_JOB_ID = f"notification_user_{TEST_USER_ID}"
+TEST_JOB_ID = f"notification_{TEST_USER_ID}"
 TEST_MESSAGE = "Test weekly message"
 DB_ERROR = "Database error"
 SCHEDULER_ERROR = "Scheduler error"
