@@ -59,15 +59,18 @@ def build_notification_trigger(settings: UserSettingsDTO) -> ScheduleTrigger | N
             timezone=settings.timezone or DEFAULT_TIMEZONE,
         )
 
-    day = settings.notifications_day or DEFAULT_NOTIFICATIONS_DAY
-    day_int = WEEKDAY_MAP.get(day)
-    if day_int is None:
-        return None
+    if frequency == NotificationFrequency.WEEKLY:
+        day = settings.notifications_day or DEFAULT_NOTIFICATIONS_DAY
+        day_int = WEEKDAY_MAP.get(day)
+        if day_int is None:
+            return None
 
-    return ScheduleTrigger(
-        day_of_week=day_int,
-        day_of_month=None,
-        hour=notification_time.hour,
-        minute=notification_time.minute,
-        timezone=settings.timezone or DEFAULT_TIMEZONE,
-    )
+        return ScheduleTrigger(
+            day_of_week=day_int,
+            day_of_month=None,
+            hour=notification_time.hour,
+            minute=notification_time.minute,
+            timezone=settings.timezone or DEFAULT_TIMEZONE,
+        )
+
+    return None
