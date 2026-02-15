@@ -193,6 +193,8 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
 
         if len(parts) == 3 and parts[0] == "monthly":
             month_day = int(parts[1])
+            # Use a conservative 1–28 range so the selected day exists in every month,
+            # including February (28 days, 29 in leap years).
             if month_day < 1 or month_day > 28:
                 raise ValueError("Invalid month day")
             return ParsedNotificationSchedule(
