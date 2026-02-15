@@ -40,8 +40,39 @@ class TestNotificationScheduleHandler:
         assert parsed.notifications_month_day == 15
         assert parsed.notifications_time == time(7, 30)
 
-    def test_parse_invalid_schedule_raises_error(
+    def test_parse_invalid_weekday_raises_error(
         self, handler: NotificationScheduleHandler
     ) -> None:
-        with pytest.raises(ValueError):
-            handler._parse_schedule_input("monthly 31 09:00")
+        """Test that invalid weekday raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid weekday"):
+            handler._parse_schedule_input("weekly funday 09:00")
+
+    def test_parse_invalid_format_raises_error(
+        self, handler: NotificationScheduleHandler
+    ) -> None:
+        """Test that invalid schedule format raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid schedule format"):
+            handler._parse_schedule_input("invalid format")
+
+    def test_parse_invalid_time_raises_error(
+        self, handler: NotificationScheduleHandler
+    ) -> None:
+        """Test that invalid time format raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid time format"):
+            handler._parse_schedule_input("daily 25:00")
+
+    def test_parse_monthly_invalid_day_raises_error(
+        self, handler: NotificationScheduleHandler
+    ) -> None:
+        """Test that invalid month day raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid month day"):
+            handler._parse_schedule_input("monthly 31 10:00")
+
+    @pytest.mark.asyncio
+    async def test_handle_returns_none(
+        self, handler: NotificationScheduleHandler
+    ) -> None:
+        """Test that handle method returns None as it's not used directly."""
+        from unittest.mock import MagicMock
+
+        assert await handler.handle(update=MagicMock(), context=MagicMock()) is None

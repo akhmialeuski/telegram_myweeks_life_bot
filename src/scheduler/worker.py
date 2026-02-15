@@ -243,6 +243,7 @@ class SchedulerWorker:
 
     def _cleanup(self) -> None:
         """Cleanup resources on shutdown."""
+        self._running = False
         if self._scheduler and self._scheduler.is_running:
             self._scheduler.shutdown()
 

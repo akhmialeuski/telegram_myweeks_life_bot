@@ -186,3 +186,82 @@ class TestSchedulerClient:
             mock_send.assert_called_once_with(
                 SchedulerCommandType.SHUTDOWN, wait_for_response=False
             )
+
+    @pytest.mark.asyncio
+    @pytest.mark.asyncio
+    async def test_listen_loop_exception_handling(self, client):
+        """Test that listen loop handles exceptions and continues."""
+        client._listening = True
+        resp_queue = client._response_queue
+
+        def side_effect():
+            if not hasattr(side_effect, "called"):
+                side_effect.called = True
+                raise Exception("Queue error")
+            client._listening = False
+            return True
+
+        resp_queue.empty.side_effect = side_effect
+
+        with patch("src.scheduler.client.logger") as mock_logger, patch(
+            "src.scheduler.client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            await client._listen_loop()
+            # Verify that error was logged
+            mock_logger.error.assert_called()
+            # Verify that sleep(1) was called after exception
+            mock_sleep.assert_any_call(1)
+
+    @pytest.mark.asyncio
+    async def test_stop_listening(self, client):
+        """Test stopping the listener."""
+        client._listening = False
+        await client.stop_listening()
+        assert client._listening is False
+
+        client._listening = True
+
+        async def mock_coro():
+            try:
+                await asyncio.sleep(100)
+            except asyncio.CancelledError:
+                pass
+
+        task = asyncio.create_task(mock_coro())
+        client._listen_task = task
+
+        await client.stop_listening()
+
+        assert client._listening is False
+        assert task.cancelled() or task.done()
+        assert client._listen_task is None
+
+    @pytest.mark.asyncio
+    async def test_stop_listening_task_cancelled_error(self, client):
+        """Test stopping listener when task raises CancelledError."""
+        client._listening = True
+
+        async def mock_coro():
+            raise asyncio.CancelledError()
+
+        task = asyncio.create_task(mock_coro())
+        client._listen_task = task
+        await asyncio.sleep(0)
+
+        await client.stop_listening()
+        assert client._listen_task is None
+        assert client._listening is False
+
+    @pytest.mark.asyncio
+    async def test_listen_loop_cancelled(self, client, mock_queues):
+        """Test that listen loop handles CancelledError correctly."""
+        client._listening = True
+        _, resp_queue = mock_queues
+        resp_queue.empty.side_effect = asyncio.CancelledError()
+
+        with patch("src.scheduler.client.logger") as mock_logger:
+            await client._listen_loop()
+            mock_logger.info.assert_called_with("Scheduler client listener cancelled")
+            assert (
+                client._listening is True
+            )  # The loop breaks but state is not changed here

@@ -30,7 +30,9 @@ from src.bot.handlers.settings.birth_date_handler import BirthDateHandler
 from src.bot.handlers.settings.dispatcher import SettingsDispatcher
 from src.bot.handlers.settings.language_handler import LanguageHandler
 from src.bot.handlers.settings.life_expectancy_handler import LifeExpectancyHandler
-from src.bot.handlers.settings.notification_schedule_handler import NotificationScheduleHandler
+from src.bot.handlers.settings.notification_schedule_handler import (
+    NotificationScheduleHandler,
+)
 from src.enums import NotificationFrequency, SubscriptionType, SupportedLanguage
 from src.services.container import ServiceContainer
 from tests.integration.conftest import (
@@ -937,7 +939,9 @@ class TestNotificationScheduleHandler:
     """Integration tests for premium notification schedule setting."""
 
     @pytest.fixture
-    def handler(self, test_service_container: ServiceContainer) -> NotificationScheduleHandler:
+    def handler(
+        self, test_service_container: ServiceContainer
+    ) -> NotificationScheduleHandler:
         return NotificationScheduleHandler(services=test_service_container)
 
     async def test_premium_user_can_update_weekly_schedule(
@@ -957,7 +961,6 @@ class TestNotificationScheduleHandler:
             subscription_type=SubscriptionType.PREMIUM,
         )
 
-        mock_update.message = None
         mock_update.callback_query = MagicMock()
         mock_update.callback_query.data = "settings_notification_schedule"
         mock_update.callback_query.edit_message_text = AsyncMock()
@@ -968,7 +971,9 @@ class TestNotificationScheduleHandler:
         set_message_text(mock_update=mock_update, text="weekly friday 10:30")
         await handler.handle_input(update=mock_update, context=mock_context)
 
-        profile = await test_service_container.user_service.get_user_profile(TEST_USER_ID)
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
         assert profile is not None
         assert profile.settings.notification_frequency == NotificationFrequency.WEEKLY
         assert str(profile.settings.notifications_day).lower().endswith("friday")
@@ -996,7 +1001,9 @@ class TestNotificationScheduleHandler:
 
         await handler.handle_callback(update=mock_update, context=mock_context)
 
-        called_text = mock_update.callback_query.edit_message_text.call_args.kwargs["text"]
+        called_text = mock_update.callback_query.edit_message_text.call_args.kwargs[
+            "text"
+        ]
         assert "only for Premium" in called_text
 
     async def test_premium_invalid_schedule_input_returns_validation_error(
@@ -1016,7 +1023,6 @@ class TestNotificationScheduleHandler:
             subscription_type=SubscriptionType.PREMIUM,
         )
 
-        mock_update.message = None
         mock_update.callback_query = MagicMock()
         mock_update.callback_query.data = "settings_notification_schedule"
         mock_update.callback_query.edit_message_text = AsyncMock()

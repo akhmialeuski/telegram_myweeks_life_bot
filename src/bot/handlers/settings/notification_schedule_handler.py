@@ -154,7 +154,12 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
                 )
             )
         except (UserNotFoundError, UserSettingsUpdateError) as error:
-            logger.error("%s: [%s]: failed to update schedule: %s", COMMAND_SETTINGS, user_id, error)
+            logger.error(
+                "%s: [%s]: failed to update schedule: %s",
+                COMMAND_SETTINGS,
+                user_id,
+                error,
+            )
             await self.send_message(
                 update=update,
                 message_text=pgettext(

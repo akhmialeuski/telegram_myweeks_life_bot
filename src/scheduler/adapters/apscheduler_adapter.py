@@ -196,7 +196,9 @@ class APSchedulerAdapter:
         else:
             day_of_week = DAY_OF_WEEK_MAP.get(trigger.day_of_week, "mon")
 
-        day = trigger.day_of_month if trigger.day_of_month is not None else DAILY_WILDCARD
+        day = (
+            trigger.day_of_month if trigger.day_of_month is not None else DAILY_WILDCARD
+        )
 
         return CronTrigger(
             day=day,
@@ -233,7 +235,9 @@ class APSchedulerAdapter:
 
                 if hour is not None and minute is not None:
                     trigger_info = ScheduleTrigger(
-                        day_of_week=day_of_week if day_of_week is not None else DAILY_WILDCARD,
+                        day_of_week=(
+                            day_of_week if day_of_week is not None else DAILY_WILDCARD
+                        ),
                         day_of_month=day,
                         hour=hour,
                         minute=minute,

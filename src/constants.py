@@ -11,6 +11,8 @@ DEFAULT_NOTIFICATIONS_ENABLED = True  # Default notification setting
 DEFAULT_TIMEZONE = "UTC"  # Default timezone for new users
 DEFAULT_NOTIFICATIONS_DAY = WeekDay.MONDAY  # Default day for weekly notifications
 DEFAULT_NOTIFICATIONS_TIME = "09:00:00"  # Default time for notifications (HH:MM:SS)
-DEFAULT_NOTIFICATION_FREQUENCY = NotificationFrequency.WEEKLY  # Default notification frequency
+DEFAULT_NOTIFICATION_FREQUENCY = (
+    NotificationFrequency.WEEKLY
+)  # Default notification frequency
 DEFAULT_NOTIFICATIONS_MONTH_DAY = 1  # Default day of month for monthly notifications
 DEFAULT_USER_FIRST_NAME = "User"  # Default first name for users

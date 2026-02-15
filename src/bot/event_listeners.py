@@ -4,7 +4,6 @@ This module defines event handlers that subscribe to domain events and
 trigger appropriate actions on the scheduler via the SchedulerClient.
 """
 
-from .notification_schedule import build_notification_trigger
 from ..events.domain_events import (
     UserDeletedEvent,
     UserSettingsChangedEvent,
@@ -12,9 +11,9 @@ from ..events.domain_events import (
 from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
+from .notification_schedule import build_notification_trigger
 
 logger = get_logger(f"{BOT_NAME}.EventListeners")
-
 
 
 async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:

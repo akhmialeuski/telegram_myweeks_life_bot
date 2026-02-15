@@ -145,8 +145,6 @@ class TestConversationState:
             == "settings_language"
         )
         assert (
-            STATE_TO_COMMAND[
-                ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE
-            ]
+            STATE_TO_COMMAND[ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE]
             == "settings_notification_schedule"
         )

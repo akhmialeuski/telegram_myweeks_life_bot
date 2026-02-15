@@ -79,7 +79,7 @@ class TestEventListenerSchedulerIntegration:
         call_kwargs = scheduler_client.schedule_job.call_args.kwargs
         trigger = call_kwargs["trigger"]
 
-        assert call_kwargs["job_id"] == f"weekly_{telegram_id}"
+        assert call_kwargs["job_id"] == f"notification_{telegram_id}"
         assert call_kwargs["user_id"] == telegram_id
         assert call_kwargs["job_type"] == "weekly_summary"
 

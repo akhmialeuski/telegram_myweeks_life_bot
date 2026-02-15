@@ -33,10 +33,13 @@ def build_notification_trigger(settings: UserSettingsDTO) -> ScheduleTrigger | N
     :returns: Trigger or None when settings are invalid
     :rtype: ScheduleTrigger | None
     """
-    notification_time: time = settings.notifications_time or datetime.strptime(
-        DEFAULT_NOTIFICATIONS_TIME,
-        "%H:%M:%S",
-    ).time()
+    notification_time: time = (
+        settings.notifications_time
+        or datetime.strptime(
+            DEFAULT_NOTIFICATIONS_TIME,
+            "%H:%M:%S",
+        ).time()
+    )
 
     frequency = settings.notification_frequency
 

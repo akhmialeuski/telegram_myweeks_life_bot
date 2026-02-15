@@ -29,8 +29,8 @@ from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .constants import COMMAND_UNKNOWN
-from .notification_schedule import build_notification_trigger
 from .conversations.states import STATE_TO_COMMAND, ConversationState
+from .notification_schedule import build_notification_trigger
 from .plugins.loader import HandlerConfig, PluginLoader
 from .registry import HandlerRegistry
 

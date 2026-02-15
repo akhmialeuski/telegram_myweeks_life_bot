@@ -51,9 +51,13 @@ class UserSettings(Base):
     )
     notifications_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     notification_frequency: Mapped[NotificationFrequency] = mapped_column(
-        Enum(NotificationFrequency), nullable=False, default=NotificationFrequency.WEEKLY
+        Enum(NotificationFrequency),
+        nullable=False,
+        default=NotificationFrequency.WEEKLY,
     )
-    notifications_month_day: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    notifications_month_day: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
 
     # Life expectancy and timezone
     life_expectancy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
