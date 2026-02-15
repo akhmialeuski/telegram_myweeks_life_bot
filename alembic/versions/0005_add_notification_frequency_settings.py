@@ -1,7 +1,7 @@
 """add_notification_frequency_settings
 
 Revision ID: 0005
-Revises: 0004
+Revises: 5f8c88736433
 Create Date: 2026-02-14
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0005"
-down_revision = "0004"
+down_revision = "5f8c88736433"
 branch_labels = None
 depends_on = None
 
