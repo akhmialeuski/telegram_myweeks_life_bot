@@ -14,6 +14,11 @@ from ..contracts.scheduler_port_protocol import (
     ScheduleTrigger,
 )
 from ..services.container import ServiceContainer
+from ..services.notification_service import (
+    MESSAGE_TYPE_DAILY_SUMMARY,
+    MESSAGE_TYPE_MONTHLY_SUMMARY,
+    MESSAGE_TYPE_WEEKLY_SUMMARY,
+)
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 from .adapters.apscheduler_adapter import APSchedulerAdapter
@@ -198,12 +203,21 @@ class SchedulerWorker:
 
         trigger = ScheduleTrigger(**trigger_data)
 
+        # Map job_type to message_type
+        summary_job_types = {
+            "daily_summary": MESSAGE_TYPE_DAILY_SUMMARY,
+            "weekly_summary": MESSAGE_TYPE_WEEKLY_SUMMARY,
+            "monthly_summary": MESSAGE_TYPE_MONTHLY_SUMMARY,
+            "notification": MESSAGE_TYPE_WEEKLY_SUMMARY,  # Default for backward compatibility
+        }
+
         # Select callback based on job type
-        if job_type == "notification" or job_type == "weekly_summary":
-            # We use a partial or lambda? No, APScheduler stores args.
-            # We pass the function and args.
+        if job_type in summary_job_types:
+            logger.info(
+                f"Scheduling {job_type} job {job_id} for user {user_id} with trigger {trigger}"
+            )
             callback = execute_notification_job
-            kwargs = {"message_type": "weekly_summary"}
+            kwargs = {"message_type": summary_job_types[job_type]}
             if user_id:
                 kwargs["user_id"] = user_id
 
@@ -213,6 +227,7 @@ class SchedulerWorker:
                 callback=callback,
                 kwargs=kwargs,
             )
+            logger.info(f"Successfully scheduled job {job_id}")
         else:
             logger.warning(f"Unknown job type: {job_type}")
 

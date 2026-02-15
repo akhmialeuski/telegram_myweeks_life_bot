@@ -716,9 +716,7 @@ class UserService:
                     )
                     continue
 
-            logger.info(
-                f"Retrieved {len(complete_users)} users for weekly notifications"
-            )
+            logger.info(f"Retrieved {len(complete_users)} users for scheduled jobs")
             return complete_users
 
         except Exception as e:

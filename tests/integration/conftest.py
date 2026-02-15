@@ -6,12 +6,14 @@ only Telegram API calls mocked.
 """
 
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 from telegram import Chat, Message, Update, User
 
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
@@ -216,11 +218,11 @@ def set_message_text(mock_update: MagicMock, text: str) -> None:
 
 
 def get_reply_text(mock_message: MagicMock) -> str | None:
-    """Get the text from the last reply_text call.
+    """Get the text from the last reply_text or reply_photo call.
 
     :param mock_message: Mock message object
     :type mock_message: MagicMock
-    :returns: Reply text or None if no reply was made
+    :returns: Reply text or caption (for photo) or None if no reply was made
     :rtype: str | None
     """
     if mock_message.reply_text.called:
@@ -229,6 +231,12 @@ def get_reply_text(mock_message: MagicMock) -> str | None:
             return call_args.args[0]
         if call_args and call_args.kwargs.get("text"):
             return call_args.kwargs["text"]
+
+    if mock_message.reply_photo.called:
+        call_args = mock_message.reply_photo.call_args
+        if call_args and call_args.kwargs.get("caption"):
+            return call_args.kwargs["caption"]
+
     return None
 
 
@@ -245,3 +253,51 @@ def get_reply_markup(mock_message: MagicMock) -> Any | None:
         if call_args and call_args.kwargs.get("reply_markup"):
             return call_args.kwargs["reply_markup"]
     return None
+
+
+async def create_user_with_invalid_enum_value(
+    container: ServiceContainer,
+    telegram_id: int = TEST_USER_ID,
+) -> None:
+    """Create a user with an invalid (lowercase) enum value in the database.
+
+    This helper is used to reproduce bugs where database values (lowercase)
+    mismatch with Python Enum definitions (uppercase), causing validation errors.
+    It uses raw SQL to bypass SQLAlchemy validation.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param telegram_id: Telegram ID of the user to create
+    :type telegram_id: int
+    :returns: None
+    """
+    user_service = container.user_service
+
+    # 1. Create a valid user profile first (this creates user, settings, and subscription)
+    # create_user_profile expects a user_info object (telegram.User)
+    user_info = User(
+        id=telegram_id,
+        username=TEST_USERNAME,
+        first_name=TEST_FIRST_NAME,
+        last_name=TEST_LAST_NAME,
+        is_bot=False,
+    )
+    await user_service.create_user_profile(
+        user_info=user_info,
+        birth_date=date(year=1990, month=1, day=1),
+    )
+
+    # 2. Now use raw SQL to UPDATE the settings with an "invalid" enum value
+    # This bypasses SQLAlchemy validation for the update but will trigger it on subsequent loads
+    repo = user_service.user_repository
+    async with repo.async_session() as session:
+        await session.execute(
+            text(
+                "UPDATE user_settings SET notification_frequency = :freq "
+                "WHERE telegram_id = :tid"
+            ),
+            {
+                "tid": telegram_id,
+                "freq": "weekly",  # Lowercase string causing the mismatch vs Enum.WEEKLY
+            },
+        )

@@ -244,7 +244,7 @@ class TestServiceContainer:
         notification_service = container.get_notification_service()
 
         assert notification_service is not None
-        assert hasattr(notification_service, "generate_weekly_summary")
+        assert hasattr(notification_service, "generate_summary")
 
     @pytest.mark.asyncio
     async def test_set_and_get_scheduler_client(self) -> None:

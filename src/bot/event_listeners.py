@@ -76,15 +76,19 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
         return
 
     job_id = f"notification_{event.user_id}"
+    job_type = f"{user.settings.notification_frequency}_summary"
 
     success = await client.schedule_job(
-        job_id=job_id, trigger=trigger, user_id=event.user_id, job_type="weekly_summary"
+        job_id=job_id,
+        trigger=trigger,
+        user_id=event.user_id,
+        job_type=job_type,
     )
 
     if success:
-        logger.info(f"Rescheduled weekly job for user {event.user_id}")
+        logger.info(f"Rescheduled {job_type} job for user {event.user_id}")
     else:
-        logger.error(f"Failed to reschedule job for user {event.user_id}")
+        logger.error(f"Failed to reschedule {job_type} job for user {event.user_id}")
 
 
 async def handle_user_deleted(event: UserDeletedEvent) -> None:

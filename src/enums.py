@@ -73,6 +73,6 @@ class NotificationFrequency(StrEnum):
     Defines how often notifications should be sent to users.
     """
 
-    DAILY = auto()
-    WEEKLY = auto()
-    MONTHLY = auto()
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"

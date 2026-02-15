@@ -21,7 +21,7 @@ class TestSchedulerJobs:
 
         with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
             mock_notification_service = MagicMock()
-            mock_notification_service.generate_weekly_summary = AsyncMock(
+            mock_notification_service.generate_summary = AsyncMock(
                 return_value="payload"
             )
 
@@ -39,8 +39,8 @@ class TestSchedulerJobs:
 
             await execute_notification_job(user_id=user_id, message_type=message_type)
 
-            mock_notification_service.generate_weekly_summary.assert_called_once_with(
-                user_id
+            mock_notification_service.generate_summary.assert_called_once_with(
+                user_id=user_id, message_type=message_type
             )
             mock_gateway.send_notification.assert_called_once_with("payload")
 
@@ -51,9 +51,7 @@ class TestSchedulerJobs:
 
         with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
             mock_notification_service = MagicMock()
-            mock_notification_service.generate_weekly_summary = AsyncMock(
-                return_value=None
-            )
+            mock_notification_service.generate_summary = AsyncMock(return_value=None)
 
             mock_container.return_value.get_notification_service.return_value = (
                 mock_notification_service
@@ -63,7 +61,7 @@ class TestSchedulerJobs:
                 user_id=user_id, message_type="weekly_summary"
             )
 
-            mock_notification_service.generate_weekly_summary.assert_called_once()
+            mock_notification_service.generate_summary.assert_called_once()
             # Gateway should not be called
 
     @pytest.mark.asyncio
@@ -79,7 +77,7 @@ class TestSchedulerJobs:
 
         with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
             mock_notification_service = MagicMock()
-            mock_notification_service.generate_weekly_summary = AsyncMock(
+            mock_notification_service.generate_summary = AsyncMock(
                 return_value="payload"
             )
 

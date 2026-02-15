@@ -1,12 +1,15 @@
 """Grid visualization for life weeks tracking."""
 
 from io import BytesIO
-from typing import Any, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
 from ..core.life_calculator import calculate_life_statistics
 from ..database.service import user_service
+
+if TYPE_CHECKING:
+    from ..database.service import UserService
 from ..utils.config import (
     CELL_SIZE,
     COLORS,
@@ -29,7 +32,9 @@ def calculate_grid_dimensions() -> Tuple[int, int]:
     return width, height
 
 
-async def generate_visualization(user_info: Any) -> BytesIO:
+async def generate_visualization(
+    user_info: Any, user_service_instance: Optional["UserService"] = None
+) -> BytesIO:
     """Generate a visual representation of weeks lived.
 
     Creates a grid where:
@@ -46,11 +51,15 @@ async def generate_visualization(user_info: Any) -> BytesIO:
 
     :param user_info: DB ``User`` | Telegram ``User`` | ``int`` user id
     :type user_info: Any
+    :param user_service_instance: Optional user service instance to use
+    :type user_service_instance: Optional[UserService]
     :returns: BytesIO object containing the generated image.
     :rtype: BytesIO
     :raises TypeError: If ``user_info`` is not a supported type
     :raises ValueError: If user profile cannot be found in the database
     """
+    # Use provided service or singleton
+    svc = user_service_instance or user_service
     # Resolve user id from various supported inputs
     if hasattr(user_info, "telegram_id"):
         user_id: int = int(getattr(user_info, "telegram_id"))
@@ -64,7 +73,7 @@ async def generate_visualization(user_info: Any) -> BytesIO:
         )
 
     # Resolve complete user profile and language
-    user_profile = await user_service.get_user_profile(telegram_id=user_id)
+    user_profile = await svc.get_user_profile(telegram_id=user_id)
     if not user_profile:
         raise ValueError(f"User profile not found for telegram_id: {user_id}")
     user_lang: str = (

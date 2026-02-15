@@ -17,7 +17,9 @@ from ..utils.logger import get_logger
 logger = get_logger(f"{BOT_NAME}.NotificationService")
 
 # Message type constants
+MESSAGE_TYPE_DAILY_SUMMARY = "daily_summary"
 MESSAGE_TYPE_WEEKLY_SUMMARY = "weekly_summary"
+MESSAGE_TYPE_MONTHLY_SUMMARY = "monthly_summary"
 MESSAGE_TYPE_MILESTONE = "milestone"
 
 
@@ -42,17 +44,20 @@ class NotificationService:
         """
         self._user_service = user_service
 
-    async def generate_weekly_summary(
+    async def generate_summary(
         self,
         user_id: int,
+        message_type: str = MESSAGE_TYPE_WEEKLY_SUMMARY,
     ) -> NotificationPayload | None:
-        """Generate weekly summary notification payload for a user.
+        """Generate life statistics summary notification payload for a user.
 
         Retrieves user data, calculates life statistics, and creates
-        a localized notification payload.
+        a localized notification payload based on the frequency.
 
         :param user_id: Telegram user ID
         :type user_id: int
+        :param message_type: Type of summary (daily, weekly, monthly)
+        :type message_type: str
         :returns: Notification payload or None if user not found
         :rtype: NotificationPayload | None
         """
@@ -61,13 +66,13 @@ class NotificationService:
 
             if not user:
                 logger.warning(
-                    f"Cannot generate weekly summary: user {user_id} not found"
+                    f"Cannot generate {message_type}: user {user_id} not found"
                 )
                 return None
 
-            if not user.birth_date:
+            if not user.settings.birth_date:
                 logger.warning(
-                    f"Cannot generate weekly summary: user {user_id} has no birth date"
+                    f"Cannot generate {message_type}: user {user_id} has no birth date"
                 )
                 return None
 
@@ -80,14 +85,24 @@ class NotificationService:
 
             # Calculate life statistics
             stats = calculate_life_statistics(
-                birth_date=user.birth_date,
+                birth_date=user.settings.birth_date,
                 life_expectancy=user.settings.life_expectancy or 80,
             )
 
             # Generate localized message
             _, _, pgettext = use_locale(user_lang)
 
-            title = pgettext("notifications.weekly", "📊 Your weekly life statistics")
+            # Determine title based on message type
+            if message_type == MESSAGE_TYPE_DAILY_SUMMARY:
+                title = pgettext("notifications.daily", "📉 Your daily life statistics")
+            elif message_type == MESSAGE_TYPE_MONTHLY_SUMMARY:
+                title = pgettext(
+                    "notifications.monthly", "📊 Your monthly life statistics"
+                )
+            else:
+                title = pgettext(
+                    "notifications.weekly", "📊 Your weekly life statistics"
+                )
 
             body = pgettext(
                 "weeks.statistics",
@@ -101,7 +116,7 @@ class NotificationService:
                 "🎯 Progress: %(progress_percent)s%%",
             ) % {
                 "birth_date": self._format_date(
-                    birth_date=user.birth_date,
+                    birth_date=user.settings.birth_date,
                     language=user_lang,
                 ),
                 "age": stats.age,
@@ -114,7 +129,7 @@ class NotificationService:
 
             return NotificationPayload(
                 recipient_id=user_id,
-                message_type=MESSAGE_TYPE_WEEKLY_SUMMARY,
+                message_type=message_type,
                 title=title,
                 body=body,
                 metadata={
@@ -132,7 +147,7 @@ class NotificationService:
 
         except Exception as error:
             logger.error(
-                f"Failed to generate weekly summary for user {user_id}: {error}"
+                f"Failed to generate {message_type} for user {user_id}: {error}"
             )
             return None
 

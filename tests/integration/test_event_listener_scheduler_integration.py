@@ -88,3 +88,55 @@ class TestEventListenerSchedulerIntegration:
         assert trigger.hour == 14
         assert trigger.minute == 30
         assert trigger.timezone == "Europe/Warsaw"
+
+    async def test_user_settings_change_to_monthly_updates_job_type(
+        self,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """Ensure job_type changes when frequency changes to monthly.
+
+        :param test_service_container: The service container fixture.
+        :type test_service_container: ServiceContainer
+        :return: None
+        """
+        # Arrange
+        user_service = test_service_container.user_service
+        telegram_id = 401030179
+        from src.enums import NotificationFrequency
+
+        mock_user = MagicMock()
+        mock_user.id = telegram_id
+        mock_user.username = "monthly_test"
+        mock_user.first_name = "Monthly"
+        mock_user.last_name = "Test"
+
+        await user_service.create_user_profile(
+            user_info=mock_user,
+            birth_date=date(year=1991, month=2, day=3),
+            notifications=True,
+            notification_frequency=NotificationFrequency.MONTHLY,
+        )
+
+        scheduler_client = AsyncMock()
+        scheduler_client.schedule_job.return_value = True
+
+        container_for_listener = MagicMock()
+        container_for_listener.get_scheduler_client.return_value = scheduler_client
+        container_for_listener.get_user_service.return_value = user_service
+
+        event = UserSettingsChangedEvent(
+            user_id=telegram_id,
+            setting_name="notification_frequency",
+        )
+
+        # Act
+        with patch(
+            target="src.bot.event_listeners.ServiceContainer",
+            return_value=container_for_listener,
+        ):
+            await handle_user_settings_changed(event=event)
+
+        # Assert
+        scheduler_client.schedule_job.assert_awaited_once()
+        call_kwargs = scheduler_client.schedule_job.call_args.kwargs
+        assert call_kwargs["job_type"] == "monthly_summary"

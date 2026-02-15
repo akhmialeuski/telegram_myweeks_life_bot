@@ -47,11 +47,12 @@ class UserSettings(Base):
     # Notifications
     notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     notifications_day: Mapped[Optional[WeekDay]] = mapped_column(
-        Enum(WeekDay), nullable=True
+        Enum(WeekDay, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True,
     )
     notifications_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     notification_frequency: Mapped[NotificationFrequency] = mapped_column(
-        Enum(NotificationFrequency),
+        Enum(NotificationFrequency, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=NotificationFrequency.WEEKLY,
     )

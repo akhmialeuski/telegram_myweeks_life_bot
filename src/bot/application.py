@@ -549,6 +549,7 @@ class LifeWeeksBot:
                             continue
 
                         job_id = f"notification_{user.telegram_id}"
+                        job_type = f"{user.settings.notification_frequency}_summary"
 
                         # Schedule the job
                         # We use fire-and-forget or await depending on needs.
@@ -558,7 +559,7 @@ class LifeWeeksBot:
                             job_id=job_id,
                             trigger=trigger,
                             user_id=user.telegram_id,
-                            job_type="weekly_summary",
+                            job_type=job_type,
                         )
                         count += 1
                     except Exception as e:
