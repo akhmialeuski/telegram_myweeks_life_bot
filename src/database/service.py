@@ -263,7 +263,7 @@ class UserService:
         life_expectancy: int = DEFAULT_LIFE_EXPECTANCY,
         timezone: str = DEFAULT_TIMEZONE,
         notification_frequency: NotificationFrequency = DEFAULT_NOTIFICATION_FREQUENCY,
-        notifications_month_day: int = DEFAULT_NOTIFICATIONS_MONTH_DAY,
+        notifications_month_day: Optional[int] = None,
     ) -> Optional[UserProfileDTO]:
         """Create new user with default settings.
 
