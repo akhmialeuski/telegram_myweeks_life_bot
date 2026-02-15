@@ -68,7 +68,7 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
             "Notifications disabled for user %s, removing scheduled job",
             event.user_id,
         )
-        await client.remove_job(f"weekly_{event.user_id}")
+        await client.remove_job(f"notification_{event.user_id}")
         return
 
     trigger = build_notification_trigger(user.settings)
@@ -76,7 +76,7 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
         logger.error("Invalid notification schedule for user %s", event.user_id)
         return
 
-    job_id = f"weekly_{event.user_id}"
+    job_id = f"notification_{event.user_id}"
 
     success = await client.schedule_job(
         job_id=job_id, trigger=trigger, user_id=event.user_id, job_type="weekly_summary"
@@ -106,7 +106,7 @@ async def handle_user_deleted(event: UserDeletedEvent) -> None:
         logger.warning("Scheduler client not available")
         return
 
-    job_id = f"weekly_{event.user_id}"
+    job_id = f"notification_{event.user_id}"
     success = await client.remove_job(job_id)
 
     if success:

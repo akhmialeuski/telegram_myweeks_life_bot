@@ -80,6 +80,7 @@ class TestEventListeners:
         """Test successful scheduling with user notification preferences."""
         user = MagicMock()
         user.settings.notifications = True
+        user.settings.notification_frequency = "weekly"
         user.settings.notifications_day = WeekDay.THURSDAY
         user.settings.notifications_time = time(16, 45)
         user.settings.timezone = "Europe/Warsaw"
@@ -92,7 +93,7 @@ class TestEventListeners:
 
         mock_client.schedule_job.assert_awaited_once()
         call_kwargs = mock_client.schedule_job.call_args[1]
-        assert call_kwargs["job_id"] == "weekly_123"
+        assert call_kwargs["job_id"] == "notification_123"
         assert call_kwargs["user_id"] == 123
         assert isinstance(call_kwargs["trigger"], ScheduleTrigger)
         assert call_kwargs["trigger"].day_of_week == 3
@@ -115,7 +116,7 @@ class TestEventListeners:
 
         await handle_user_settings_changed(event)
 
-        mock_client.remove_job.assert_awaited_once_with("weekly_123")
+        mock_client.remove_job.assert_awaited_once_with("notification_123")
         mock_client.schedule_job.assert_not_called()
 
     @pytest.mark.asyncio
@@ -126,7 +127,11 @@ class TestEventListeners:
     ):
         """Test handling schedule failure (logs error)."""
         user = MagicMock()
+        user.settings.notifications = True
+        user.settings.notification_frequency = "weekly"
         user.settings.notifications_day = WeekDay.MONDAY
+        user.settings.notifications_time = time(10, 0)
+        user.settings.timezone = "UTC"
         mock_user_service.get_user_profile.return_value = user
         mock_client.schedule_job.return_value = False
         event = UserSettingsChangedEvent(user_id=123, setting_name="birth_date")
@@ -159,7 +164,7 @@ class TestEventListeners:
 
         await handle_user_deleted(event)
 
-        mock_client.remove_job.assert_awaited_once_with("weekly_123")
+        mock_client.remove_job.assert_awaited_once_with("notification_123")
 
     @pytest.mark.asyncio
     async def test_handle_user_deleted_not_found(
