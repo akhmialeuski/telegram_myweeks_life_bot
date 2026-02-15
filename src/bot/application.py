@@ -107,19 +107,19 @@ class LifeWeeksBot:
         self._app = builder.build()
 
         # Register global error handler
-        self._app.add_error_handler(self._error_handler)
+        self._app.add_error_handler(callback=self._error_handler)
 
         # Register event listeners
-        register_event_listeners(self.services)
+        register_event_listeners(container=self.services)
 
         # Discover and register handlers
         self._discover_and_register_handlers()
 
         # Register universal text handler
         self._app.add_handler(
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                self._universal_text_handler,
+            handler=MessageHandler(
+                filters=filters.TEXT & ~filters.COMMAND,
+                callback=self._universal_text_handler,
             )
         )
         logger.info("Registered universal text handler")
@@ -156,7 +156,9 @@ class LifeWeeksBot:
 
             # Register command handler
             self._app.add_handler(
-                CommandHandler(config.command, handler_instance.handle)
+                handler=CommandHandler(
+                    command=config.command, callback=handler_instance.handle
+                )
             )
             logger.debug(f"Registered command handler: /{config.command}")
 
@@ -164,8 +166,8 @@ class LifeWeeksBot:
             for callback in config.callbacks:
                 callback_method = getattr(handler_instance, callback["method"])
                 self._app.add_handler(
-                    CallbackQueryHandler(
-                        callback_method,
+                    handler=CallbackQueryHandler(
+                        callback=callback_method,
                         pattern=callback["pattern"],
                     )
                 )
@@ -200,7 +202,11 @@ class LifeWeeksBot:
         """
         if COMMAND_UNKNOWN in self._handler_instances:
             unknown_handler = self._handler_instances[COMMAND_UNKNOWN]
-            self._app.add_handler(MessageHandler(filters.ALL, unknown_handler.handle))
+            self._app.add_handler(
+                handler=MessageHandler(
+                    filters=filters.ALL, callback=unknown_handler.handle
+                )
+            )
             logger.debug("Registered unknown handler as fallback")
 
     def start(self) -> None:
@@ -232,9 +238,11 @@ class LifeWeeksBot:
         current_state = ConversationState.from_string(value=waiting_for)
 
         if current_state != ConversationState.IDLE:
-            await self._handle_waiting_state(update, context, current_state)
+            await self._handle_waiting_state(
+                update=update, context=context, current_state=current_state
+            )
         else:
-            await self._handle_no_waiting_state(update, context)
+            await self._handle_no_waiting_state(update=update, context=context)
 
     async def _handle_waiting_state(
         self,
@@ -257,15 +265,15 @@ class LifeWeeksBot:
             current_state, self._waiting_states.get(current_state.value, "")
         )
         error_occurred = await self._try_text_input_handler(
-            update, context, target_command
+            update=update, context=context, target_command=target_command
         )
 
         if error_occurred:
             fallback_error = await self._try_unknown_handler_fallback(
-                update, context, current_state.value
+                update=update, context=context, waiting_for=current_state.value
             )
             if fallback_error:
-                await self._send_error_message(update, context)
+                await self._send_error_message(update=update, context=context)
 
     async def _handle_no_waiting_state(
         self,
@@ -282,7 +290,9 @@ class LifeWeeksBot:
         """
         try:
             if COMMAND_UNKNOWN in self._handler_instances:
-                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+                await self._handler_instances[COMMAND_UNKNOWN].handle(
+                    update=update, context=context
+                )
         except Exception as error:
             logger.error(f"Error in unknown handler: {error}", exc_info=True)
 
@@ -307,7 +317,9 @@ class LifeWeeksBot:
             return True
 
         try:
-            await self._text_input_handlers[target_command](update, context)
+            await self._text_input_handlers[target_command](
+                update=update, context=context
+            )
             return False
         except Exception as error:
             logger.error(
@@ -335,7 +347,9 @@ class LifeWeeksBot:
         """
         try:
             if COMMAND_UNKNOWN in self._handler_instances:
-                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+                await self._handler_instances[COMMAND_UNKNOWN].handle(
+                    update=update, context=context
+                )
             return False
         except Exception as error:
             logger.error(
@@ -399,9 +413,9 @@ class LifeWeeksBot:
                 if update.effective_user and update.effective_user.language_code:
                     lang = update.effective_user.language_code
 
-                _, _, pgettext = use_locale(lang)
+                _, _, pgettext = use_locale(language=lang)
                 message = (
-                    pgettext(error.user_message_key, error.message)
+                    pgettext(msgctxt=error.user_message_key, message=error.message)
                     if error.user_message_key
                     else error.message
                 )

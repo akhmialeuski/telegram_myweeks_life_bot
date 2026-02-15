@@ -62,8 +62,15 @@ class TestEventListeners:
         self,
         mock_client: AsyncMock,
         mock_user_service: AsyncMock,
-    ):
-        """Test handling settings change when user profile not found."""
+    ) -> None:
+        """Test handling settings change when user profile not found.
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :param mock_user_service: Mocked user service
+        :type mock_user_service: AsyncMock
+        :returns: None
+        """
         mock_user_service.get_user_profile.return_value = None
         event = UserSettingsChangedEvent(user_id=123, setting_name="birth_date")
 
@@ -76,8 +83,15 @@ class TestEventListeners:
         self,
         mock_client: AsyncMock,
         mock_user_service: AsyncMock,
-    ):
-        """Test successful scheduling with user notification preferences."""
+    ) -> None:
+        """Test successful scheduling with user notification preferences.
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :param mock_user_service: Mocked user service
+        :type mock_user_service: AsyncMock
+        :returns: None
+        """
         user = MagicMock()
         user.settings.notifications = True
         user.settings.notification_frequency = "weekly"
@@ -106,8 +120,15 @@ class TestEventListeners:
         self,
         mock_client: AsyncMock,
         mock_user_service: AsyncMock,
-    ):
-        """Test disabled notifications remove existing scheduled job."""
+    ) -> None:
+        """Test disabled notifications remove existing scheduled job.
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :param mock_user_service: Mocked user service
+        :type mock_user_service: AsyncMock
+        :returns: None
+        """
         user = MagicMock()
         user.settings.notifications = False
         mock_user_service.get_user_profile.return_value = user
@@ -124,8 +145,15 @@ class TestEventListeners:
         self,
         mock_client: AsyncMock,
         mock_user_service: AsyncMock,
-    ):
-        """Test handling schedule failure (logs error)."""
+    ) -> None:
+        """Test handling schedule failure (logs error).
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :param mock_user_service: Mocked user service
+        :type mock_user_service: AsyncMock
+        :returns: None
+        """
         user = MagicMock()
         user.settings.notifications = True
         user.settings.notification_frequency = "weekly"
@@ -145,8 +173,13 @@ class TestEventListeners:
     async def test_handle_user_deleted_client_unavailable(
         self,
         mock_container: MagicMock,
-    ):
-        """Test handling user deletion when client is unavailable."""
+    ) -> None:
+        """Test handling user deletion when client is unavailable.
+
+        :param mock_container: Mocked service container
+        :type mock_container: MagicMock
+        :returns: None
+        """
         mock_container.get_scheduler_client.return_value = None
         event = UserDeletedEvent(user_id=123)
 
@@ -157,8 +190,13 @@ class TestEventListeners:
     async def test_handle_user_deleted_success(
         self,
         mock_client: AsyncMock,
-    ):
-        """Test successful job removal on user deletion."""
+    ) -> None:
+        """Test successful job removal on user deletion.
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :returns: None
+        """
         mock_client.remove_job.return_value = True
         event = UserDeletedEvent(user_id=123)
 
@@ -170,8 +208,13 @@ class TestEventListeners:
     async def test_handle_user_deleted_not_found(
         self,
         mock_client: AsyncMock,
-    ):
-        """Test job removal when job doesn't exist."""
+    ) -> None:
+        """Test job removal when job doesn't exist.
+
+        :param mock_client: Mocked scheduler client
+        :type mock_client: AsyncMock
+        :returns: None
+        """
         mock_client.remove_job.return_value = False
         event = UserDeletedEvent(user_id=123)
 
@@ -182,8 +225,13 @@ class TestEventListeners:
     def test_register_event_listeners(
         self,
         mock_container: MagicMock,
-    ):
-        """Test registration of listeners."""
+    ) -> None:
+        """Test registration of listeners.
+
+        :param mock_container: Mocked service container
+        :type mock_container: MagicMock
+        :returns: None
+        """
         event_bus = MagicMock()
         mock_container.get_event_bus.return_value = event_bus
 

@@ -56,7 +56,10 @@ class SubscriptionType(StrEnum):
 
 
 class SupportedLanguage(StrEnum):
-    """Supported language enumeration."""
+    """Supported language enumeration.
+
+    Defines languages supported by the bot for messages and UI.
+    """
 
     RU = "ru"
     EN = "en"
@@ -65,7 +68,10 @@ class SupportedLanguage(StrEnum):
 
 
 class NotificationFrequency(StrEnum):
-    """Notification delivery frequency enumeration."""
+    """Notification delivery frequency enumeration.
+
+    Defines how often notifications should be sent to users.
+    """
 
     DAILY = auto()
     WEEKLY = auto()

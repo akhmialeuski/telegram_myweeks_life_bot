@@ -377,7 +377,7 @@ class TestLifeWeeksBot:
         ), patch.object(bot, "_setup_scheduler"):
             bot.setup()
         mock_application_builder.add_error_handler.assert_called_once_with(
-            bot._error_handler
+            callback=bot._error_handler
         )
 
     def test_error_handler_handles_network_error(

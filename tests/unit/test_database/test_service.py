@@ -107,15 +107,18 @@ class TestUserService:
     @pytest.fixture
     def user_service(
         self,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> UserService:
         """Create UserService instance with mocked repositories.
 
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: UserService instance
         :rtype: UserService
         """
@@ -140,15 +143,18 @@ class TestUserService:
 
     def test_init_with_custom_repositories(
         self,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test UserService initialization with custom repositories.
 
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -164,21 +170,26 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_initialize(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test service initialization no-op behavior.
 
         Current implementation initializes repositories in DatabaseManager
         during UserService construction; initialize() is a no-op.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
+        :rtype: None
         """
         await user_service.initialize()
         # initialize() should not call repository initialize methods
@@ -189,20 +200,25 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_close(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test service close no-op behavior.
 
         Current implementation closes repositories via DatabaseManager; close() is a no-op.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
+        :rtype: None
         """
         await user_service.close()
         # close() should not call repository close methods
@@ -213,26 +229,31 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_create_user_profile_success(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-        sample_user,
-        sample_settings,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+        sample_user: MagicMock,
+        sample_settings: MagicMock,
+    ) -> None:
         """Test successful user creation with settings.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :param sample_settings: Sample settings object
+        :type sample_settings: MagicMock
         :returns: None
         :rtype: None
         """
-        # Mock get_user_profile to return None (user doesn't exist)
-        user_service.get_user_profile = AsyncMock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)  # type: ignore[method-assign]
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = True
         mock_subscription_repository.create_subscription.return_value = True
@@ -261,7 +282,7 @@ class TestUserService:
                 expires_at=datetime.now(UTC),
             ),
         )
-        user_service.get_user_profile = AsyncMock(side_effect=[None, created_user_dto])
+        user_service.get_user_profile = AsyncMock(side_effect=[None, created_user_dto])  # type: ignore[method-assign]
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -288,16 +309,20 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_create_user_profile_user_exists(
-        self, user_service, sample_user
+        self,
+        user_service: UserService,
+        sample_user: MagicMock,
     ) -> None:
         """Test user creation when user already exists.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :returns: None
         :rtype: None
         """
-        user_service.get_user_profile = AsyncMock(return_value=sample_user)
+        user_service.get_user_profile = AsyncMock(return_value=sample_user)  # type: ignore[method-assign]
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -324,20 +349,25 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_create_user_profile_user_creation_fails(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test user creation when user creation fails.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
+        :rtype: None
         """
-        user_service.get_user_profile = AsyncMock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)  # type: ignore[method-assign]
         mock_user_repository.create_user.return_value = False
 
         # Create mock user info object with id attribute
@@ -361,20 +391,25 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_create_user_profile_settings_creation_fails(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test user creation when settings creation fails.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
+        :rtype: None
         """
-        user_service.get_user_profile = AsyncMock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)  # type: ignore[method-assign]
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = False
         mock_user_repository.delete_user.return_value = True
@@ -401,20 +436,25 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_create_user_profile_subscription_creation_fails(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+    ) -> None:
         """Test user creation when subscription creation fails.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :returns: None
+        :rtype: None
         """
-        user_service.get_user_profile = AsyncMock(return_value=None)
+        user_service.get_user_profile = AsyncMock(return_value=None)  # type: ignore[method-assign]
         mock_user_repository.create_user.return_value = True
         mock_settings_repository.create_user_settings.return_value = True
         mock_subscription_repository.create_subscription.return_value = False
@@ -445,14 +485,18 @@ class TestUserService:
         mock_user_repository.delete_user.assert_called_once_with(telegram_id=123456789)
 
     @pytest.mark.asyncio
-    async def test_create_user_profile_exception(self, user_service) -> None:
+    async def test_create_user_profile_exception(
+        self,
+        user_service: UserService,
+    ) -> None:
         """Test user creation with exception.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :returns: None
         :rtype: None
         """
-        user_service.get_user_profile = AsyncMock(side_effect=Exception("Test error"))
+        user_service.get_user_profile = AsyncMock(side_effect=Exception("Test error"))  # type: ignore[method-assign]
 
         # Create mock user info object with id attribute
         mock_user_info = Mock()
@@ -472,22 +516,29 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_get_user_profile_success(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-        sample_user,
-        sample_settings,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+        sample_user: MagicMock,
+        sample_settings: MagicMock,
+    ) -> None:
         """Test successful user profile retrieval.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :param sample_settings: Sample settings object
+        :type sample_settings: MagicMock
         :returns: None
+        :rtype: None
         """
         sample_subscription = UserSubscription(
             telegram_id=123456789,
@@ -528,12 +579,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_get_user_profile_user_not_found(
-        self, user_service, mock_user_repository
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
     ) -> None:
         """Test user profile retrieval when user not found.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -545,14 +600,22 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_get_user_profile_settings_not_found(
-        self, user_service, mock_user_repository, mock_settings_repository, sample_user
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        sample_user: MagicMock,
+    ) -> None:
         """Test user profile retrieval when settings not found.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :returns: None
         :rtype: None
         """
@@ -566,21 +629,27 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_get_user_profile_subscription_not_found(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-        sample_user,
-        sample_settings,
-    ):
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+        sample_user: MagicMock,
+        sample_settings: MagicMock,
+    ) -> None:
         """Test user profile retrieval when subscription not found.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :param sample_settings: Sample settings object
+        :type sample_settings: MagicMock
         :returns: None
         :rtype: None
         """
@@ -594,12 +663,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_get_user_profile_exception(
-        self, user_service, mock_user_repository
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
     ) -> None:
         """Test user profile retrieval with exception.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -612,10 +685,10 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_get_user_profile_settings_repository_exception(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        sample_user,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        sample_user: MagicMock,
     ) -> None:
         """Test user profile retrieval when settings repository raises exception.
 
@@ -623,9 +696,13 @@ class TestUserService:
         during settings retrieval is caught and logged.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :returns: None
         :rtype: None
         """
@@ -641,12 +718,12 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_get_user_profile_subscription_repository_exception(
         self,
-        user_service,
-        mock_user_repository,
-        mock_settings_repository,
-        mock_subscription_repository,
-        sample_user,
-        sample_settings,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+        mock_subscription_repository: MagicMock,
+        sample_user: MagicMock,
+        sample_settings: MagicMock,
     ) -> None:
         """Test user profile retrieval when subscription repository raises exception.
 
@@ -654,11 +731,17 @@ class TestUserService:
         during subscription retrieval is caught and logged.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param mock_subscription_repository: Mock subscription repository
+        :type mock_subscription_repository: MagicMock
         :param sample_user: Sample user object
+        :type sample_user: MagicMock
         :param sample_settings: Sample settings object
+        :type sample_settings: MagicMock
         :returns: None
         :rtype: None
         """
@@ -674,13 +757,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_is_valid_user_profile_true(
-        self, user_service, mock_settings_repository, sample_settings
-    ):
+        self,
+        user_service: UserService,
+        mock_settings_repository: MagicMock,
+        sample_settings: MagicMock,
+    ) -> None:
         """Test is_valid_user_profile returns True for valid profile.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :param sample_settings: Sample settings object
+        :type sample_settings: MagicMock
         :returns: None
         :rtype: None
         """
@@ -692,12 +781,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_is_valid_user_profile_false_no_settings(
-        self, user_service, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test is_valid_user_profile returns False when no settings.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -709,13 +802,18 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_is_valid_user_profile_false_no_birth_date(
-        self, user_service, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test is_valid_user_profile returns False when no birth date.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
+        :rtype: None
         """
         settings = UserSettings(telegram_id=123456789, birth_date=None)
         mock_settings_repository.get_user_settings.return_value = settings
@@ -726,12 +824,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_is_valid_user_profile_exception(
-        self, user_service, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test is_valid_user_profile with exception.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -743,12 +845,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_success(
-        self, user_service, mock_user_repository
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
     ) -> None:
         """Test successful user deletion.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -761,12 +867,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_failure(
-        self, user_service, mock_user_repository
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
     ) -> None:
         """Test failed user deletion.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -778,12 +888,16 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_exception(
-        self, user_service, mock_user_repository
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
     ) -> None:
         """Test user deletion with exception.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -795,13 +909,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_success(
-        self, user_service, mock_user_repository, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test successful user profile deletion.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -817,13 +937,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_no_settings(
-        self, user_service, mock_user_repository, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test user profile deletion when no settings exist.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -839,13 +965,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_user_deletion_fails(
-        self, user_service, mock_user_repository, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test user profile deletion when user deletion fails.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -860,13 +992,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_user_deletion_error_reraise(
-        self, user_service, mock_user_repository, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test user profile deletion re-raises UserDeletionError.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -879,13 +1017,19 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_general_exception(
-        self, user_service, mock_user_repository, mock_settings_repository
-    ):
+        self,
+        user_service: UserService,
+        mock_user_repository: MagicMock,
+        mock_settings_repository: MagicMock,
+    ) -> None:
         """Test user profile deletion with general exception.
 
         :param user_service: UserService instance
+        :type user_service: UserService
         :param mock_user_repository: Mock user repository
+        :type mock_user_repository: MagicMock
         :param mock_settings_repository: Mock settings repository
+        :type mock_settings_repository: MagicMock
         :returns: None
         :rtype: None
         """
@@ -912,7 +1056,10 @@ class TestUserServiceUpdateSubscription:
         """Test successful subscription type update.
 
         This test verifies that update_user_subscription correctly
-        updates a user's subscription type.
+        updates the subscription type of a user.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
         subscription = MagicMock()
@@ -941,7 +1088,11 @@ class TestUserServiceUpdateSubscription:
         """Test update_user_subscription when subscription not found.
 
         This test verifies that UserNotFoundError is raised when
-        trying to update a subscription that doesn't exist.
+        trying to update a subscription that does not exist.
+
+        :returns: None
+        :rtype: None
+        :raises UserNotFoundError: When subscription is not found
         """
         user_service = UserService()
         user_service.subscription_repository = MagicMock()
@@ -963,6 +1114,10 @@ class TestUserServiceUpdateSubscription:
 
         This test verifies that UserSubscriptionUpdateError is raised when
         the repository update operation fails.
+
+        :returns: None
+        :rtype: None
+        :raises UserSubscriptionUpdateError: When subscription update fails
         """
         user_service = UserService()
         subscription = MagicMock()
@@ -991,6 +1146,10 @@ class TestUserServiceUpdateSubscription:
 
         This test verifies that UserSubscriptionUpdateError is raised when
         the repository operation raises an unexpected exception.
+
+        :returns: None
+        :rtype: None
+        :raises UserSubscriptionUpdateError: When database error occurs
         """
         user_service = UserService()
         subscription = MagicMock()
@@ -1020,6 +1179,10 @@ class TestUserServiceUpdateSubscription:
 
         This test verifies that UserSubscriptionUpdateError is raised when
         getting the subscription fails with an exception.
+
+        :returns: None
+        :rtype: None
+        :raises UserSubscriptionUpdateError: When database error occurs
         """
         user_service = UserService()
         user_service.subscription_repository = MagicMock()
@@ -1052,6 +1215,9 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that update_user_settings correctly
         updates user settings with all provided fields.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
         settings = MagicMock()
@@ -1092,6 +1258,9 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that update_user_settings correctly
         updates only the provided fields, leaving others unchanged.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
         settings = MagicMock()
@@ -1124,7 +1293,11 @@ class TestUserServiceUpdateSettings:
         """Test update_user_settings when settings not found.
 
         This test verifies that UserNotFoundError is raised when
-        trying to update settings that don't exist.
+        trying to update settings that do not exist.
+
+        :returns: None
+        :rtype: None
+        :raises UserNotFoundError: When settings are not found
         """
         user_service = UserService()
         user_service.settings_repository = MagicMock()
@@ -1146,6 +1319,10 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that UserSettingsUpdateError is raised when
         the repository update operation fails.
+
+        :returns: None
+        :rtype: None
+        :raises UserSettingsUpdateError: When settings update fails
         """
         user_service = UserService()
         settings = MagicMock()
@@ -1171,6 +1348,10 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that UserSettingsUpdateError is raised when
         the repository operation raises an unexpected exception.
+
+        :returns: None
+        :rtype: None
+        :raises UserSettingsUpdateError: When database error occurs
         """
         user_service = UserService()
         settings = MagicMock()
@@ -1198,6 +1379,10 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that UserSettingsUpdateError is raised when
         getting the settings fails with an exception.
+
+        :returns: None
+        :rtype: None
+        :raises UserSettingsUpdateError: When database error occurs
         """
         user_service = UserService()
         user_service.settings_repository = MagicMock()
@@ -1222,6 +1407,9 @@ class TestUserServiceUpdateSettings:
 
         This test verifies that the method works correctly when
         no fields are provided for update (all None).
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
         settings = MagicMock()
@@ -1261,6 +1449,9 @@ class TestUserServiceDeleteUserProfile:
 
         This test verifies that delete_user_profile correctly
         deletes settings, subscription, and user in order.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
 
@@ -1296,10 +1487,13 @@ class TestUserServiceDeleteUserProfile:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_success_missing_settings(self) -> None:
-        """Test successful deletion when settings don't exist.
+        """Test successful deletion when settings do not exist.
 
         This test verifies that delete_user_profile works correctly
         when user settings are not found.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
 
@@ -1335,10 +1529,13 @@ class TestUserServiceDeleteUserProfile:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_success_missing_subscription(self) -> None:
-        """Test successful deletion when subscription doesn't exist.
+        """Test successful deletion when subscription does not exist.
 
         This test verifies that delete_user_profile works correctly
         when user subscription is not found.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
 
@@ -1374,10 +1571,14 @@ class TestUserServiceDeleteUserProfile:
 
     @pytest.mark.asyncio
     async def test_delete_user_profile_user_not_found(self) -> None:
-        """Test delete_user_profile when user doesn't exist.
+        """Test delete_user_profile when user does not exist.
 
         This test verifies that UserDeletionError is raised when
         the user to delete is not found.
+
+        :returns: None
+        :rtype: None
+        :raises UserDeletionError: When user is not found
         """
         user_service = UserService()
 
@@ -1406,6 +1607,10 @@ class TestUserServiceDeleteUserProfile:
 
         This test verifies that UserDeletionError is raised when
         any repository operation raises an unexpected exception.
+
+        :returns: None
+        :rtype: None
+        :raises UserDeletionError: When database error occurs
         """
         user_service = UserService()
 
@@ -1436,6 +1641,9 @@ class TestUserServiceGetAllUsers:
 
         This test verifies that get_all_users skips users with
         incomplete profiles and returns only valid ones.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
 
@@ -1520,6 +1728,9 @@ class TestUserServiceGetAllUsers:
 
         This test verifies that get_all_users returns empty list when
         the repository operation raises an exception.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
         user_service.user_repository = MagicMock()
@@ -1540,6 +1751,9 @@ class TestUserServiceGetAllUsers:
 
         This test verifies that get_all_users skips users where
         profile building fails due to exceptions.
+
+        :returns: None
+        :rtype: None
         """
         user_service = UserService()
 

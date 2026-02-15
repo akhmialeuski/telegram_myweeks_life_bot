@@ -6,7 +6,7 @@ working with models and repositories to handle complex operations.
 
 import threading
 from datetime import UTC, date, datetime, time, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 
@@ -45,6 +45,7 @@ class DatabaseManager:
 
     _instance: Optional["DatabaseManager"] = None
     _lock: threading.Lock = threading.Lock()
+    _initialized: bool = False
 
     def __new__(
         cls,
@@ -251,7 +252,7 @@ class UserService:
 
     async def create_user_profile(
         self,
-        user_info,
+        user_info: Any,  # Usually a telegram.User or mock
         birth_date: date,
         subscription_type: SubscriptionType = SubscriptionType.BASIC,
         notifications: bool = DEFAULT_NOTIFICATIONS_ENABLED,
