@@ -35,3 +35,17 @@ states:
     on_timeout:
       target: idle
       action: send_timeout_message
+
+  settings_notification_schedule:
+    input_type: text
+    validation: validate_notification_schedule
+    timeout_seconds: 300
+    on_valid:
+      target: idle
+      action: update_notification_schedule
+    on_invalid:
+      target: settings_notification_schedule
+      action: send_notification_schedule_validation_error
+    on_timeout:
+      target: idle
+      action: send_timeout_message

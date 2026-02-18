@@ -264,6 +264,7 @@ class UserService:
         timezone: str = DEFAULT_TIMEZONE,
         notification_frequency: NotificationFrequency = DEFAULT_NOTIFICATION_FREQUENCY,
         notifications_month_day: Optional[int] = None,
+        language: str | None = None,
     ) -> Optional[UserProfileDTO]:
         """Create new user with default settings.
 
@@ -286,6 +287,8 @@ class UserService:
         :type notification_frequency: NotificationFrequency
         :param notifications_month_day: Day of month for monthly notifications
         :type notifications_month_day: int
+        :param language: User's preferred language code
+        :type language: str | None
         :returns: Created user object if successful, None otherwise
         :rtype: Optional[UserProfileDTO]
         """
@@ -316,6 +319,7 @@ class UserService:
                 timezone=timezone,
                 notification_frequency=notification_frequency,
                 notifications_month_day=notifications_month_day,
+                language=language,
                 updated_at=datetime.now(UTC),
             )
 

@@ -114,8 +114,8 @@ msgstr "⏰ Изменить ожидаемую продолжительност
 
 #: dynamic key: weeks.statistics
 msgctxt "weeks.statistics"
-msgid "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
-msgstr "📊 <b>Ваша статистика жизни:</b>\n\n🎂 <b>Возраст:</b> %(age)s лет\n📅 <b>Прожито недель:</b> %(weeks_lived)s\n⏳ <b>Осталось недель (до 80 лет):</b> %(remaining_weeks)s\n📈 <b>Прогресс жизни:</b> %(life_percentage)s\n🎉 <b>Дней до дня рождения:</b> %(days_until_birthday)s\n\n💡 Используйте /visualize для визуализации ваших недель"
+msgid "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until %(life_expectancy)s years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
+msgstr "📊 <b>Ваша статистика жизни:</b>\n\n🎂 <b>Возраст:</b> %(age)s лет\n📅 <b>Прожито недель:</b> %(weeks_lived)s\n⏳ <b>Осталось недель (до %(life_expectancy)s лет):</b> %(remaining_weeks)s\n📈 <b>Прогресс жизни:</b> %(life_percentage)s\n🎉 <b>Дней до дня рождения:</b> %(days_until_birthday)s\n\n💡 Используйте /visualize для визуализации ваших недель"
 
 #: dynamic key: visualize.info
 msgctxt "visualize.info"
@@ -200,3 +200,58 @@ msgstr "❌ Неверная продолжительность жизни.\nП�
 msgctxt "settings.change_language"
 msgid "🌍 Select your preferred language"
 msgstr "🌍 Выберите предпочитаемый язык"
+
+#: dynamic key: buttons.change_notification_schedule
+msgctxt "buttons.change_notification_schedule"
+msgid "🔔 Change reminder schedule"
+msgstr "🔔 Изменить расписание напоминаний"
+
+#: dynamic key: settings.notification_schedule.premium_only
+msgctxt "settings.notification_schedule.premium_only"
+msgid "🔒 This setting is available only for Premium subscription."
+msgstr "🔒 Эта настройка доступна только для Премиум подписки."
+
+#: dynamic key: settings.notification_schedule.prompt
+msgctxt "settings.notification_schedule.prompt"
+msgid "🔔 <b>Change reminder schedule</b>\n\nSend one of the formats:\n• <code>daily HH:MM</code>\n• <code>weekly monday HH:MM</code>\n• <code>monthly 15 HH:MM</code>"
+msgstr "🔔 <b>Изменить расписание напоминаний</b>\n\nОтправьте в одном из форматов:\n• <code>daily ЧЧ:ММ</code>\n• <code>weekly monday ЧЧ:ММ</code>\n• <code>monthly 15 ЧЧ:ММ</code>"
+
+#: dynamic key: settings.notification_schedule.invalid
+msgctxt "settings.notification_schedule.invalid"
+msgid "❌ Invalid format. Use: daily HH:MM, weekly monday HH:MM, monthly 15 HH:MM."
+msgstr "❌ Неверный формат. Используйте: daily ЧЧ:ММ, weekly monday ЧЧ:ММ, monthly 15 ЧЧ:ММ."
+
+#: dynamic key: settings.notification_schedule.updated
+msgctxt "settings.notification_schedule.updated"
+msgid "✅ Reminder schedule updated successfully."
+msgstr "✅ Расписание напоминаний успешно обновлено."
+
+#: dynamic key: settings.error
+msgctxt "settings.error"
+msgid "❌ An error occurred while updating settings.\nPlease try again later."
+msgstr "❌ Произошла ошибка при обновлении настроек.\nПожалуйста, попробуйте позже."
+
+#: dynamic key: notifications.daily
+msgctxt "notifications.daily"
+msgid "📉 Your daily life statistics"
+msgstr "📉 Ваша ежедневная статистика жизни"
+
+#: dynamic key: notifications.weekly
+msgctxt "notifications.weekly"
+msgid "📊 Your weekly life statistics"
+msgstr "📊 Ваша еженедельная статистика жизни"
+
+#: dynamic key: notifications.monthly
+msgctxt "notifications.monthly"
+msgid "📊 Your monthly life statistics"
+msgstr "📊 Ваша ежемесячная статистика жизни"
+
+#: dynamic key: notifications.milestone
+msgctxt "notifications.milestone"
+msgid "🎉 Milestone reached!"
+msgstr "🎉 Достигнута важная отметка!"
+
+#: dynamic key: notifications.milestone_body
+msgctxt "notifications.milestone_body"
+msgid "Congratulations! You've reached a milestone: %(milestone_type)s = %(milestone_value)s"
+msgstr "Поздравляем! Вы достигли важной отметки: %(milestone_type)s = %(milestone_value)s"

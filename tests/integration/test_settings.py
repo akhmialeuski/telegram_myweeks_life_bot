@@ -100,6 +100,16 @@ class TestSettingsDispatcher:
         assert "English" in reply_text  # Default lang name
         assert "80 years" in reply_text  # Default expectancy
 
+        # Schedule button must NOT be shown for basic users
+        reply_markup = mock_update.message.reply_text.call_args.kwargs.get(
+            "reply_markup"
+        )
+        assert reply_markup is not None
+        all_button_texts = [
+            btn.text for row in reply_markup.inline_keyboard for btn in row
+        ]
+        assert not any("reminder schedule" in t.lower() for t in all_button_texts)
+
     async def test_settings_menu_premium_user_display(
         self,
         test_service_container: ServiceContainer,
@@ -150,6 +160,20 @@ class TestSettingsDispatcher:
         # --- ASSERT ---
         reply_text = get_reply_text(mock_message=mock_update.message)
         assert "Premium Subscription" in reply_text
+
+        # Schedule button must be shown for premium users, without "Premium" text
+        reply_markup = mock_update.message.reply_text.call_args.kwargs.get(
+            "reply_markup"
+        )
+        assert reply_markup is not None
+        all_button_texts = [
+            btn.text for row in reply_markup.inline_keyboard for btn in row
+        ]
+        schedule_buttons = [
+            t for t in all_button_texts if "reminder schedule" in t.lower()
+        ]
+        assert len(schedule_buttons) == 1
+        assert "Premium" not in schedule_buttons[0]
 
 
 @pytest.mark.integration

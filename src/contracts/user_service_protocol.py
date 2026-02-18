@@ -49,6 +49,7 @@ class UserServiceProtocol(Protocol):
         notifications_time: time | None = None,
         life_expectancy: int = 80,
         timezone: str = "UTC",
+        language: str | None = None,
     ) -> Coroutine[Any, Any, "UserProfileDTO | None"]:
         """Create new user with default settings.
 
@@ -68,6 +69,8 @@ class UserServiceProtocol(Protocol):
         :type life_expectancy: int
         :param timezone: User's timezone
         :type timezone: str
+        :param language: User's preferred language code
+        :type language: str | None
         :returns: Created user DTO if successful, None otherwise
         :rtype: Coroutine[Any, Any, UserProfileDTO | None]
         """

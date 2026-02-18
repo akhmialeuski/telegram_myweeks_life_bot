@@ -45,6 +45,7 @@ class TestNotificationService:
         stats_mock.remaining_weeks = 2600
         stats_mock.total_weeks_expected = 4160
         stats_mock.percentage_lived = 0.375
+        stats_mock.days_until_birthday = 120
 
         with patch(
             "src.services.notification_service.calculate_life_statistics",
@@ -103,6 +104,7 @@ class TestNotificationService:
         mock_user = MagicMock()
         mock_user.birth_date = date(1990, 1, 1)
         mock_user.settings.language = "en"
+        mock_user.settings.life_expectancy = 80
         mock_user_service.get_user_profile.return_value = mock_user
 
         # Test weekly summary
@@ -137,6 +139,7 @@ class TestNotificationService:
         mock_user = MagicMock()
         mock_user.birth_date = date(1990, 1, 1)
         mock_user.settings.language = "en"
+        mock_user.settings.life_expectancy = 80
         mock_user_service.get_user_profile.return_value = mock_user
 
         # Test daily summary

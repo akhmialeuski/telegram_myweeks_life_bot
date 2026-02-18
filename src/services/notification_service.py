@@ -7,10 +7,13 @@ mechanism (Telegram, email, etc.).
 
 from datetime import date
 
+from babel.numbers import format_decimal, format_percent
+
+from ..constants import DEFAULT_LIFE_EXPECTANCY
 from ..contracts.user_service_protocol import UserServiceProtocol
 from ..core.life_calculator import calculate_life_statistics
 from ..events.domain_events import NotificationPayload
-from ..i18n import use_locale
+from ..i18n import normalize_babel_locale, use_locale
 from ..utils.config import BOT_NAME, DEFAULT_LANGUAGE
 from ..utils.logger import get_logger
 
@@ -84,13 +87,15 @@ class NotificationService:
             )
 
             # Calculate life statistics
+            life_expectancy = user.settings.life_expectancy or DEFAULT_LIFE_EXPECTANCY
             stats = calculate_life_statistics(
                 birth_date=user.settings.birth_date,
-                life_expectancy=user.settings.life_expectancy or 80,
+                life_expectancy=life_expectancy,
             )
 
             # Generate localized message
             _, _, pgettext = use_locale(user_lang)
+            babel_locale = normalize_babel_locale(user_lang)
 
             # Determine title based on message type
             if message_type == MESSAGE_TYPE_DAILY_SUMMARY:
@@ -104,27 +109,39 @@ class NotificationService:
                     "notifications.weekly", "📊 Your weekly life statistics"
                 )
 
+            # Use the same pgettext context + msgid as /weeks handler
+            # so .po translations are resolved correctly
             body = pgettext(
                 "weeks.statistics",
-                "📊 Your Life Statistics:\n\n"
-                "🎂 Birth Date: %(birth_date)s\n"
-                "📅 Age: %(age)s years\n"
-                "📈 Life Expectancy: %(life_expectancy)s years\n"
-                "🟩 Lived Weeks: %(lived_weeks)s\n"
-                "⬜ Remaining Weeks: %(remaining_weeks)s\n"
-                "📊 Total Life Weeks: %(total_weeks)s\n"
-                "🎯 Progress: %(progress_percent)s%%",
+                "📊 <b>Your life statistics:</b>\n\n"
+                "🎂 <b>Age:</b> %(age)s years\n"
+                "📅 <b>Weeks lived:</b> %(weeks_lived)s\n"
+                "⏳ <b>Remaining weeks (until %(life_expectancy)s years):"
+                "</b> %(remaining_weeks)s\n"
+                "📈 <b>Life progress:</b> %(life_percentage)s\n"
+                "🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n"
+                "💡 Use /visualize to visualize your life weeks",
             ) % {
-                "birth_date": self._format_date(
-                    birth_date=user.settings.birth_date,
-                    language=user_lang,
+                "age": format_decimal(stats.age, locale=babel_locale),
+                "weeks_lived": format_decimal(
+                    stats.total_weeks_lived,
+                    locale=babel_locale,
+                    format="#,##0",
                 ),
-                "age": stats.age,
-                "life_expectancy": stats.life_expectancy,
-                "lived_weeks": stats.total_weeks_lived,
-                "remaining_weeks": stats.remaining_weeks,
-                "total_weeks": stats.total_weeks_expected,
-                "progress_percent": int(stats.percentage_lived * 100),
+                "life_expectancy": format_decimal(life_expectancy, locale=babel_locale),
+                "remaining_weeks": format_decimal(
+                    stats.remaining_weeks,
+                    locale=babel_locale,
+                    format="#,##0",
+                ),
+                "life_percentage": format_percent(
+                    stats.percentage_lived,
+                    locale=babel_locale,
+                    format="#0.1%",
+                ),
+                "days_until_birthday": format_decimal(
+                    stats.days_until_birthday, locale=babel_locale
+                ),
             }
 
             return NotificationPayload(

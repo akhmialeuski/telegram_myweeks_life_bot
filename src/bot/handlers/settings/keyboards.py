@@ -1,8 +1,20 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_settings_keyboard(pgettext) -> InlineKeyboardMarkup:
-    """Get the main settings keyboard."""
+def get_settings_keyboard(
+    pgettext, *, is_premium: bool = False
+) -> InlineKeyboardMarkup:
+    """Get the main settings keyboard.
+
+    Builds the inline keyboard for the /settings menu. The notification
+    schedule button is only shown to premium/trial subscribers.
+
+    :param pgettext: Localized pgettext translation function
+    :param is_premium: Whether the user has an active premium subscription
+    :type is_premium: bool
+    :returns: Inline keyboard markup for the settings menu
+    :rtype: InlineKeyboardMarkup
+    """
     keyboard = [
         [
             InlineKeyboardButton(
@@ -25,16 +37,21 @@ def get_settings_keyboard(pgettext) -> InlineKeyboardMarkup:
                 callback_data="settings_life_expectancy",
             )
         ],
-        [
-            InlineKeyboardButton(
-                text=pgettext(
-                    "buttons.change_notification_schedule",
-                    "🔔 Change reminder schedule (Premium)",
-                ),
-                callback_data="settings_notification_schedule",
-            )
-        ],
     ]
+
+    if is_premium:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=pgettext(
+                        "buttons.change_notification_schedule",
+                        "🔔 Change reminder schedule",
+                    ),
+                    callback_data="settings_notification_schedule",
+                )
+            ]
+        )
+
     return InlineKeyboardMarkup(keyboard)
 
 

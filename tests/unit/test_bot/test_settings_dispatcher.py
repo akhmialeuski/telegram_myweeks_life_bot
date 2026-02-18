@@ -51,6 +51,9 @@ class TestSettingsDispatcher:
     ) -> None:
         """Test that handle method shows settings menu for basic user.
 
+        Verifies that `get_settings_keyboard` is called with
+        `is_premium=False` so the schedule button is not shown.
+
         :param handler: SettingsDispatcher instance
         :type handler: SettingsDispatcher
         :param mock_update: Mocked update
@@ -83,8 +86,9 @@ class TestSettingsDispatcher:
 
             with patch.object(
                 handler, "send_message", new_callable=AsyncMock
-            ) as mock_send_message:
-                # Call _handle_settings directly to avoid registration decorator complexity
+            ) as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ) as mock_keyboard:
                 await handler._handle_settings(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
@@ -92,6 +96,11 @@ class TestSettingsDispatcher:
 
             assert "pgettext_settings.basic" in args["message_text"]
             assert args["reply_markup"] is not None
+
+            # Verify keyboard called with is_premium=False
+            mock_keyboard.assert_called_once()
+            kb_kwargs = mock_keyboard.call_args.kwargs
+            assert kb_kwargs["is_premium"] is False
 
     @pytest.mark.asyncio
     async def test_handle_shows_menu_premium(
@@ -101,6 +110,9 @@ class TestSettingsDispatcher:
         mock_context: MagicMock,
     ) -> None:
         """Test that handle method shows settings menu for premium user.
+
+        Verifies that `get_settings_keyboard` is called with
+        `is_premium=True` so the schedule button is included.
 
         :param handler: SettingsDispatcher instance
         :type handler: SettingsDispatcher
@@ -134,8 +146,9 @@ class TestSettingsDispatcher:
 
             with patch.object(
                 handler, "send_message", new_callable=AsyncMock
-            ) as mock_send_message:
-                # Call _handle_settings directly to avoid registration decorator complexity
+            ) as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ) as mock_keyboard:
                 await handler._handle_settings(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
@@ -143,7 +156,10 @@ class TestSettingsDispatcher:
 
             assert "pgettext_settings.premium" in args["message_text"]
 
-            assert "pgettext_settings.premium" in args["message_text"]
+            # Verify keyboard called with is_premium=True
+            mock_keyboard.assert_called_once()
+            kb_kwargs = mock_keyboard.call_args.kwargs
+            assert kb_kwargs["is_premium"] is True
 
     @pytest.mark.asyncio
     async def test_handle_wrapper_call(
