@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.bot.event_listeners import handle_user_settings_changed
-from src.enums import WeekDay
+from src.enums import NotificationFrequency, WeekDay
 from src.events.domain_events import UserSettingsChangedEvent
 from src.services.container import ServiceContainer
 
@@ -24,12 +24,21 @@ class TestEventListenerSchedulerIntegration:
         self,
         test_service_container: ServiceContainer,
     ) -> None:
-        """Ensure scheduler trigger uses user's persisted day/time/timezone.
+        """TC-HP-0: Event listener uses persisted weekly schedule (base test).
 
-        This test verifies that when a `UserSettingsChangedEvent` occurs, the
-        event listener fetches the complete user profile (including settings)
-        and uses those specific settings to reschedule the notification job,
-        rather than using default values.
+        Preconditions:
+            - User registered with settings: day=WEDNESDAY, time=14:30, timezone=Europe/Warsaw
+
+        Test Steps:
+            1. Create UserSettingsChangedEvent with setting_name="notifications_time"
+            2. Call handle_user_settings_changed(event)
+               Expected: Scheduler client reschedule_job called
+
+        Post-conditions:
+            - schedule_job called with job_type="weekly_summary"
+            - trigger.day_of_week == 2 (Wednesday)
+            - trigger.hour == 14, trigger.minute == 30
+            - trigger.timezone == "Europe/Warsaw"
 
         :param test_service_container: The service container fixture.
         :type test_service_container: ServiceContainer
@@ -93,7 +102,18 @@ class TestEventListenerSchedulerIntegration:
         self,
         test_service_container: ServiceContainer,
     ) -> None:
-        """Ensure job_type changes when frequency changes to monthly.
+        """TC-HP-4M: Event listener reschedules for monthly frequency.
+
+        Preconditions:
+            - User registered with notification_frequency=MONTHLY
+
+        Test Steps:
+            1. Create UserSettingsChangedEvent with setting_name="notification_frequency"
+            2. Call handle_user_settings_changed(event)
+               Expected: Scheduler reschedule called
+
+        Post-conditions:
+            - schedule_job called with job_type="monthly_summary"
 
         :param test_service_container: The service container fixture.
         :type test_service_container: ServiceContainer
@@ -102,7 +122,6 @@ class TestEventListenerSchedulerIntegration:
         # Arrange
         user_service = test_service_container.user_service
         telegram_id = 401030179
-        from src.enums import NotificationFrequency
 
         mock_user = MagicMock()
         mock_user.id = telegram_id
@@ -140,3 +159,69 @@ class TestEventListenerSchedulerIntegration:
         scheduler_client.schedule_job.assert_awaited_once()
         call_kwargs = scheduler_client.schedule_job.call_args.kwargs
         assert call_kwargs["job_type"] == "monthly_summary"
+
+    async def test_user_settings_change_to_daily_updates_job_type(
+        self,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-4D: Event listener reschedules for daily frequency.
+
+        Preconditions:
+            - User registered with notification_frequency=DAILY, time=10:00
+
+        Test Steps:
+            1. Create UserSettingsChangedEvent with setting_name="notification_frequency"
+            2. Call handle_user_settings_changed(event)
+               Expected: Scheduler reschedule called
+
+        Post-conditions:
+            - schedule_job called with job_type="daily_summary"
+            - trigger.day_of_week == "*"
+            - trigger.hour == 10, trigger.minute == 0
+
+        :param test_service_container: The service container fixture.
+        :type test_service_container: ServiceContainer
+        :return: None
+        """
+        user_service = test_service_container.user_service
+        telegram_id = 401030180
+
+        mock_user = MagicMock()
+        mock_user.id = telegram_id
+        mock_user.username = "daily_test"
+        mock_user.first_name = "Daily"
+        mock_user.last_name = "Test"
+
+        await user_service.create_user_profile(
+            user_info=mock_user,
+            birth_date=date(year=1991, month=2, day=3),
+            notifications=True,
+            notification_frequency=NotificationFrequency.DAILY,
+            notifications_time=time(hour=10, minute=0),
+        )
+
+        scheduler_client = AsyncMock()
+        scheduler_client.schedule_job.return_value = True
+
+        container_for_listener = MagicMock()
+        container_for_listener.get_scheduler_client.return_value = scheduler_client
+        container_for_listener.get_user_service.return_value = user_service
+
+        event = UserSettingsChangedEvent(
+            user_id=telegram_id,
+            setting_name="notification_frequency",
+        )
+
+        with patch(
+            target="src.bot.event_listeners.ServiceContainer",
+            return_value=container_for_listener,
+        ):
+            await handle_user_settings_changed(event=event)
+
+        scheduler_client.schedule_job.assert_awaited_once()
+        call_kwargs = scheduler_client.schedule_job.call_args.kwargs
+        assert call_kwargs["job_type"] == "daily_summary"
+        trigger = call_kwargs["trigger"]
+        assert trigger.day_of_week == "*"
+        assert trigger.hour == 10
+        assert trigger.minute == 0

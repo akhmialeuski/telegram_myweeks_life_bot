@@ -4,8 +4,9 @@ Tests the SchedulerWorker class for process lifecycle, command handling,
 and integration with the underlying scheduler adapter.
 """
 
+import asyncio
 import signal
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -385,33 +386,62 @@ class TestSchedulerWorker:
                 await worker._main_loop()
 
     def test_run_success(self, worker):
-        """Test worker.run method success path."""
+        """Test worker.run method success path.
+
+        Uses real async function and run_until_complete so the coroutine
+        is properly awaited (avoids RuntimeWarning from unawaited AsyncMock).
+        """
+        run_until_complete_calls: list = []
+
+        async def mock_main_loop() -> None:
+            worker._running = False
+
+        def run_until_complete_impl(coro):
+            run_until_complete_calls.append(coro)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(coro)
+            finally:
+                loop.close()
 
         with patch("src.scheduler.worker.signal.signal"), patch(
             "src.scheduler.worker.asyncio"
-        ) as mock_asyncio, patch.object(worker, "_main_loop", new_callable=AsyncMock):
+        ) as mock_asyncio, patch.object(worker, "_main_loop", mock_main_loop):
 
             mock_loop = MagicMock()
             mock_asyncio.new_event_loop.return_value = mock_loop
+            mock_loop.run_until_complete = run_until_complete_impl
 
             worker.run()
 
             mock_asyncio.new_event_loop.assert_called_once()
-            # Use ANY because coroutine objects differ
-            mock_loop.run_until_complete.assert_called_once_with(ANY)
-            # Cleanup is called in finally block
+            assert len(run_until_complete_calls) == 1
             assert worker._running is False
 
     def test_run_exception(self, worker):
-        """Test worker.run method with exception."""
+        """Test worker.run method with exception.
+
+        Uses real async function instead of AsyncMock so the coroutine
+        is properly awaited by run_until_complete (avoids RuntimeWarning).
+        """
+
+        async def main_loop_raises() -> None:
+            raise Exception("Run error")
+
+        def run_until_complete_impl(coro):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(coro)
+            finally:
+                loop.close()
 
         with patch("src.scheduler.worker.signal.signal"), patch(
             "src.scheduler.worker.asyncio"
-        ) as mock_asyncio, patch.object(worker, "_main_loop", new_callable=AsyncMock):
+        ) as mock_asyncio, patch.object(worker, "_main_loop", main_loop_raises):
 
             mock_loop = MagicMock()
             mock_asyncio.new_event_loop.return_value = mock_loop
-            mock_loop.run_until_complete.side_effect = Exception("Run error")
+            mock_loop.run_until_complete = run_until_complete_impl
 
             with patch("src.scheduler.worker.logger") as mock_logger:
                 worker.run()

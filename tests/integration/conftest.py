@@ -18,7 +18,7 @@ from telegram import Chat, Message, Update, User
 
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
 from src.database.service import DatabaseManager
-from src.enums import SupportedLanguage
+from src.enums import SubscriptionType, SupportedLanguage
 from src.services.container import ServiceContainer
 
 # =============================================================================
@@ -253,6 +253,74 @@ def get_reply_markup(mock_message: MagicMock) -> Any | None:
         if call_args and call_args.kwargs.get("reply_markup"):
             return call_args.kwargs["reply_markup"]
     return None
+
+
+# =============================================================================
+# User Setup Helpers (for settings tests)
+# =============================================================================
+
+
+async def make_registered_user(
+    container: ServiceContainer,
+    user_info: Any,
+    birth_date: date | None = None,
+) -> None:
+    """Create a registered user with basic subscription.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param user_info: Mock or real Telegram User object (must have .id)
+    :type user_info: Any
+    :param birth_date: Birth date for the user (default: 1990-01-01)
+    :type birth_date: date | None
+    :returns: None
+    :rtype: None
+    """
+    await container.user_service.create_user_profile(
+        user_info=user_info,
+        birth_date=birth_date or date(1990, 1, 1),
+    )
+
+
+async def make_premium_user(
+    container: ServiceContainer,
+    user_info: Any,
+    birth_date: date | None = None,
+    telegram_id: int | None = None,
+) -> None:
+    """Create a registered user with Premium subscription.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param user_info: Mock or real Telegram User object (must have .id)
+    :type user_info: Any
+    :param birth_date: Birth date for the user (default: 1990-01-01)
+    :type birth_date: date | None
+    :param telegram_id: Telegram ID to upgrade (default: user_info.id)
+    :type telegram_id: int | None
+    :returns: None
+    :rtype: None
+    """
+    await make_registered_user(container, user_info, birth_date)
+    tid = telegram_id if telegram_id is not None else user_info.id
+    await container.user_service.update_user_subscription(
+        telegram_id=tid,
+        subscription_type=SubscriptionType.PREMIUM,
+    )
+
+
+def setup_notification_schedule_callback(mock_update: MagicMock) -> None:
+    """Configure mock_update for notification schedule callback flow.
+
+    :param mock_update: Mock Telegram Update object
+    :type mock_update: MagicMock
+    :returns: None
+    :rtype: None
+    """
+    mock_update.callback_query = MagicMock()
+    mock_update.callback_query.data = "settings_notification_schedule"
+    mock_update.callback_query.edit_message_text = AsyncMock()
+    mock_update.callback_query.answer = AsyncMock()
 
 
 async def create_user_with_invalid_enum_value(

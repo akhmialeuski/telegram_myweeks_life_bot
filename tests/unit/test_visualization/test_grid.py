@@ -173,7 +173,7 @@ class TestGenerateVisualization:
         assert isinstance(result, BytesIO)
 
         # Verify user service was called with correct telegram_id
-        mock_user_service.get_user_profile.assert_called_once_with(telegram_id=12345)
+        mock_user_service.get_user_profile.assert_awaited_once_with(telegram_id=12345)
 
         # Verify calculator was created and called
         mock_calculator.assert_called_once_with(
@@ -253,7 +253,7 @@ class TestGenerateVisualization:
         assert isinstance(result, BytesIO)
 
         # Verify user service was called with correct telegram_id
-        mock_user_service.get_user_profile.assert_called_once_with(telegram_id=67890)
+        mock_user_service.get_user_profile.assert_awaited_once_with(telegram_id=67890)
 
     @pytest.mark.asyncio
     @patch("src.visualization.grid.user_service")
@@ -318,7 +318,7 @@ class TestGenerateVisualization:
         assert isinstance(result, BytesIO)
 
         # Verify user service was called with correct telegram_id
-        mock_user_service.get_user_profile.assert_called_once_with(telegram_id=11111)
+        mock_user_service.get_user_profile.assert_awaited_once_with(telegram_id=11111)
 
     @pytest.mark.asyncio
     async def test_generate_visualization_with_unsupported_type(self) -> None:

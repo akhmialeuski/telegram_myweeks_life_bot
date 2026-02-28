@@ -45,6 +45,57 @@ class TestSchedulerJobs:
             mock_gateway.send_notification.assert_called_once_with("payload")
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("message_type", ["daily_summary", "monthly_summary"])
+    async def test_execute_notification_job_sends_summary_by_type(
+        self, message_type: str
+    ) -> None:
+        """TC-FULL-1/2: execute_notification_job sends daily_summary or monthly_summary.
+
+        Preconditions:
+            - Mocks for generate_summary and send_notification configured
+            - ServiceContainer returns mocked services
+
+        Test Steps:
+            1. Call execute_notification_job(user_id=123, message_type=message_type)
+               Expected: Job executes without exception
+
+        Post-conditions:
+            - generate_summary called with message_type=message_type
+            - send_notification called with generated payload
+
+        :param message_type: Message type to test (daily_summary or monthly_summary)
+        :type message_type: str
+        :returns: None
+        :rtype: None
+        """
+        user_id = 123
+
+        with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
+            mock_notification_service = MagicMock()
+            mock_notification_service.generate_summary = AsyncMock(
+                return_value="payload"
+            )
+
+            mock_gateway = MagicMock()
+            mock_gateway.send_notification = AsyncMock(
+                return_value=MagicMock(success=True)
+            )
+
+            mock_container.return_value.get_notification_service.return_value = (
+                mock_notification_service
+            )
+            mock_container.return_value.get_notification_gateway.return_value = (
+                mock_gateway
+            )
+
+            await execute_notification_job(user_id=user_id, message_type=message_type)
+
+            mock_notification_service.generate_summary.assert_called_once_with(
+                user_id=user_id, message_type=message_type
+            )
+            mock_gateway.send_notification.assert_called_once_with("payload")
+
+    @pytest.mark.asyncio
     async def test_execute_notification_job_no_payload(self):
         """Test notification job when no payload is generated."""
         user_id = 123

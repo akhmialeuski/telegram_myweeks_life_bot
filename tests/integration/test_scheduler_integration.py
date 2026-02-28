@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.bot.application import LifeWeeksBot
-from src.enums import SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 from src.services.container import ServiceContainer
 
 
@@ -113,3 +113,130 @@ class TestSchedulerJobRestoration:
         assert trigger.day_of_week == 0, "Day of week should be Monday (0)"
         assert trigger.hour == 9, "Hour should be 9"
         assert trigger.minute == 0, "Minute should be 0"
+
+    async def test_bot_restores_daily_job_on_startup(
+        self,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-5: Bot restores daily job on startup.
+
+        Preconditions:
+            - User in DB with notification_frequency=DAILY, time=09:00, notifications=True
+
+        Test Steps:
+            1. Initialize bot with test container
+            2. Mock scheduler client
+            3. Call _restore_scheduled_jobs()
+               Expected: Scheduler schedule_job called
+
+        Post-conditions:
+            - schedule_job called with job_type="daily_summary"
+            - trigger.day_of_week == "*"
+            - trigger.hour == 9, trigger.minute == 0
+
+        :param test_service_container: ServiceContainer with test database
+        :type test_service_container: ServiceContainer
+        :returns: None
+        """
+        user_service = test_service_container.user_service
+        telegram_id = 123457
+
+        mock_user = MagicMock()
+        mock_user.id = telegram_id
+        mock_user.username = "test_daily"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "Daily"
+
+        await user_service.create_user_profile(
+            user_info=mock_user,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
+            notifications=True,
+            notification_frequency=NotificationFrequency.DAILY,
+            notifications_time=time(9, 0),
+            life_expectancy=80,
+            timezone="UTC",
+        )
+
+        bot = LifeWeeksBot(services=test_service_container)
+        mock_scheduler_client = AsyncMock()
+        bot._scheduler_client = mock_scheduler_client
+
+        await bot._restore_scheduled_jobs()
+
+        mock_scheduler_client.schedule_job.assert_awaited_once()
+        call_args = mock_scheduler_client.schedule_job.call_args
+        assert call_args is not None
+        _, kwargs = call_args
+
+        assert kwargs["user_id"] == telegram_id
+        assert kwargs["job_id"] == f"notification_{telegram_id}"
+        assert kwargs["job_type"] == "daily_summary"
+        trigger = kwargs["trigger"]
+        assert trigger.day_of_week == "*"
+        assert trigger.hour == 9
+        assert trigger.minute == 0
+
+    async def test_bot_restores_monthly_job_on_startup(
+        self,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-6: Bot restores monthly job on startup.
+
+        Preconditions:
+            - User in DB with notification_frequency=MONTHLY, month_day=15, time=12:00
+
+        Test Steps:
+            1. Initialize bot with test container
+            2. Mock scheduler client
+            3. Call _restore_scheduled_jobs()
+               Expected: Scheduler schedule_job called
+
+        Post-conditions:
+            - schedule_job called with job_type="monthly_summary"
+            - trigger.day_of_month == 15
+            - trigger.hour == 12, trigger.minute == 0
+
+        :param test_service_container: ServiceContainer with test database
+        :type test_service_container: ServiceContainer
+        :returns: None
+        """
+        user_service = test_service_container.user_service
+        telegram_id = 123458
+
+        mock_user = MagicMock()
+        mock_user.id = telegram_id
+        mock_user.username = "test_monthly"
+        mock_user.first_name = "Test"
+        mock_user.last_name = "Monthly"
+
+        await user_service.create_user_profile(
+            user_info=mock_user,
+            birth_date=date(1990, 1, 1),
+            subscription_type=SubscriptionType.BASIC,
+            notifications=True,
+            notification_frequency=NotificationFrequency.MONTHLY,
+            notifications_month_day=15,
+            notifications_time=time(12, 0),
+            life_expectancy=80,
+            timezone="UTC",
+        )
+
+        bot = LifeWeeksBot(services=test_service_container)
+        mock_scheduler_client = AsyncMock()
+        bot._scheduler_client = mock_scheduler_client
+
+        await bot._restore_scheduled_jobs()
+
+        mock_scheduler_client.schedule_job.assert_awaited_once()
+        call_args = mock_scheduler_client.schedule_job.call_args
+        assert call_args is not None
+        _, kwargs = call_args
+
+        assert kwargs["user_id"] == telegram_id
+        assert kwargs["job_id"] == f"notification_{telegram_id}"
+        assert kwargs["job_type"] == "monthly_summary"
+        trigger = kwargs["trigger"]
+        assert trigger.day_of_month == 15
+        assert trigger.hour == 12
+        assert trigger.minute == 0

@@ -3,7 +3,7 @@
 Tests the SettingsDispatcher class which handles the main settings menu.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -79,13 +79,18 @@ class TestSettingsDispatcher:
             user_profile=mock_profile,
         )
 
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
         with patch.object(
-            handler, "_extract_command_context", new_callable=AsyncMock
-        ) as mock_extract:
-            mock_extract.return_value = mock_cmd_context
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+
+            async def mock_send_fn(*args, **kwargs):
+                return None
 
             with patch.object(
-                handler, "send_message", new_callable=AsyncMock
+                handler, "send_message", side_effect=mock_send_fn
             ) as mock_send_message, patch(
                 "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
             ) as mock_keyboard:
@@ -139,13 +144,18 @@ class TestSettingsDispatcher:
             user_profile=mock_profile,
         )
 
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
         with patch.object(
-            handler, "_extract_command_context", new_callable=AsyncMock
-        ) as mock_extract:
-            mock_extract.return_value = mock_cmd_context
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+
+            async def mock_send_fn(*args, **kwargs):
+                return None
 
             with patch.object(
-                handler, "send_message", new_callable=AsyncMock
+                handler, "send_message", side_effect=mock_send_fn
             ) as mock_send_message, patch(
                 "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
             ) as mock_keyboard:
@@ -178,8 +188,12 @@ class TestSettingsDispatcher:
         :type mock_context: MagicMock
         :returns: None
         """
+
         # Mock _wrap_with_registration to verify it's called
-        wrapper_mock = AsyncMock()
+        async def mock_wrapper_fn(*args, **kwargs):
+            pass
+
+        wrapper_mock = MagicMock(side_effect=mock_wrapper_fn)
         mock_wrap = MagicMock(return_value=wrapper_mock)
 
         with patch.object(handler, "_wrap_with_registration", mock_wrap):
@@ -221,12 +235,14 @@ class TestSettingsDispatcher:
             mock_profile.subscription.subscription_type = SubscriptionType.BASIC
             mock_profile.settings.language = "en"
 
+            async def mock_get_profile_fn(*args, **kwargs):
+                return mock_profile
+
             with patch.object(
                 handler.services.user_service,
                 "get_user_profile",
-                new_callable=AsyncMock,
-            ) as mock_get_profile:
-                mock_get_profile.return_value = mock_profile
+                side_effect=mock_get_profile_fn,
+            ):
 
                 with patch.object(handler, "send_error_message") as mock_send_error:
                     await handler.handle(mock_update, mock_context)

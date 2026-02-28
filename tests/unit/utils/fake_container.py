@@ -66,12 +66,11 @@ class FakeServiceContainer:
         self.user_service.get_user_profile = AsyncMock(return_value=MagicMock())
         self.user_service.create_user_profile = AsyncMock(return_value=MagicMock())
         self.user_service.update_user_settings = AsyncMock(return_value=None)
-
-        # Set up event bus mock behaviors
-        self.event_bus.publish = AsyncMock(return_value=None)
         self.user_service.update_user_subscription = AsyncMock(return_value=None)
         self.user_service.delete_user_profile = AsyncMock(return_value=None)
         self.user_service.get_all_users = AsyncMock(return_value=[])
+
+        self.event_bus.publish = AsyncMock(return_value=None)
 
         # Set up localization service mock behaviors
         self.localization_service.translate = MagicMock(
