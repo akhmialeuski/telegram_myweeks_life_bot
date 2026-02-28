@@ -60,6 +60,18 @@ handlers:
     waiting_states:
       - settings_notification_schedule
 
+  - module: src.bot.handlers.settings.timezone_handler
+    class: TimezoneHandler
+    command: settings_timezone
+    callbacks:
+      - method: handle_callback
+        pattern: settings_timezone
+      - method: handle_selection_callback
+        pattern: timezone_.*
+    text_input: handle_input
+    waiting_states:
+      - settings_timezone
+
   - module: src.bot.handlers.visualize_handler
     class: VisualizeHandler
     command: visualize

@@ -37,6 +37,12 @@ def get_settings_keyboard(
                 callback_data="settings_life_expectancy",
             )
         ],
+        [
+            InlineKeyboardButton(
+                text=pgettext("buttons.change_timezone", "🌍 Change timezone"),
+                callback_data="settings_timezone",
+            )
+        ],
     ]
 
     if is_premium:
@@ -61,6 +67,35 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="language_ru")],
         [InlineKeyboardButton("🇺🇸 English", callback_data="language_en")],
         [InlineKeyboardButton("🇺🇦 Українська", callback_data="language_ua")],
+        [InlineKeyboardButton("🇺🇦 Українська", callback_data="language_ua")],
         [InlineKeyboardButton("🇧🇾 Беларуская", callback_data="language_by")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_timezone_keyboard(pgettext) -> InlineKeyboardMarkup:
+    """Get the timezone selection keyboard.
+
+    :param pgettext: Localized pgettext translation function
+    :type pgettext: Callable
+    :returns: Inline keyboard markup for timezone selection
+    :rtype: InlineKeyboardMarkup
+    """
+    keyboard = [
+        [InlineKeyboardButton("UTC", callback_data="timezone_UTC")],
+        [InlineKeyboardButton("Europe/Moscow", callback_data="timezone_Europe/Moscow")],
+        [InlineKeyboardButton("Europe/Warsaw", callback_data="timezone_Europe/Warsaw")],
+        [InlineKeyboardButton("Europe/Minsk", callback_data="timezone_Europe/Minsk")],
+        [
+            InlineKeyboardButton(
+                "America/New_York", callback_data="timezone_America/New_York"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=pgettext("buttons.other_timezone", "🌐 Other"),
+                callback_data="timezone_other",
+            )
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
