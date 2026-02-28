@@ -413,9 +413,9 @@ class LifeWeeksBot:
                 if update.effective_user and update.effective_user.language_code:
                     lang = update.effective_user.language_code
 
-                _, _, pgettext = use_locale(language=lang)
+                _, _, pgettext = use_locale(lang=lang)
                 message = (
-                    pgettext(msgctxt=error.user_message_key, message=error.message)
+                    pgettext(error.user_message_key, error.message)
                     if error.user_message_key
                     else error.message
                 )
