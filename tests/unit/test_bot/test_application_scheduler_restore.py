@@ -9,7 +9,7 @@ import pytest
 from src.bot.application import LifeWeeksBot
 from src.contracts.scheduler_port_protocol import ScheduleTrigger
 from src.core.dtos import UserProfileDTO, UserSettingsDTO, UserSubscriptionDTO
-from src.enums import SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 
 
 @pytest.fixture
@@ -55,6 +55,8 @@ class TestSchedulerRestoration:
                 notifications=True,
                 notifications_day=WeekDay.MONDAY,
                 notifications_time=time(9, 0),
+                notification_frequency=NotificationFrequency.WEEKLY,
+                notifications_month_day=None,
                 life_expectancy=80,
                 timezone="UTC",
                 language="en",
@@ -92,7 +94,7 @@ class TestSchedulerRestoration:
         _, kwargs = call_args
 
         assert kwargs["user_id"] == 123
-        assert kwargs["job_id"] == "weekly_123"
+        assert kwargs["job_id"] == "notification_123"
         assert kwargs["job_type"] == "weekly_summary"
 
         trigger = kwargs["trigger"]
@@ -125,6 +127,8 @@ class TestSchedulerRestoration:
                 notifications=True,
                 notifications_day=WeekDay.MONDAY,
                 notifications_time=time(9, 0),
+                notification_frequency=NotificationFrequency.WEEKLY,
+                notifications_month_day=None,
                 life_expectancy=80,
                 timezone="UTC",
                 language="en",

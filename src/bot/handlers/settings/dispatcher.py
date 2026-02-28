@@ -128,7 +128,7 @@ class SettingsDispatcher(BaseHandler):
             await self.send_message(
                 update=update,
                 message_text=template,
-                reply_markup=get_settings_keyboard(pgettext),
+                reply_markup=get_settings_keyboard(pgettext, is_premium=is_premium),
             )
             return None
 

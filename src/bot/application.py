@@ -20,9 +20,8 @@ from telegram.ext import (
 )
 
 from ..bot.event_listeners import register_event_listeners
-from ..contracts.scheduler_port_protocol import ScheduleTrigger
 from ..core.exceptions import BotError
-from ..enums import SupportedLanguage, WeekDay
+from ..enums import SupportedLanguage
 from ..i18n import use_locale
 from ..scheduler.client import SchedulerClient
 from ..scheduler.worker import SchedulerWorker
@@ -31,6 +30,7 @@ from ..utils.config import BOT_NAME, TOKEN
 from ..utils.logger import get_logger
 from .constants import COMMAND_UNKNOWN
 from .conversations.states import STATE_TO_COMMAND, ConversationState
+from .notification_schedule import build_notification_trigger
 from .plugins.loader import HandlerConfig, PluginLoader
 from .registry import HandlerRegistry
 
@@ -107,19 +107,19 @@ class LifeWeeksBot:
         self._app = builder.build()
 
         # Register global error handler
-        self._app.add_error_handler(self._error_handler)
+        self._app.add_error_handler(callback=self._error_handler)
 
         # Register event listeners
-        register_event_listeners(self.services)
+        register_event_listeners(container=self.services)
 
         # Discover and register handlers
         self._discover_and_register_handlers()
 
         # Register universal text handler
         self._app.add_handler(
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                self._universal_text_handler,
+            handler=MessageHandler(
+                filters=filters.TEXT & ~filters.COMMAND,
+                callback=self._universal_text_handler,
             )
         )
         logger.info("Registered universal text handler")
@@ -156,7 +156,9 @@ class LifeWeeksBot:
 
             # Register command handler
             self._app.add_handler(
-                CommandHandler(config.command, handler_instance.handle)
+                handler=CommandHandler(
+                    command=config.command, callback=handler_instance.handle
+                )
             )
             logger.debug(f"Registered command handler: /{config.command}")
 
@@ -164,8 +166,8 @@ class LifeWeeksBot:
             for callback in config.callbacks:
                 callback_method = getattr(handler_instance, callback["method"])
                 self._app.add_handler(
-                    CallbackQueryHandler(
-                        callback_method,
+                    handler=CallbackQueryHandler(
+                        callback=callback_method,
                         pattern=callback["pattern"],
                     )
                 )
@@ -200,7 +202,11 @@ class LifeWeeksBot:
         """
         if COMMAND_UNKNOWN in self._handler_instances:
             unknown_handler = self._handler_instances[COMMAND_UNKNOWN]
-            self._app.add_handler(MessageHandler(filters.ALL, unknown_handler.handle))
+            self._app.add_handler(
+                handler=MessageHandler(
+                    filters=filters.ALL, callback=unknown_handler.handle
+                )
+            )
             logger.debug("Registered unknown handler as fallback")
 
     def start(self) -> None:
@@ -232,9 +238,11 @@ class LifeWeeksBot:
         current_state = ConversationState.from_string(value=waiting_for)
 
         if current_state != ConversationState.IDLE:
-            await self._handle_waiting_state(update, context, current_state)
+            await self._handle_waiting_state(
+                update=update, context=context, current_state=current_state
+            )
         else:
-            await self._handle_no_waiting_state(update, context)
+            await self._handle_no_waiting_state(update=update, context=context)
 
     async def _handle_waiting_state(
         self,
@@ -257,15 +265,15 @@ class LifeWeeksBot:
             current_state, self._waiting_states.get(current_state.value, "")
         )
         error_occurred = await self._try_text_input_handler(
-            update, context, target_command
+            update=update, context=context, target_command=target_command
         )
 
         if error_occurred:
             fallback_error = await self._try_unknown_handler_fallback(
-                update, context, current_state.value
+                update=update, context=context, waiting_for=current_state.value
             )
             if fallback_error:
-                await self._send_error_message(update, context)
+                await self._send_error_message(update=update, context=context)
 
     async def _handle_no_waiting_state(
         self,
@@ -282,7 +290,9 @@ class LifeWeeksBot:
         """
         try:
             if COMMAND_UNKNOWN in self._handler_instances:
-                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+                await self._handler_instances[COMMAND_UNKNOWN].handle(
+                    update=update, context=context
+                )
         except Exception as error:
             logger.error(f"Error in unknown handler: {error}", exc_info=True)
 
@@ -307,7 +317,9 @@ class LifeWeeksBot:
             return True
 
         try:
-            await self._text_input_handlers[target_command](update, context)
+            await self._text_input_handlers[target_command](
+                update=update, context=context
+            )
             return False
         except Exception as error:
             logger.error(
@@ -335,7 +347,9 @@ class LifeWeeksBot:
         """
         try:
             if COMMAND_UNKNOWN in self._handler_instances:
-                await self._handler_instances[COMMAND_UNKNOWN].handle(update, context)
+                await self._handler_instances[COMMAND_UNKNOWN].handle(
+                    update=update, context=context
+                )
             return False
         except Exception as error:
             logger.error(
@@ -399,7 +413,7 @@ class LifeWeeksBot:
                 if update.effective_user and update.effective_user.language_code:
                     lang = update.effective_user.language_code
 
-                _, _, pgettext = use_locale(lang)
+                _, _, pgettext = use_locale(lang=lang)
                 message = (
                     pgettext(error.user_message_key, error.message)
                     if error.user_message_key
@@ -518,17 +532,6 @@ class LifeWeeksBot:
             users = await self.services.user_service.get_all_users()
             count = 0
 
-            # Mapping from WeekDay enum to int (0=Monday, 6=Sunday)
-            weekday_map = {
-                WeekDay.MONDAY: 0,
-                WeekDay.TUESDAY: 1,
-                WeekDay.WEDNESDAY: 2,
-                WeekDay.THURSDAY: 3,
-                WeekDay.FRIDAY: 4,
-                WeekDay.SATURDAY: 5,
-                WeekDay.SUNDAY: 6,
-            }
-
             for user in users:
                 # Check if user needs a scheduled job
                 if (
@@ -537,25 +540,16 @@ class LifeWeeksBot:
                     and user.subscription.is_active
                 ):
                     try:
-                        # Convert enum to int (0-6)
-                        day_int = weekday_map.get(user.settings.notifications_day)
-                        if day_int is None:
+                        trigger = build_notification_trigger(user.settings)
+                        if trigger is None:
                             logger.warning(
-                                f"Invalid notification day {user.settings.notifications_day} "
-                                f"for user {user.telegram_id}"
+                                "Invalid notification schedule for user %s",
+                                user.telegram_id,
                             )
                             continue
 
-                        # Create trigger using user settings
-                        trigger = ScheduleTrigger(
-                            day_of_week=day_int,
-                            hour=user.settings.notifications_time.hour,
-                            minute=user.settings.notifications_time.minute,
-                            # Default to UTC if not set, or user's timezone
-                            timezone=user.settings.timezone or "UTC",
-                        )
-
-                        job_id = f"weekly_{user.telegram_id}"
+                        job_id = f"notification_{user.telegram_id}"
+                        job_type = f"{user.settings.notification_frequency}_summary"
 
                         # Schedule the job
                         # We use fire-and-forget or await depending on needs.
@@ -565,7 +559,7 @@ class LifeWeeksBot:
                             job_id=job_id,
                             trigger=trigger,
                             user_id=user.telegram_id,
-                            job_type="weekly_summary",
+                            job_type=job_type,
                         )
                         count += 1
                     except Exception as e:

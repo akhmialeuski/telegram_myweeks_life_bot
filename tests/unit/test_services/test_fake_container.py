@@ -18,7 +18,8 @@ class TestFakeServiceContainer:
     including mock creation, behaviors, interface compatibility, and cleanup.
     """
 
-    def test_fake_container_creation(self) -> None:
+    @pytest.mark.asyncio
+    async def test_fake_container_creation(self) -> None:
         """Test FakeServiceContainer creation.
 
         This test verifies that FakeServiceContainer can be created
@@ -39,7 +40,8 @@ class TestFakeServiceContainer:
         assert isinstance(container.life_calculator, MagicMock)
         assert isinstance(container.config, MagicMock)
 
-    def test_mock_behaviors_setup(self) -> None:
+    @pytest.mark.asyncio
+    async def test_mock_behaviors_setup(self) -> None:
         """Test that mock behaviors are properly set up.
 
         This test verifies that the mock services have the expected
@@ -51,9 +53,9 @@ class TestFakeServiceContainer:
         container = FakeServiceContainer()
 
         # Test user service mock behaviors
-        assert container.user_service.is_valid_user_profile.return_value is True
-        assert container.user_service.get_user_profile.return_value is not None
-        assert container.user_service.create_user_profile.return_value is not None
+        assert await container.user_service.is_valid_user_profile() is True
+        assert await container.user_service.get_user_profile() is not None
+        assert await container.user_service.create_user_profile() is not None
 
         # Test life calculator mock behaviors
         assert container.life_calculator.return_value.calculate_age.return_value == 30
@@ -79,7 +81,8 @@ class TestFakeServiceContainer:
             SupportedLanguage.BY.value,
         ]
 
-    def test_get_user_service(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_user_service(self) -> None:
         """Test get_user_service method.
 
         This test verifies that the get_user_service method
@@ -94,7 +97,8 @@ class TestFakeServiceContainer:
         assert user_service is container.user_service
         assert isinstance(user_service, MagicMock)
 
-    def test_get_life_calculator(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_life_calculator(self) -> None:
         """Test get_life_calculator method.
 
         This test verifies that the get_life_calculator method
@@ -109,7 +113,8 @@ class TestFakeServiceContainer:
         assert life_calculator is container.life_calculator
         assert isinstance(life_calculator, MagicMock)
 
-    def test_get_message(self) -> None:
+    @pytest.mark.asyncio
+    async def test_get_message(self) -> None:
         """Test get_message method.
 
         This test verifies that the get_message method
@@ -156,7 +161,8 @@ class TestFakeServiceContainer:
         assert not container.user_service.get_user_profile.called
         assert not container.life_calculator.return_value.calculate_age.called
 
-    def test_custom_mock_behaviors(self) -> None:
+    @pytest.mark.asyncio
+    async def test_custom_mock_behaviors(self) -> None:
         """Test that custom mock behaviors can be set.
 
         This test verifies that the mock services can be configured
@@ -168,14 +174,24 @@ class TestFakeServiceContainer:
         container = FakeServiceContainer()
 
         # Set custom behaviors
-        container.user_service.is_valid_user_profile.return_value = False
-        container.user_service.get_user_profile.return_value = None
+        async def mock_is_valid(*args, **kwargs) -> bool:
+            return False
+
+        async def mock_get_profile(*args, **kwargs) -> None:
+            return None
+
+        container.user_service.is_valid_user_profile = MagicMock(
+            side_effect=mock_is_valid
+        )
+        container.user_service.get_user_profile = MagicMock(
+            side_effect=mock_get_profile
+        )
         container.life_calculator.return_value.calculate_age.return_value = 25
 
         # Verify custom behaviors
-        assert container.user_service.is_valid_user_profile.return_value is False
-        assert container.user_service.get_user_profile.return_value is None
-        assert container.life_calculator.return_value.calculate_age.return_value == 25
+        assert await container.user_service.is_valid_user_profile() is False
+        assert await container.user_service.get_user_profile() is None
+        assert container.life_calculator.return_value.calculate_age() == 25
 
     def test_interface_compatibility(self) -> None:
         """Test that FakeServiceContainer has the same interface as ServiceContainer.

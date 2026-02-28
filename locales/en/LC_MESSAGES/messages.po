@@ -79,8 +79,8 @@ msgstr "❌ An error occurred while changing subscription"
 
 #: dynamic key: weeks.statistics
 msgctxt "weeks.statistics"
-msgid "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
-msgstr "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until 80 years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
+msgid "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until %(life_expectancy)s years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
+msgstr "📊 <b>Your life statistics:</b>\n\n🎂 <b>Age:</b> %(age)s years\n📅 <b>Weeks lived:</b> %(weeks_lived)s\n⏳ <b>Remaining weeks (until %(life_expectancy)s years):</b> %(remaining_weeks)s\n📈 <b>Life progress:</b> %(life_percentage)s\n🎉 <b>Days until birthday:</b> %(days_until_birthday)s\n\n💡 Use /visualize to visualize your life weeks"
 
 #: dynamic key: visualize.info
 msgctxt "visualize.info"
@@ -205,3 +205,58 @@ msgstr "✅ <b>Language successfully changed!</b>\n\nNew language: <b>{new_langu
 msgctxt "settings.invalid_life_expectancy"
 msgid "❌ Invalid life expectancy.\nPlease enter a value between 50 and 120 years."
 msgstr "❌ Invalid life expectancy.\nPlease enter a value between 50 and 120 years."
+
+#: dynamic key: buttons.change_notification_schedule
+msgctxt "buttons.change_notification_schedule"
+msgid "🔔 Change reminder schedule"
+msgstr "🔔 Change reminder schedule"
+
+#: dynamic key: settings.notification_schedule.premium_only
+msgctxt "settings.notification_schedule.premium_only"
+msgid "🔒 This setting is available only for Premium subscription."
+msgstr "🔒 This setting is available only for Premium subscription."
+
+#: dynamic key: settings.notification_schedule.prompt
+msgctxt "settings.notification_schedule.prompt"
+msgid "🔔 <b>Change reminder schedule</b>\n\nSend one of the formats:\n• <code>daily HH:MM</code>\n• <code>weekly monday HH:MM</code>\n• <code>monthly 15 HH:MM</code>"
+msgstr "🔔 <b>Change reminder schedule</b>\n\nSend one of the formats:\n• <code>daily HH:MM</code>\n• <code>weekly monday HH:MM</code>\n• <code>monthly 15 HH:MM</code>"
+
+#: dynamic key: settings.notification_schedule.invalid
+msgctxt "settings.notification_schedule.invalid"
+msgid "❌ Invalid format. Use: daily HH:MM, weekly monday HH:MM, monthly 15 HH:MM."
+msgstr "❌ Invalid format. Use: daily HH:MM, weekly monday HH:MM, monthly 15 HH:MM."
+
+#: dynamic key: settings.notification_schedule.updated
+msgctxt "settings.notification_schedule.updated"
+msgid "✅ Reminder schedule updated successfully."
+msgstr "✅ Reminder schedule updated successfully."
+
+#: dynamic key: settings.error
+msgctxt "settings.error"
+msgid "❌ An error occurred while updating settings.\nPlease try again later."
+msgstr "❌ An error occurred while updating settings.\nPlease try again later."
+
+#: dynamic key: notifications.daily
+msgctxt "notifications.daily"
+msgid "📉 Your daily life statistics"
+msgstr "📉 Your daily life statistics"
+
+#: dynamic key: notifications.weekly
+msgctxt "notifications.weekly"
+msgid "📊 Your weekly life statistics"
+msgstr "📊 Your weekly life statistics"
+
+#: dynamic key: notifications.monthly
+msgctxt "notifications.monthly"
+msgid "📊 Your monthly life statistics"
+msgstr "📊 Your monthly life statistics"
+
+#: dynamic key: notifications.milestone
+msgctxt "notifications.milestone"
+msgid "🎉 Milestone reached!"
+msgstr "🎉 Milestone reached!"
+
+#: dynamic key: notifications.milestone_body
+msgctxt "notifications.milestone_body"
+msgid "Congratulations! You've reached a milestone: %(milestone_type)s = %(milestone_value)s"
+msgstr "Congratulations! You've reached a milestone: %(milestone_type)s = %(milestone_value)s"

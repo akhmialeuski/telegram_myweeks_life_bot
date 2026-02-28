@@ -3,6 +3,13 @@
 Tests the ServiceContainer class which manages all application dependencies.
 """
 
+import threading
+import time
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.database.service import DatabaseManager
 from src.services.container import ServiceContainer
 
 
@@ -48,8 +55,6 @@ class TestServiceContainer:
 
         assert hasattr(user_service, "get_user_profile")
 
-    import pytest
-
     @pytest.mark.asyncio
     async def test_service_initialization_order(self) -> None:
         """Test that services are initialized in correct order.
@@ -60,14 +65,18 @@ class TestServiceContainer:
         :returns: None
         :rtype: None
         """
-        from unittest.mock import AsyncMock, patch
-
         # Reset container to ensure fresh instance
         await ServiceContainer.reset_instance()
 
+        init_called: list[bool] = []
+
+        async def mock_initialize() -> None:
+            init_called.append(True)
+
         # Mock UserService
         with patch("src.services.container.UserService") as mock_user_service_cls:
-            mock_service_instance = AsyncMock()
+            mock_service_instance = MagicMock()
+            mock_service_instance.initialize = MagicMock(side_effect=mock_initialize)
             mock_user_service_cls.return_value = mock_service_instance
 
             container = ServiceContainer()
@@ -81,7 +90,7 @@ class TestServiceContainer:
             await container.initialize()
 
             # Verify initialization was called
-            mock_service_instance.initialize.assert_awaited_once()
+            mock_service_instance.initialize.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_cleanup_method(self) -> None:
@@ -90,20 +99,17 @@ class TestServiceContainer:
         :returns: None
         :rtype: None
         """
-        from unittest.mock import AsyncMock, patch
-
         container = ServiceContainer()
+        db_manager = DatabaseManager()
+        close_called: list[bool] = []
 
-        # Mock DatabaseManager
-        with patch("src.services.container.DatabaseManager") as mock_db_manager:
-            mock_db_instance = AsyncMock()
-            mock_db_manager.return_value = mock_db_instance
+        async def mock_close() -> None:
+            close_called.append(True)
 
-            # Test cleanup
+        with patch.object(db_manager, "close", side_effect=mock_close):
             await container.cleanup()
 
-            # Verify database close was called
-            mock_db_instance.close.assert_awaited_once()
+        assert len(close_called) == 1
 
     @pytest.mark.asyncio
     async def test_reset_instance_with_existing_instance(self) -> None:
@@ -112,20 +118,21 @@ class TestServiceContainer:
         :returns: None
         :rtype: None
         """
-        from unittest.mock import AsyncMock, patch
-
         # Create first instance
         container1 = ServiceContainer()
 
-        # Mock cleanup to verify it's called
-        with patch.object(
-            container1, "cleanup", new_callable=AsyncMock
-        ) as mock_cleanup:
+        cleanup_called: list[bool] = []
+
+        async def mock_cleanup_fn() -> None:
+            cleanup_called.append(True)
+
+        # Mock cleanup to verify it's called; use real async to avoid AsyncMock warning
+        with patch.object(container1, "cleanup", side_effect=mock_cleanup_fn):
             # Reset instance
             await ServiceContainer.reset_instance()
 
             # Verify cleanup was called
-            mock_cleanup.assert_awaited_once()
+            assert len(cleanup_called) == 1
 
             # Verify instance is reset
             assert ServiceContainer._instance is None
@@ -175,9 +182,6 @@ class TestServiceContainer:
         :returns: None
         :rtype: None
         """
-        import threading
-        import time
-
         # Reset first
         await ServiceContainer.reset_instance()
 
@@ -244,7 +248,7 @@ class TestServiceContainer:
         notification_service = container.get_notification_service()
 
         assert notification_service is not None
-        assert hasattr(notification_service, "generate_weekly_summary")
+        assert hasattr(notification_service, "generate_summary")
 
     @pytest.mark.asyncio
     async def test_set_and_get_scheduler_client(self) -> None:
@@ -256,8 +260,6 @@ class TestServiceContainer:
         :returns: None
         :rtype: None
         """
-        from unittest.mock import MagicMock
-
         container = ServiceContainer()
 
         # Initially should be None

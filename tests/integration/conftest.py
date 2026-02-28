@@ -6,17 +6,19 @@ only Telegram API calls mocked.
 """
 
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 from telegram import Chat, Message, Update, User
 
 from src.database.repositories.sqlite.base_repository import BaseSQLiteRepository
 from src.database.service import DatabaseManager
-from src.enums import SupportedLanguage
+from src.enums import SubscriptionType, SupportedLanguage
 from src.services.container import ServiceContainer
 
 # =============================================================================
@@ -216,11 +218,11 @@ def set_message_text(mock_update: MagicMock, text: str) -> None:
 
 
 def get_reply_text(mock_message: MagicMock) -> str | None:
-    """Get the text from the last reply_text call.
+    """Get the text from the last reply_text or reply_photo call.
 
     :param mock_message: Mock message object
     :type mock_message: MagicMock
-    :returns: Reply text or None if no reply was made
+    :returns: Reply text or caption (for photo) or None if no reply was made
     :rtype: str | None
     """
     if mock_message.reply_text.called:
@@ -229,6 +231,12 @@ def get_reply_text(mock_message: MagicMock) -> str | None:
             return call_args.args[0]
         if call_args and call_args.kwargs.get("text"):
             return call_args.kwargs["text"]
+
+    if mock_message.reply_photo.called:
+        call_args = mock_message.reply_photo.call_args
+        if call_args and call_args.kwargs.get("caption"):
+            return call_args.kwargs["caption"]
+
     return None
 
 
@@ -245,3 +253,119 @@ def get_reply_markup(mock_message: MagicMock) -> Any | None:
         if call_args and call_args.kwargs.get("reply_markup"):
             return call_args.kwargs["reply_markup"]
     return None
+
+
+# =============================================================================
+# User Setup Helpers (for settings tests)
+# =============================================================================
+
+
+async def make_registered_user(
+    container: ServiceContainer,
+    user_info: Any,
+    birth_date: date | None = None,
+) -> None:
+    """Create a registered user with basic subscription.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param user_info: Mock or real Telegram User object (must have .id)
+    :type user_info: Any
+    :param birth_date: Birth date for the user (default: 1990-01-01)
+    :type birth_date: date | None
+    :returns: None
+    :rtype: None
+    """
+    await container.user_service.create_user_profile(
+        user_info=user_info,
+        birth_date=birth_date or date(1990, 1, 1),
+    )
+
+
+async def make_premium_user(
+    container: ServiceContainer,
+    user_info: Any,
+    birth_date: date | None = None,
+    telegram_id: int | None = None,
+) -> None:
+    """Create a registered user with Premium subscription.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param user_info: Mock or real Telegram User object (must have .id)
+    :type user_info: Any
+    :param birth_date: Birth date for the user (default: 1990-01-01)
+    :type birth_date: date | None
+    :param telegram_id: Telegram ID to upgrade (default: user_info.id)
+    :type telegram_id: int | None
+    :returns: None
+    :rtype: None
+    """
+    await make_registered_user(container, user_info, birth_date)
+    tid = telegram_id if telegram_id is not None else user_info.id
+    await container.user_service.update_user_subscription(
+        telegram_id=tid,
+        subscription_type=SubscriptionType.PREMIUM,
+    )
+
+
+def setup_notification_schedule_callback(mock_update: MagicMock) -> None:
+    """Configure mock_update for notification schedule callback flow.
+
+    :param mock_update: Mock Telegram Update object
+    :type mock_update: MagicMock
+    :returns: None
+    :rtype: None
+    """
+    mock_update.callback_query = MagicMock()
+    mock_update.callback_query.data = "settings_notification_schedule"
+    mock_update.callback_query.edit_message_text = AsyncMock()
+    mock_update.callback_query.answer = AsyncMock()
+
+
+async def create_user_with_invalid_enum_value(
+    container: ServiceContainer,
+    telegram_id: int = TEST_USER_ID,
+) -> None:
+    """Create a user with an invalid (lowercase) enum value in the database.
+
+    This helper is used to reproduce bugs where database values (lowercase)
+    mismatch with Python Enum definitions (uppercase), causing validation errors.
+    It uses raw SQL to bypass SQLAlchemy validation.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param telegram_id: Telegram ID of the user to create
+    :type telegram_id: int
+    :returns: None
+    """
+    user_service = container.user_service
+
+    # 1. Create a valid user profile first (this creates user, settings, and subscription)
+    # create_user_profile expects a user_info object (telegram.User)
+    user_info = User(
+        id=telegram_id,
+        username=TEST_USERNAME,
+        first_name=TEST_FIRST_NAME,
+        last_name=TEST_LAST_NAME,
+        is_bot=False,
+    )
+    await user_service.create_user_profile(
+        user_info=user_info,
+        birth_date=date(year=1990, month=1, day=1),
+    )
+
+    # 2. Now use raw SQL to UPDATE the settings with an "invalid" enum value
+    # This bypasses SQLAlchemy validation for the update but will trigger it on subsequent loads
+    repo = user_service.user_repository
+    async with repo.async_session() as session:
+        await session.execute(
+            text(
+                "UPDATE user_settings SET notification_frequency = :freq "
+                "WHERE telegram_id = :tid"
+            ),
+            {
+                "tid": telegram_id,
+                "freq": "weekly",  # Lowercase string causing the mismatch vs Enum.WEEKLY
+            },
+        )

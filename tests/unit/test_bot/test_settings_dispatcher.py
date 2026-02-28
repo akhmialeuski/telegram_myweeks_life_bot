@@ -3,7 +3,7 @@
 Tests the SettingsDispatcher class which handles the main settings menu.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -51,6 +51,9 @@ class TestSettingsDispatcher:
     ) -> None:
         """Test that handle method shows settings menu for basic user.
 
+        Verifies that `get_settings_keyboard` is called with
+        `is_premium=False` so the schedule button is not shown.
+
         :param handler: SettingsDispatcher instance
         :type handler: SettingsDispatcher
         :param mock_update: Mocked update
@@ -76,15 +79,21 @@ class TestSettingsDispatcher:
             user_profile=mock_profile,
         )
 
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
         with patch.object(
-            handler, "_extract_command_context", new_callable=AsyncMock
-        ) as mock_extract:
-            mock_extract.return_value = mock_cmd_context
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+
+            async def mock_send_fn(*args, **kwargs):
+                return None
 
             with patch.object(
-                handler, "send_message", new_callable=AsyncMock
-            ) as mock_send_message:
-                # Call _handle_settings directly to avoid registration decorator complexity
+                handler, "send_message", side_effect=mock_send_fn
+            ) as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ) as mock_keyboard:
                 await handler._handle_settings(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
@@ -92,6 +101,11 @@ class TestSettingsDispatcher:
 
             assert "pgettext_settings.basic" in args["message_text"]
             assert args["reply_markup"] is not None
+
+            # Verify keyboard called with is_premium=False
+            mock_keyboard.assert_called_once()
+            kb_kwargs = mock_keyboard.call_args.kwargs
+            assert kb_kwargs["is_premium"] is False
 
     @pytest.mark.asyncio
     async def test_handle_shows_menu_premium(
@@ -101,6 +115,9 @@ class TestSettingsDispatcher:
         mock_context: MagicMock,
     ) -> None:
         """Test that handle method shows settings menu for premium user.
+
+        Verifies that `get_settings_keyboard` is called with
+        `is_premium=True` so the schedule button is included.
 
         :param handler: SettingsDispatcher instance
         :type handler: SettingsDispatcher
@@ -127,15 +144,21 @@ class TestSettingsDispatcher:
             user_profile=mock_profile,
         )
 
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
         with patch.object(
-            handler, "_extract_command_context", new_callable=AsyncMock
-        ) as mock_extract:
-            mock_extract.return_value = mock_cmd_context
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+
+            async def mock_send_fn(*args, **kwargs):
+                return None
 
             with patch.object(
-                handler, "send_message", new_callable=AsyncMock
-            ) as mock_send_message:
-                # Call _handle_settings directly to avoid registration decorator complexity
+                handler, "send_message", side_effect=mock_send_fn
+            ) as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ) as mock_keyboard:
                 await handler._handle_settings(mock_update, mock_context)
 
             mock_send_message.assert_called_once()
@@ -143,7 +166,10 @@ class TestSettingsDispatcher:
 
             assert "pgettext_settings.premium" in args["message_text"]
 
-            assert "pgettext_settings.premium" in args["message_text"]
+            # Verify keyboard called with is_premium=True
+            mock_keyboard.assert_called_once()
+            kb_kwargs = mock_keyboard.call_args.kwargs
+            assert kb_kwargs["is_premium"] is True
 
     @pytest.mark.asyncio
     async def test_handle_wrapper_call(
@@ -162,8 +188,12 @@ class TestSettingsDispatcher:
         :type mock_context: MagicMock
         :returns: None
         """
+
         # Mock _wrap_with_registration to verify it's called
-        wrapper_mock = AsyncMock()
+        async def mock_wrapper_fn(*args, **kwargs):
+            pass
+
+        wrapper_mock = MagicMock(side_effect=mock_wrapper_fn)
         mock_wrap = MagicMock(return_value=wrapper_mock)
 
         with patch.object(handler, "_wrap_with_registration", mock_wrap):
@@ -205,12 +235,14 @@ class TestSettingsDispatcher:
             mock_profile.subscription.subscription_type = SubscriptionType.BASIC
             mock_profile.settings.language = "en"
 
+            async def mock_get_profile_fn(*args, **kwargs):
+                return mock_profile
+
             with patch.object(
                 handler.services.user_service,
                 "get_user_profile",
-                new_callable=AsyncMock,
-            ) as mock_get_profile:
-                mock_get_profile.return_value = mock_profile
+                side_effect=mock_get_profile_fn,
+            ):
 
                 with patch.object(handler, "send_error_message") as mock_send_error:
                     await handler.handle(mock_update, mock_context)

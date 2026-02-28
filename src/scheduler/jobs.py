@@ -5,6 +5,11 @@ These functions are run by the scheduler worker process when a job is triggered.
 """
 
 from ..services.container import ServiceContainer
+from ..services.notification_service import (
+    MESSAGE_TYPE_DAILY_SUMMARY,
+    MESSAGE_TYPE_MONTHLY_SUMMARY,
+    MESSAGE_TYPE_WEEKLY_SUMMARY,
+)
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
 
@@ -13,7 +18,7 @@ logger = get_logger(f"{BOT_NAME}.SchedulerJobs")
 
 async def execute_notification_job(
     user_id: int,
-    message_type: str = "weekly_summary",
+    message_type: str = MESSAGE_TYPE_WEEKLY_SUMMARY,
 ) -> None:
     """Execute a notification job for a user.
 
@@ -34,10 +39,19 @@ async def execute_notification_job(
         notification_service = container.get_notification_service()
         gateway = container.get_notification_gateway()
 
+        # Supported summary types
+        summary_types = [
+            MESSAGE_TYPE_DAILY_SUMMARY,
+            MESSAGE_TYPE_WEEKLY_SUMMARY,
+            MESSAGE_TYPE_MONTHLY_SUMMARY,
+        ]
+
         # Determine payload generation based on message type
         payload = None
-        if message_type == "weekly_summary":
-            payload = await notification_service.generate_weekly_summary(user_id)
+        if message_type in summary_types:
+            payload = await notification_service.generate_summary(
+                user_id=user_id, message_type=message_type
+            )
         else:
             logger.warning(f"Unknown message type: {message_type}")
             return
@@ -76,7 +90,9 @@ def execute_scheduler_job_wrapper(
 
     :param job_type: Type of job
     :param kwargs: Job arguments
+    :raises Exception: If job execution fails
     """
+    logger.info(f"Executing {job_type} job with kwargs: {kwargs}")
     # This wrapper might not be needed if we pass execute_notification_job directly
     # But useful for routing if we have a single entry point
     pass

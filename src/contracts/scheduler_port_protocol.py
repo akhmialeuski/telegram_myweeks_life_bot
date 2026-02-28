@@ -14,15 +14,17 @@ from typing import Any, Callable, Coroutine, Protocol, runtime_checkable
 class ScheduleTrigger:
     """Trigger configuration for a scheduled job.
 
-    :ivar day_of_week: Day of week (0=Monday, 6=Sunday)
+    :ivar day_of_week: Day of week (0=Monday, 6=Sunday) or "*" for daily/monthly
+    :ivar day_of_month: Day of month (1-31) for monthly schedules
     :ivar hour: Hour of day (0-23)
     :ivar minute: Minute of hour (0-59)
     :ivar timezone: Timezone string (e.g., "UTC", "Europe/Minsk")
     """
 
-    day_of_week: int
+    day_of_week: int | str
     hour: int
     minute: int
+    day_of_month: int | None = None
     timezone: str = "UTC"
 
 

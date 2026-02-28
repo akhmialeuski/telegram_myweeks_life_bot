@@ -9,6 +9,8 @@ from typing import Optional
 
 from pydantic import Field
 
+from src.enums import NotificationFrequency
+
 from .base import BaseSchema
 
 
@@ -27,6 +29,13 @@ class UserSettingsBase(BaseSchema):
     notifications: bool = Field(True, description="Whether notifications are enabled")
     notifications_time: Optional[time] = Field(
         None, description="Time of day for notifications"
+    )
+    notification_frequency: NotificationFrequency = Field(
+        NotificationFrequency.WEEKLY,
+        description="Notification frequency (daily/weekly/monthly)",
+    )
+    notifications_month_day: Optional[int] = Field(
+        None, description="Day of month for monthly notifications"
     )
 
 
@@ -52,6 +61,13 @@ class UserSettingsUpdate(BaseSchema):
     )
     notifications_time: Optional[time] = Field(
         None, description="Time of day for notifications"
+    )
+    notification_frequency: Optional[NotificationFrequency] = Field(
+        None,
+        description="Notification frequency (daily/weekly/monthly)",
+    )
+    notifications_month_day: Optional[int] = Field(
+        None, description="Day of month for monthly notifications"
     )
 
 

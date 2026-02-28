@@ -4,8 +4,9 @@ Tests the SchedulerWorker class for process lifecycle, command handling,
 and integration with the underlying scheduler adapter.
 """
 
+import asyncio
 import signal
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -281,3 +282,174 @@ class TestSchedulerWorker:
         response = worker._response_queue.put.call_args[0][0]
         assert response.success is False
         assert "Validation failed" in response.error
+
+    @pytest.mark.asyncio
+    async def test_unknown_command_type(self, worker):
+        """Test processing of unknown command type."""
+        from src.scheduler.commands import SchedulerCommand
+
+        command = SchedulerCommand(
+            id="test-cmd", type=MagicMock(name="UNKNOWN"), payload={}
+        )
+
+        await worker._process_command(command)
+
+        # Should send failure response
+        response = worker._response_queue.put.call_args[0][0]
+        assert response.success is False
+        assert "Unknown command type" in response.error
+
+    @pytest.mark.asyncio
+    async def test_pause_resume_commands(self, worker):
+        """Test pause and resume commands (currently only log warning)."""
+        from src.scheduler.commands import SchedulerCommand, SchedulerCommandType
+
+        pause_cmd = SchedulerCommand(
+            id="pause-1", type=SchedulerCommandType.PAUSE, payload={}
+        )
+        await worker._process_command(pause_cmd)
+
+        resume_cmd = SchedulerCommand(
+            id="resume-1", type=SchedulerCommandType.RESUME, payload={}
+        )
+        await worker._process_command(resume_cmd)
+
+        # Should succeed (default response is success=True)
+        assert worker._response_queue.put.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_main_loop_success(self, worker):
+        """Test successful execution of main loop."""
+        worker._running = True
+        # One valid command, then exit loop
+        worker._command_queue.empty.side_effect = [False, True]
+        worker._command_queue.get_nowait.return_value = SchedulerCommand(
+            type=SchedulerCommandType.PAUSE, id="test-id"
+        )
+
+        with patch(
+            "src.scheduler.worker.ServiceContainer", return_value=MagicMock()
+        ) as mock_container, patch(
+            "src.scheduler.worker.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+
+            mock_container.return_value.initialize = AsyncMock()
+
+            # Stop loop using side effect
+            def stop_loop(*args, **kwargs):
+                worker._running = False
+
+            mock_sleep.side_effect = stop_loop
+
+            await worker._main_loop()
+
+            assert worker._command_queue.get_nowait.called
+            mock_container.return_value.initialize.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_main_loop_error_handling(self, worker):
+        """Test error handling in main loop."""
+        worker._running = True
+        worker._command_queue.empty.side_effect = [False, True]
+        worker._command_queue.get_nowait.side_effect = Exception("Queue error")
+
+        with patch(
+            "src.scheduler.worker.ServiceContainer", return_value=MagicMock()
+        ) as mock_container, patch("src.scheduler.worker.logger") as mock_logger, patch(
+            "src.scheduler.worker.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+
+            mock_container.return_value.initialize = AsyncMock()
+
+            # Stop loop using side effect
+            def stop_loop(*args, **kwargs):
+                worker._running = False
+
+            mock_sleep.side_effect = stop_loop
+
+            await worker._main_loop()
+
+            mock_logger.error.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_main_loop_init_failure(self, worker):
+        """Test initialization failure in main loop."""
+        with patch(
+            "src.scheduler.worker.ServiceContainer", return_value=MagicMock()
+        ) as mock_container:
+            mock_container.return_value.initialize = AsyncMock(
+                side_effect=Exception("Init error")
+            )
+
+            # This should raise exception up to run()
+            with pytest.raises(Exception, match="Init error"):
+                await worker._main_loop()
+
+    def test_run_success(self, worker):
+        """Test worker.run method success path.
+
+        Uses real async function and run_until_complete so the coroutine
+        is properly awaited (avoids RuntimeWarning from unawaited AsyncMock).
+        """
+        run_until_complete_calls: list = []
+
+        async def mock_main_loop() -> None:
+            worker._running = False
+
+        def run_until_complete_impl(coro):
+            run_until_complete_calls.append(coro)
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+        with patch("src.scheduler.worker.signal.signal"), patch(
+            "src.scheduler.worker.asyncio"
+        ) as mock_asyncio, patch.object(worker, "_main_loop", mock_main_loop):
+
+            mock_loop = MagicMock()
+            mock_asyncio.new_event_loop.return_value = mock_loop
+            mock_loop.run_until_complete = run_until_complete_impl
+
+            worker.run()
+
+            mock_asyncio.new_event_loop.assert_called_once()
+            assert len(run_until_complete_calls) == 1
+            assert worker._running is False
+
+    def test_run_exception(self, worker):
+        """Test worker.run method with exception.
+
+        Uses real async function instead of AsyncMock so the coroutine
+        is properly awaited by run_until_complete (avoids RuntimeWarning).
+        """
+
+        async def main_loop_raises() -> None:
+            raise Exception("Run error")
+
+        def run_until_complete_impl(coro):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+        with patch("src.scheduler.worker.signal.signal"), patch(
+            "src.scheduler.worker.asyncio"
+        ) as mock_asyncio, patch.object(worker, "_main_loop", main_loop_raises):
+
+            mock_loop = MagicMock()
+            mock_asyncio.new_event_loop.return_value = mock_loop
+            mock_loop.run_until_complete = run_until_complete_impl
+
+            with patch("src.scheduler.worker.logger") as mock_logger:
+                worker.run()
+                mock_logger.critical.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_stop(self, worker):
+        """Test stop logic (via shutdown signal)."""
+        worker._running = True
+        worker._handle_shutdown_signal(signal.SIGTERM, None)
+        assert worker._running is False

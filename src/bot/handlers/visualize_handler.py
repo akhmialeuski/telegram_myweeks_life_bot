@@ -149,7 +149,9 @@ class VisualizeHandler(BaseHandler):
 
         # Generate and send visual representation with caption
         try:
-            image_data = await generate_visualization(user_info=user)
+            image_data = await generate_visualization(
+                user_info=user, user_service_instance=self.services.user_service
+            )
         except Exception as e:
             logger.error(f"Failed to generate visualization: {e}")
             return None

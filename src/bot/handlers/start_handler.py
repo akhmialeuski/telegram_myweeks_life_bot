@@ -256,10 +256,11 @@ class StartHandler(BaseHandler):
         user_id = cmd_context.user_id
         user = cmd_context.user
 
-        # Create user profile
+        # Create user profile with language preference
         await self.services.user_service.create_user_profile(
             user_info=user,
             birth_date=birth_date,
+            language=lang,
         )
 
         # Add user to notification scheduler

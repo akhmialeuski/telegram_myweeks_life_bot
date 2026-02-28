@@ -11,7 +11,9 @@ import pytest
 
 from src.events.domain_events import NotificationPayload
 from src.services.notification_service import (
+    MESSAGE_TYPE_DAILY_SUMMARY,
     MESSAGE_TYPE_MILESTONE,
+    MESSAGE_TYPE_MONTHLY_SUMMARY,
     MESSAGE_TYPE_WEEKLY_SUMMARY,
     NotificationService,
 )
@@ -43,6 +45,7 @@ class TestNotificationService:
         stats_mock.remaining_weeks = 2600
         stats_mock.total_weeks_expected = 4160
         stats_mock.percentage_lived = 0.375
+        stats_mock.days_until_birthday = 120
 
         with patch(
             "src.services.notification_service.calculate_life_statistics",
@@ -86,13 +89,13 @@ class TestNotificationService:
         )
 
     @pytest.mark.asyncio
-    async def test_generate_weekly_summary_success(
+    async def test_generate_summary_success(
         self,
         service: NotificationService,
         mock_user_service: AsyncMock,
         mock_calculate_life_statistics: MagicMock,
     ) -> None:
-        """Test successful generation of weekly summary.
+        """Test successful generation of summary.
 
         Verifies that a correct NotificationPayload is generated when
         user exists and has valid data.
@@ -101,9 +104,13 @@ class TestNotificationService:
         mock_user = MagicMock()
         mock_user.birth_date = date(1990, 1, 1)
         mock_user.settings.language = "en"
+        mock_user.settings.life_expectancy = 80
         mock_user_service.get_user_profile.return_value = mock_user
 
-        payload = await service.generate_weekly_summary(user_id)
+        # Test weekly summary
+        payload = await service.generate_summary(
+            user_id=user_id, message_type=MESSAGE_TYPE_WEEKLY_SUMMARY
+        )
 
         assert payload is not None
         assert isinstance(payload, NotificationPayload)
@@ -116,10 +123,41 @@ class TestNotificationService:
         mock_calculate_life_statistics.assert_called_once()
         # Verify call args
         call_args = mock_calculate_life_statistics.call_args
-        assert call_args.kwargs["birth_date"] == mock_user.birth_date
+        assert call_args.kwargs["birth_date"] == mock_user.settings.birth_date
 
     @pytest.mark.asyncio
-    async def test_generate_weekly_summary_user_not_found(
+    async def test_generate_summary_types(
+        self,
+        service: NotificationService,
+        mock_user_service: AsyncMock,
+    ) -> None:
+        """Test generation of different summary types.
+
+        Verifies that daily and monthly summaries are correctly identified.
+        """
+        user_id = 123
+        mock_user = MagicMock()
+        mock_user.birth_date = date(1990, 1, 1)
+        mock_user.settings.language = "en"
+        mock_user.settings.life_expectancy = 80
+        mock_user_service.get_user_profile.return_value = mock_user
+
+        # Test daily summary
+        payload_daily = await service.generate_summary(
+            user_id=user_id, message_type=MESSAGE_TYPE_DAILY_SUMMARY
+        )
+        assert payload_daily.message_type == MESSAGE_TYPE_DAILY_SUMMARY
+        assert "daily" in payload_daily.title.lower()
+
+        # Test monthly summary
+        payload_monthly = await service.generate_summary(
+            user_id=user_id, message_type=MESSAGE_TYPE_MONTHLY_SUMMARY
+        )
+        assert payload_monthly.message_type == MESSAGE_TYPE_MONTHLY_SUMMARY
+        assert "monthly" in payload_monthly.title.lower()
+
+    @pytest.mark.asyncio
+    async def test_generate_summary_user_not_found(
         self,
         service: NotificationService,
         mock_user_service: AsyncMock,
@@ -130,12 +168,12 @@ class TestNotificationService:
         """
         mock_user_service.get_user_profile.return_value = None
 
-        payload = await service.generate_weekly_summary(123)
+        payload = await service.generate_summary(user_id=123)
 
         assert payload is None
 
     @pytest.mark.asyncio
-    async def test_generate_weekly_summary_no_birth_date(
+    async def test_generate_summary_no_birth_date(
         self,
         service: NotificationService,
         mock_user_service: AsyncMock,
@@ -145,15 +183,15 @@ class TestNotificationService:
         Verifies that None is returned if user has no birth date set.
         """
         mock_user = MagicMock()
-        mock_user.birth_date = None
+        mock_user.settings.birth_date = None
         mock_user_service.get_user_profile.return_value = mock_user
 
-        payload = await service.generate_weekly_summary(123)
+        payload = await service.generate_summary(user_id=123)
 
         assert payload is None
 
     @pytest.mark.asyncio
-    async def test_generate_weekly_summary_exception(
+    async def test_generate_summary_exception(
         self,
         service: NotificationService,
         mock_user_service: AsyncMock,
@@ -165,7 +203,7 @@ class TestNotificationService:
         mock_user_service.get_user_profile.side_effect = Exception("db error")
 
         with patch("src.services.notification_service.logger") as mock_logger:
-            payload = await service.generate_weekly_summary(123)
+            payload = await service.generate_summary(user_id=123)
 
             assert payload is None
             mock_logger.error.assert_called_once()

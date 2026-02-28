@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Optional
 
-from src.enums import SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, SubscriptionType, WeekDay
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -20,6 +20,8 @@ class UserSettingsDTO:
     :param notifications: Whether notifications are enabled
     :param notifications_day: Day of the week for notifications
     :param notifications_time: Time of day for notifications
+    :param notification_frequency: Notification frequency (daily/weekly/monthly)
+    :param notifications_month_day: Day of month for monthly notifications
     :param life_expectancy: Expected life expectancy in years
     :param timezone: User's timezone
     :param language: User's language preference
@@ -29,6 +31,8 @@ class UserSettingsDTO:
     notifications: bool
     notifications_day: Optional[WeekDay]
     notifications_time: Optional[time]
+    notification_frequency: NotificationFrequency
+    notifications_month_day: Optional[int]
     life_expectancy: Optional[int]
     timezone: Optional[str]
     language: Optional[str]

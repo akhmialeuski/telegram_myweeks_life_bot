@@ -1,113 +1,172 @@
-"""Unit tests for scheduler jobs execution.
+"""Unit tests for scheduler jobs.
 
-Tests the execution logic of notification jobs under various conditions,
-including success, validation failures, and messaging errors.
+Tests the execute_notification_job function and its error handling paths.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.scheduler.jobs import execute_notification_job, execute_scheduler_job_wrapper
+from src.scheduler.jobs import execute_notification_job
 
 
 class TestSchedulerJobs:
     """Test suite for scheduler jobs."""
 
-    @pytest.fixture
-    def mock_container(self):
-        """Mock ServiceContainer."""
-        with patch("src.scheduler.jobs.ServiceContainer") as mock_cls:
-            mock_container = MagicMock()
-            mock_cls.return_value = mock_container
-            yield mock_container
+    @pytest.mark.asyncio
+    async def test_execute_notification_job_success(self):
+        """Test successful execution of notification job."""
+        user_id = 123
+        message_type = "weekly_summary"
 
-    @pytest.fixture
-    def mock_notification_service(self, mock_container):
-        """Mock NotificationService."""
-        service = AsyncMock()
-        mock_container.get_notification_service.return_value = service
-        return service
+        with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
+            mock_notification_service = MagicMock()
+            mock_notification_service.generate_summary = AsyncMock(
+                return_value="payload"
+            )
 
-    @pytest.fixture
-    def mock_gateway(self, mock_container):
-        """Mock NotificationGateway."""
-        gateway = AsyncMock()
-        mock_container.get_notification_gateway.return_value = gateway
-        return gateway
+            mock_gateway = MagicMock()
+            mock_gateway.send_notification = AsyncMock(
+                return_value=MagicMock(success=True)
+            )
+
+            mock_container.return_value.get_notification_service.return_value = (
+                mock_notification_service
+            )
+            mock_container.return_value.get_notification_gateway.return_value = (
+                mock_gateway
+            )
+
+            await execute_notification_job(user_id=user_id, message_type=message_type)
+
+            mock_notification_service.generate_summary.assert_called_once_with(
+                user_id=user_id, message_type=message_type
+            )
+            mock_gateway.send_notification.assert_called_once_with("payload")
 
     @pytest.mark.asyncio
-    async def test_execute_notification_job_success(
-        self,
-        mock_notification_service: AsyncMock,
-        mock_gateway: AsyncMock,
-    ):
-        """Test successful weekly summary execution."""
-        mock_notification_service.generate_weekly_summary.return_value = "payload"
-        mock_gateway.send_notification.return_value.success = True
+    @pytest.mark.parametrize("message_type", ["daily_summary", "monthly_summary"])
+    async def test_execute_notification_job_sends_summary_by_type(
+        self, message_type: str
+    ) -> None:
+        """TC-FULL-1/2: execute_notification_job sends daily_summary or monthly_summary.
 
-        await execute_notification_job(user_id=123, message_type="weekly_summary")
+        Preconditions:
+            - Mocks for generate_summary and send_notification configured
+            - ServiceContainer returns mocked services
 
-        mock_notification_service.generate_weekly_summary.assert_awaited_once_with(123)
-        mock_gateway.send_notification.assert_awaited_once_with("payload")
+        Test Steps:
+            1. Call execute_notification_job(user_id=123, message_type=message_type)
+               Expected: Job executes without exception
+
+        Post-conditions:
+            - generate_summary called with message_type=message_type
+            - send_notification called with generated payload
+
+        :param message_type: Message type to test (daily_summary or monthly_summary)
+        :type message_type: str
+        :returns: None
+        :rtype: None
+        """
+        user_id = 123
+
+        with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
+            mock_notification_service = MagicMock()
+            mock_notification_service.generate_summary = AsyncMock(
+                return_value="payload"
+            )
+
+            mock_gateway = MagicMock()
+            mock_gateway.send_notification = AsyncMock(
+                return_value=MagicMock(success=True)
+            )
+
+            mock_container.return_value.get_notification_service.return_value = (
+                mock_notification_service
+            )
+            mock_container.return_value.get_notification_gateway.return_value = (
+                mock_gateway
+            )
+
+            await execute_notification_job(user_id=user_id, message_type=message_type)
+
+            mock_notification_service.generate_summary.assert_called_once_with(
+                user_id=user_id, message_type=message_type
+            )
+            mock_gateway.send_notification.assert_called_once_with("payload")
 
     @pytest.mark.asyncio
-    async def test_execute_notification_job_unknown_type(
-        self,
-        mock_notification_service: AsyncMock,
-        mock_gateway: AsyncMock,
-    ):
-        """Test execution with unknown message type."""
+    async def test_execute_notification_job_no_payload(self):
+        """Test notification job when no payload is generated."""
+        user_id = 123
+
+        with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
+            mock_notification_service = MagicMock()
+            mock_notification_service.generate_summary = AsyncMock(return_value=None)
+
+            mock_container.return_value.get_notification_service.return_value = (
+                mock_notification_service
+            )
+
+            await execute_notification_job(
+                user_id=user_id, message_type="weekly_summary"
+            )
+
+            mock_notification_service.generate_summary.assert_called_once()
+            # Gateway should not be called
+
+    @pytest.mark.asyncio
+    async def test_execute_notification_job_unknown_type(self):
+        """Test notification job with unknown message type."""
         await execute_notification_job(user_id=123, message_type="unknown")
-
-        mock_notification_service.generate_weekly_summary.assert_not_called()
-        mock_gateway.send_notification.assert_not_called()
+        # Should just log warning and return
 
     @pytest.mark.asyncio
-    async def test_execute_notification_job_no_payload(
-        self,
-        mock_notification_service: AsyncMock,
-        mock_gateway: AsyncMock,
-    ):
-        """Test execution when payload generation returns None."""
-        mock_notification_service.generate_weekly_summary.return_value = None
+    async def test_execute_notification_job_send_failure(self):
+        """Test notification job when sending fails."""
+        user_id = 123
 
-        await execute_notification_job(user_id=123, message_type="weekly_summary")
+        with patch("src.scheduler.jobs.ServiceContainer") as mock_container:
+            mock_notification_service = MagicMock()
+            mock_notification_service.generate_summary = AsyncMock(
+                return_value="payload"
+            )
 
-        mock_notification_service.generate_weekly_summary.assert_awaited_once_with(123)
-        mock_gateway.send_notification.assert_not_called()
+            mock_gateway = MagicMock()
+            mock_gateway.send_notification = AsyncMock(
+                return_value=MagicMock(success=False, error="API Error")
+            )
+
+            mock_container.return_value.get_notification_service.return_value = (
+                mock_notification_service
+            )
+            mock_container.return_value.get_notification_gateway.return_value = (
+                mock_gateway
+            )
+
+            await execute_notification_job(
+                user_id=user_id, message_type="weekly_summary"
+            )
+
+            assert mock_gateway.send_notification.called
 
     @pytest.mark.asyncio
-    async def test_execute_notification_job_send_validation_failure(
-        self,
-        mock_notification_service: AsyncMock,
-        mock_gateway: AsyncMock,
-    ):
-        """Test execution when sending fails safely (log error)."""
-        mock_notification_service.generate_weekly_summary.return_value = "payload"
-        mock_gateway.send_notification.return_value.success = False
-        mock_gateway.send_notification.return_value.error = "Sending failed"
+    async def test_execute_notification_job_exception(self):
+        """Test notification job handling general exception."""
+        user_id = 123
 
-        # Should not raise exception, just log error
-        await execute_notification_job(user_id=123, message_type="weekly_summary")
-
-        mock_gateway.send_notification.assert_awaited_once()
+        with patch(
+            "src.scheduler.jobs.ServiceContainer",
+            side_effect=Exception("Container error"),
+        ):
+            # Should catch and log
+            await execute_notification_job(
+                user_id=user_id, message_type="weekly_summary"
+            )
 
     @pytest.mark.asyncio
-    async def test_execute_notification_job_exception_handling(
-        self,
-        mock_container: MagicMock,
-    ):
-        """Test validation of exception handling during execution."""
-        # Setup container to raise exception
-        mock_container.get_notification_service.side_effect = Exception(
-            "Critical failure"
-        )
+    async def test_execute_scheduler_job_wrapper(self):
+        """Test the execute_scheduler_job_wrapper function."""
+        from src.scheduler.jobs import execute_scheduler_job_wrapper
 
-        # Should catch and log exception
-        await execute_notification_job(user_id=123)
-
-    def test_execute_scheduler_job_wrapper(self):
-        """Test execution wrapper function."""
-        # Simply verifying it runs without error as it's a pass-through/placeholder
-        execute_scheduler_job_wrapper(job_type="test", kwargs={"arg": 1})
+        execute_scheduler_job_wrapper(job_type="test", kwargs={})

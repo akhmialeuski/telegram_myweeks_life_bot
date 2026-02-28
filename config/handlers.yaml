@@ -50,6 +50,16 @@ handlers:
     waiting_states:
       - settings_life_expectancy
 
+  - module: src.bot.handlers.settings.notification_schedule_handler
+    class: NotificationScheduleHandler
+    command: settings_notification_schedule
+    callbacks:
+      - method: handle_callback
+        pattern: settings_notification_schedule
+    text_input: handle_input
+    waiting_states:
+      - settings_notification_schedule
+
   - module: src.bot.handlers.visualize_handler
     class: VisualizeHandler
     command: visualize

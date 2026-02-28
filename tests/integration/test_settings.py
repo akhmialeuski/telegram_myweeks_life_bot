@@ -15,11 +15,17 @@ Test Groups:
     - TestBirthDateHandler: Date input flow and validation
     - TestLanguageHandler: Language selection
     - TestLifeExpectancyHandler: Numeric input flow and validation
+    - TestNotificationSchedulePremiumUser: Premium user schedule updates
+    - TestNotificationScheduleBasicUser: Basic user access denial
+    - TestNotificationScheduleMultiUser: Settings isolation between users
+    - TestNotificationScheduleDefaultUser: Default schedule for new users
 """
 
 import time
 import uuid
-from datetime import date, timedelta
+from datetime import date
+from datetime import time as datetime_time
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -30,13 +36,26 @@ from src.bot.handlers.settings.birth_date_handler import BirthDateHandler
 from src.bot.handlers.settings.dispatcher import SettingsDispatcher
 from src.bot.handlers.settings.language_handler import LanguageHandler
 from src.bot.handlers.settings.life_expectancy_handler import LifeExpectancyHandler
-from src.enums import SubscriptionType, SupportedLanguage
+from src.bot.handlers.settings.notification_schedule_handler import (
+    NotificationScheduleHandler,
+)
+from src.enums import (
+    NotificationFrequency,
+    SupportedLanguage,
+    WeekDay,
+)
 from src.services.container import ServiceContainer
 from tests.integration.conftest import (
     TEST_USER_ID,
     get_reply_text,
+    make_premium_user,
+    make_registered_user,
     set_message_text,
+    setup_notification_schedule_callback,
 )
+
+USER_B_ID: int = 987654321
+DEFAULT_SCHEDULE_TEST_USER_ID: int = 111222333
 
 
 @pytest.mark.integration
@@ -78,10 +97,7 @@ class TestSettingsDispatcher:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         handler = SettingsDispatcher(services=test_service_container)
         set_message_text(mock_update=mock_update, text="/settings")
 
@@ -96,6 +112,16 @@ class TestSettingsDispatcher:
         assert "01.01.1990" in reply_text
         assert "English" in reply_text  # Default lang name
         assert "80 years" in reply_text  # Default expectancy
+
+        # Schedule button must NOT be shown for basic users
+        reply_markup = mock_update.message.reply_text.call_args.kwargs.get(
+            "reply_markup"
+        )
+        assert reply_markup is not None
+        all_button_texts = [
+            btn.text for row in reply_markup.inline_keyboard for btn in row
+        ]
+        assert not any("reminder schedule" in t.lower() for t in all_button_texts)
 
     async def test_settings_menu_premium_user_display(
         self,
@@ -129,15 +155,7 @@ class TestSettingsDispatcher:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
-        # Upgrade to Premium
-        await test_service_container.user_service.update_user_subscription(
-            telegram_id=TEST_USER_ID, subscription_type=SubscriptionType.PREMIUM
-        )
-
+        await make_premium_user(test_service_container, mock_telegram_user)
         handler = SettingsDispatcher(services=test_service_container)
         set_message_text(mock_update=mock_update, text="/settings")
 
@@ -147,6 +165,20 @@ class TestSettingsDispatcher:
         # --- ASSERT ---
         reply_text = get_reply_text(mock_message=mock_update.message)
         assert "Premium Subscription" in reply_text
+
+        # Schedule button must be shown for premium users, without "Premium" text
+        reply_markup = mock_update.message.reply_text.call_args.kwargs.get(
+            "reply_markup"
+        )
+        assert reply_markup is not None
+        all_button_texts = [
+            btn.text for row in reply_markup.inline_keyboard for btn in row
+        ]
+        schedule_buttons = [
+            t for t in all_button_texts if "reminder schedule" in t.lower()
+        ]
+        assert len(schedule_buttons) == 1
+        assert "Premium" not in schedule_buttons[0]
 
 
 @pytest.mark.integration
@@ -193,10 +225,7 @@ class TestBirthDateHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
 
         mock_update.message = None
         mock_update.callback_query = MagicMock()
@@ -261,10 +290,7 @@ class TestBirthDateHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         # Manually set waiting state in context.user_data as persistence does
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_BIRTH_DATE.value,
@@ -327,10 +353,7 @@ class TestBirthDateHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_BIRTH_DATE.value,
             TIMESTAMP_KEY: time.time(),
@@ -387,10 +410,7 @@ class TestBirthDateHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_BIRTH_DATE.value,
             TIMESTAMP_KEY: time.time(),
@@ -448,10 +468,7 @@ class TestBirthDateHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         # No state set
 
         set_message_text(mock_update=mock_update, text="01.01.2000")
@@ -518,10 +535,7 @@ class TestLanguageHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
 
         mock_update.message = None
         mock_update.callback_query = MagicMock()
@@ -580,10 +594,7 @@ class TestLanguageHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
 
         mock_update.message = None
         mock_update.callback_query = MagicMock()
@@ -647,10 +658,7 @@ class TestLanguageHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
 
         mock_update.message = None
         mock_update.callback_query = MagicMock()
@@ -727,10 +735,7 @@ class TestLifeExpectancyHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
 
         mock_update.message = None
         mock_update.callback_query = MagicMock()
@@ -791,10 +796,7 @@ class TestLifeExpectancyHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY.value,
             TIMESTAMP_KEY: time.time(),
@@ -850,10 +852,7 @@ class TestLifeExpectancyHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY.value,
             TIMESTAMP_KEY: time.time(),
@@ -910,10 +909,7 @@ class TestLifeExpectancyHandler:
         :returns: None
         """
         # --- ARRANGE ---
-        await test_service_container.user_service.create_user_profile(
-            user_info=mock_telegram_user,
-            birth_date=date(1990, 1, 1),
-        )
+        await make_registered_user(test_service_container, mock_telegram_user)
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY.value,
             TIMESTAMP_KEY: time.time(),
@@ -928,3 +924,616 @@ class TestLifeExpectancyHandler:
         # --- ASSERT ---
         reply_text = get_reply_text(mock_message=mock_update.message)
         assert "Invalid life expectancy" in reply_text
+
+
+# =============================================================================
+# Notification Schedule Handler — grouped by user type
+# =============================================================================
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestNotificationSchedulePremiumUser:
+    """Tests for registered Premium users (schedule update flow)."""
+
+    @pytest.fixture
+    def handler(
+        self, test_service_container: ServiceContainer
+    ) -> NotificationScheduleHandler:
+        return NotificationScheduleHandler(services=test_service_container)
+
+    async def test_premium_user_can_update_weekly_schedule(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-1W: Premium user updates weekly schedule.
+
+        Preconditions:
+            - User is registered via create_user_profile
+            - User has Premium subscription active
+
+        Test Steps:
+            1. User presses "Change reminder schedule" button (callback)
+               Expected: Bot shows prompt with format instructions
+            2. User inputs "weekly friday 10:30"
+               Expected: Settings updated in DB, success message sent
+            3. Read user profile via get_user_profile
+
+        Post-conditions:
+            - notification_frequency == WEEKLY
+            - notifications_day == FRIDAY
+            - notifications_time == 10:30
+            - notifications_month_day is None
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="weekly friday 10:30")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.WEEKLY
+        assert str(profile.settings.notifications_day).lower().endswith("friday")
+        assert profile.settings.notifications_time.hour == 10
+        assert profile.settings.notifications_time.minute == 30
+
+    async def test_premium_user_can_update_daily_schedule(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-1: Premium user updates daily schedule.
+
+        Preconditions:
+            - User is registered via create_user_profile
+            - User has Premium subscription active
+
+        Test Steps:
+            1. User presses "Change reminder schedule" button
+               Expected: Bot shows prompt
+            2. User inputs "daily 09:15"
+               Expected: Settings updated, success message
+            3. Read user profile
+
+        Post-conditions:
+            - notification_frequency == DAILY
+            - notifications_time == 09:15
+            - notifications_month_day is None
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="daily 09:15")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.DAILY
+        assert profile.settings.notifications_time.hour == 9
+        assert profile.settings.notifications_time.minute == 15
+        assert profile.settings.notifications_month_day is None
+
+    async def test_premium_user_can_update_monthly_schedule(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-2: Premium user updates monthly schedule.
+
+        Preconditions:
+            - User is registered via create_user_profile
+            - User has Premium subscription active
+
+        Test Steps:
+            1. User presses "Change reminder schedule" button
+               Expected: Bot shows prompt
+            2. User inputs "monthly 15 07:30"
+               Expected: Settings updated, success message
+            3. Read user profile
+
+        Post-conditions:
+            - notification_frequency == MONTHLY
+            - notifications_month_day == 15
+            - notifications_time == 07:30
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="monthly 15 07:30")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.MONTHLY
+        assert profile.settings.notifications_month_day == 15
+        assert profile.settings.notifications_time.hour == 7
+        assert profile.settings.notifications_time.minute == 30
+
+    async def test_premium_user_receives_prompt_and_confirmation(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-3: Premium user receives prompt and confirmation.
+
+        Preconditions:
+            - User is registered
+            - User has Premium subscription active
+
+        Test Steps:
+            1. User presses "Change reminder schedule" button
+               Expected: edit_message_text called with prompt containing
+               daily, weekly, monthly formats
+            2. User inputs "weekly monday 08:00"
+               Expected: Success reply sent
+
+        Post-conditions:
+            - edit_message_text called with prompt text
+            - reply_text contains "updated" or "success"
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        called_text = mock_update.callback_query.edit_message_text.call_args.kwargs[
+            "text"
+        ]
+        assert "daily" in called_text.lower() or "weekly" in called_text.lower()
+        assert "monthly" in called_text.lower()
+
+        set_message_text(mock_update=mock_update, text="weekly monday 08:00")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        reply_text = get_reply_text(mock_message=mock_update.message)
+        assert reply_text is not None
+        assert "updated" in reply_text.lower() or "success" in reply_text.lower()
+
+    async def test_premium_user_changes_only_time_daily(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-TIME-1: Premium user changes only time for daily schedule.
+
+        Preconditions:
+            - User is registered
+            - User has Premium subscription
+            - Current schedule: frequency=DAILY, time=09:00
+
+        Test Steps:
+            1. User opens schedule settings
+            2. User inputs "daily 14:30" (same frequency, new time)
+               Expected: Time updated, frequency unchanged
+            3. Read user profile
+
+        Post-conditions:
+            - notification_frequency remains DAILY
+            - notifications_time updated to 14:30
+            - notifications_month_day unchanged
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        await test_service_container.user_service.update_user_settings(
+            telegram_id=TEST_USER_ID,
+            notification_frequency=NotificationFrequency.DAILY,
+            notifications_time=datetime_time(9, 0),
+        )
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="daily 14:30")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.DAILY
+        assert profile.settings.notifications_time.hour == 14
+        assert profile.settings.notifications_time.minute == 30
+        assert profile.settings.notifications_month_day is None
+
+    async def test_premium_user_changes_only_time_weekly(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-TIME-2: Premium user changes only time for weekly schedule.
+
+        Preconditions:
+            - User is registered
+            - User has Premium subscription
+            - Current schedule: frequency=WEEKLY, day=MONDAY, time=09:00
+
+        Test Steps:
+            1. User opens schedule settings
+            2. User inputs "weekly monday 18:45" (same day, new time)
+               Expected: Time updated, day and frequency unchanged
+            3. Read user profile
+
+        Post-conditions:
+            - notification_frequency remains WEEKLY
+            - notifications_day remains MONDAY
+            - notifications_time updated to 18:45
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        await test_service_container.user_service.update_user_settings(
+            telegram_id=TEST_USER_ID,
+            notification_frequency=NotificationFrequency.WEEKLY,
+            notifications_day=WeekDay.MONDAY,
+            notifications_time=datetime_time(9, 0),
+        )
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="weekly monday 18:45")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.WEEKLY
+        assert str(profile.settings.notifications_day).lower().endswith("monday")
+        assert profile.settings.notifications_time.hour == 18
+        assert profile.settings.notifications_time.minute == 45
+
+    async def test_premium_user_changes_only_time_monthly(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-HP-TIME-3: Premium user changes only time for monthly schedule.
+
+        Preconditions:
+            - User is registered
+            - User has Premium subscription
+            - Current schedule: frequency=MONTHLY, month_day=15, time=09:00
+
+        Test Steps:
+            1. User opens schedule settings
+            2. User inputs "monthly 15 21:00" (same day, new time)
+               Expected: Time updated, day and frequency unchanged
+            3. Read user profile
+
+        Post-conditions:
+            - notification_frequency remains MONTHLY
+            - notifications_month_day remains 15
+            - notifications_time updated to 21:00
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        await test_service_container.user_service.update_user_settings(
+            telegram_id=TEST_USER_ID,
+            notification_frequency=NotificationFrequency.MONTHLY,
+            notifications_month_day=15,
+            notifications_time=datetime_time(9, 0),
+        )
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="monthly 15 21:00")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.MONTHLY
+        assert profile.settings.notifications_month_day == 15
+        assert profile.settings.notifications_time.hour == 21
+        assert profile.settings.notifications_time.minute == 0
+
+    async def test_premium_invalid_schedule_input_returns_validation_error(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-FULL-6: Invalid schedule format returns error.
+
+        Preconditions:
+            - User is registered
+            - User has Premium subscription
+
+        Test Steps:
+            1. User opens schedule settings
+            2. User inputs invalid format "monthly 35 22:00" (day > 28)
+               Expected: Validation error message shown
+
+        Post-conditions:
+            - Response contains "Invalid format"
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_premium_user(test_service_container, mock_telegram_user)
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        set_message_text(mock_update=mock_update, text="monthly 35 22:00")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        reply_text = get_reply_text(mock_message=mock_update.message)
+        assert "Invalid format" in reply_text
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestNotificationScheduleBasicUser:
+    """Tests for registered Basic (non-premium) users."""
+
+    @pytest.fixture
+    def handler(
+        self, test_service_container: ServiceContainer
+    ) -> NotificationScheduleHandler:
+        return NotificationScheduleHandler(services=test_service_container)
+
+    async def test_basic_user_cannot_access_schedule_setting(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-FULL-5: Non-premium user cannot change schedule.
+
+        Preconditions:
+            - User is registered with BASIC subscription
+
+        Test Steps:
+            1. User presses "Change reminder schedule" button
+               Expected: Access denied message shown
+
+        Post-conditions:
+            - Response contains "only for Premium"
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        await make_registered_user(test_service_container, mock_telegram_user)
+        mock_update.message = None
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+
+        called_text = mock_update.callback_query.edit_message_text.call_args.kwargs[
+            "text"
+        ]
+        assert "only for Premium" in called_text
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestNotificationScheduleMultiUser:
+    """Tests for multiple Premium users (isolation)."""
+
+    @pytest.fixture
+    def handler(
+        self, test_service_container: ServiceContainer
+    ) -> NotificationScheduleHandler:
+        return NotificationScheduleHandler(services=test_service_container)
+
+    async def test_settings_isolation_between_users(
+        self,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+        mock_telegram_user: MagicMock,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-FULL-7: Settings isolation between users.
+
+        Preconditions:
+            - Two Premium users (user A and user B) registered
+
+        Test Steps:
+            1. User A updates schedule to "daily 09:00"
+               Expected: Settings saved for user A
+            2. User B updates schedule to "weekly friday 14:00"
+               Expected: Settings saved for user B
+            3. Read both user profiles
+
+        Post-conditions:
+            - User A: frequency=DAILY, time=09:00
+            - User B: frequency=WEEKLY, day=FRIDAY, time=14:00
+            - Settings are isolated (no cross-contamination)
+
+        :param handler: NotificationScheduleHandler instance
+        :param mock_update: Mock Telegram Update
+        :param mock_context: Mock Telegram Context
+        :param mock_telegram_user: Mock Telegram User
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        mock_user_b = MagicMock()
+        mock_user_b.id = USER_B_ID
+        mock_user_b.username = "user_b"
+        mock_user_b.first_name = "User"
+        mock_user_b.last_name = "B"
+        mock_user_b.language_code = "en"
+        mock_user_b.is_bot = False
+
+        await make_premium_user(
+            test_service_container,
+            mock_telegram_user,
+            birth_date=date(1990, 1, 1),
+        )
+        await make_premium_user(
+            test_service_container,
+            mock_user_b,
+            birth_date=date(1985, 5, 15),
+        )
+        setup_notification_schedule_callback(mock_update)
+
+        await handler.handle_callback(update=mock_update, context=mock_context)
+        set_message_text(mock_update=mock_update, text="daily 09:00")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        mock_update.effective_user = mock_user_b
+        mock_update.callback_query.data = "settings_notification_schedule"
+        await handler.handle_callback(update=mock_update, context=mock_context)
+        set_message_text(mock_update=mock_update, text="weekly friday 14:00")
+        await handler.handle_input(update=mock_update, context=mock_context)
+
+        profile_a = await test_service_container.user_service.get_user_profile(
+            TEST_USER_ID
+        )
+        profile_b = await test_service_container.user_service.get_user_profile(
+            USER_B_ID
+        )
+
+        assert profile_a is not None
+        assert profile_a.settings.notification_frequency == NotificationFrequency.DAILY
+        assert profile_a.settings.notifications_time.hour == 9
+        assert profile_a.settings.notifications_time.minute == 0
+
+        assert profile_b is not None
+        assert profile_b.settings.notification_frequency == NotificationFrequency.WEEKLY
+        assert str(profile_b.settings.notifications_day).lower().endswith("friday")
+        assert profile_b.settings.notifications_time.hour == 14
+        assert profile_b.settings.notifications_time.minute == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+class TestNotificationScheduleDefaultUser:
+    """Tests for newly registered user (default schedule)."""
+
+    async def test_default_schedule_when_no_explicit_setting(
+        self,
+        test_service_container: ServiceContainer,
+    ) -> None:
+        """TC-FULL-8: Default schedule when no explicit setting.
+
+        Preconditions:
+            - User created via create_user_profile
+            - No explicit notification schedule call made
+
+        Test Steps:
+            1. Create user without calling notification schedule
+            2. Read user profile via get_user_profile
+
+        Post-conditions:
+            - notification_frequency == WEEKLY (default from migration)
+
+        :param test_service_container: ServiceContainer with test DB
+        :returns: None
+        """
+        mock_user = MagicMock()
+        mock_user.id = DEFAULT_SCHEDULE_TEST_USER_ID
+        mock_user.username = "default_user"
+        mock_user.first_name = "Default"
+        mock_user.last_name = "User"
+        mock_user.language_code = "en"
+        mock_user.is_bot = False
+
+        await make_registered_user(
+            test_service_container,
+            mock_user,
+            birth_date=date(1992, 3, 10),
+        )
+
+        profile = await test_service_container.user_service.get_user_profile(
+            DEFAULT_SCHEDULE_TEST_USER_ID
+        )
+        assert profile is not None
+        assert profile.settings.notification_frequency == NotificationFrequency.WEEKLY

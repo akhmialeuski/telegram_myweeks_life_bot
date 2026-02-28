@@ -4,15 +4,6 @@ This module defines event handlers that subscribe to domain events and
 trigger appropriate actions on the scheduler via the SchedulerClient.
 """
 
-from datetime import datetime
-
-from ..constants import (
-    DEFAULT_NOTIFICATIONS_DAY,
-    DEFAULT_NOTIFICATIONS_TIME,
-    DEFAULT_TIMEZONE,
-)
-from ..contracts.scheduler_port_protocol import ScheduleTrigger
-from ..enums import WeekDay
 from ..events.domain_events import (
     UserDeletedEvent,
     UserSettingsChangedEvent,
@@ -20,19 +11,9 @@ from ..events.domain_events import (
 from ..services.container import ServiceContainer
 from ..utils.config import BOT_NAME
 from ..utils.logger import get_logger
+from .notification_schedule import build_notification_trigger
 
 logger = get_logger(f"{BOT_NAME}.EventListeners")
-
-
-WEEKDAY_MAP = {
-    WeekDay.MONDAY: 0,
-    WeekDay.TUESDAY: 1,
-    WeekDay.WEDNESDAY: 2,
-    WeekDay.THURSDAY: 3,
-    WeekDay.FRIDAY: 4,
-    WeekDay.SATURDAY: 5,
-    WeekDay.SUNDAY: 6,
-}
 
 
 async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
@@ -86,40 +67,28 @@ async def handle_user_settings_changed(event: UserSettingsChangedEvent) -> None:
             "Notifications disabled for user %s, removing scheduled job",
             event.user_id,
         )
-        await client.remove_job(f"weekly_{event.user_id}")
+        await client.remove_job(f"notification_{event.user_id}")
         return
 
-    day = user.settings.notifications_day or DEFAULT_NOTIFICATIONS_DAY
-    day_int = WEEKDAY_MAP.get(day)
-    if day_int is None:
-        logger.error("Invalid notifications_day '%s' for user %s", day, event.user_id)
+    trigger = build_notification_trigger(user.settings)
+    if trigger is None:
+        logger.error("Invalid notification schedule for user %s", event.user_id)
         return
 
-    notification_time = (
-        user.settings.notifications_time
-        or datetime.strptime(
-            DEFAULT_NOTIFICATIONS_TIME,
-            "%H:%M:%S",
-        ).time()
-    )
-
-    trigger = ScheduleTrigger(
-        day_of_week=day_int,
-        hour=notification_time.hour,
-        minute=notification_time.minute,
-        timezone=user.settings.timezone or DEFAULT_TIMEZONE,
-    )
-
-    job_id = f"weekly_{event.user_id}"
+    job_id = f"notification_{event.user_id}"
+    job_type = f"{user.settings.notification_frequency}_summary"
 
     success = await client.schedule_job(
-        job_id=job_id, trigger=trigger, user_id=event.user_id, job_type="weekly_summary"
+        job_id=job_id,
+        trigger=trigger,
+        user_id=event.user_id,
+        job_type=job_type,
     )
 
     if success:
-        logger.info(f"Rescheduled weekly job for user {event.user_id}")
+        logger.info(f"Rescheduled {job_type} job for user {event.user_id}")
     else:
-        logger.error(f"Failed to reschedule job for user {event.user_id}")
+        logger.error(f"Failed to reschedule {job_type} job for user {event.user_id}")
 
 
 async def handle_user_deleted(event: UserDeletedEvent) -> None:
@@ -140,7 +109,7 @@ async def handle_user_deleted(event: UserDeletedEvent) -> None:
         logger.warning("Scheduler client not available")
         return
 
-    job_id = f"weekly_{event.user_id}"
+    job_id = f"notification_{event.user_id}"
     success = await client.remove_job(job_id)
 
     if success:
