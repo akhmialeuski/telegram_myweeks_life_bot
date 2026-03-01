@@ -309,6 +309,33 @@ async def make_premium_user(
     )
 
 
+async def make_trial_user(
+    container: ServiceContainer,
+    user_info: Any,
+    birth_date: date | None = None,
+    telegram_id: int | None = None,
+) -> None:
+    """Create a registered user with Trial subscription.
+
+    :param container: Service container with database connection
+    :type container: ServiceContainer
+    :param user_info: Mock or real Telegram User object (must have .id)
+    :type user_info: Any
+    :param birth_date: Birth date for the user (default: 1990-01-01)
+    :type birth_date: date | None
+    :param telegram_id: Telegram ID to upgrade (default: user_info.id)
+    :type telegram_id: int | None
+    :returns: None
+    :rtype: None
+    """
+    await make_registered_user(container, user_info, birth_date)
+    tid = telegram_id if telegram_id is not None else user_info.id
+    await container.user_service.update_user_subscription(
+        telegram_id=tid,
+        subscription_type=SubscriptionType.TRIAL,
+    )
+
+
 def setup_notification_schedule_callback(mock_update: MagicMock) -> None:
     """Configure mock_update for notification schedule callback flow.
 
@@ -319,6 +346,26 @@ def setup_notification_schedule_callback(mock_update: MagicMock) -> None:
     """
     mock_update.callback_query = MagicMock()
     mock_update.callback_query.data = "settings_notification_schedule"
+    mock_update.callback_query.edit_message_text = AsyncMock()
+    mock_update.callback_query.answer = AsyncMock()
+
+
+def setup_timezone_callback(
+    mock_update: MagicMock,
+    callback_data: str = "settings_timezone",
+) -> None:
+    """Configure mock_update for timezone settings callback flow.
+
+    :param mock_update: Mock Telegram Update object
+    :type mock_update: MagicMock
+    :param callback_data: Callback data string (default: settings_timezone)
+    :type callback_data: str
+    :returns: None
+    :rtype: None
+    """
+    mock_update.message = None
+    mock_update.callback_query = MagicMock()
+    mock_update.callback_query.data = callback_data
     mock_update.callback_query.edit_message_text = AsyncMock()
     mock_update.callback_query.answer = AsyncMock()
 
