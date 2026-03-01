@@ -7,7 +7,7 @@ selection and updating of the user's notification timezone.
 import zoneinfo
 from typing import Optional
 
-from telegram import Update
+from telegram import CallbackQuery, Message, Update
 from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
@@ -128,7 +128,12 @@ class TimezoneHandler(AbstractSettingsHandler):
                 )
                 return ConversationState.AWAITING_SETTINGS_TIMEZONE.value
 
-            return await self._update_timezone(timezone_value, user_id, lang, query)
+            return await self._update_timezone(
+                timezone_value=timezone_value,
+                user_id=user_id,
+                lang=lang,
+                query=query,
+            )
 
         except Exception as error:
             logger.error(
@@ -170,10 +175,14 @@ class TimezoneHandler(AbstractSettingsHandler):
 
         try:
             # Validate timezone
-            zoneinfo.ZoneInfo(timezone_input)
+            zoneinfo.ZoneInfo(key=timezone_input)
 
             await self._update_timezone(
-                timezone_input, user_id, lang, None, update.message
+                timezone_value=timezone_input,
+                user_id=user_id,
+                lang=lang,
+                query=None,
+                message=update.message,
             )
             return ConversationState.IDLE.value
 
@@ -200,7 +209,12 @@ class TimezoneHandler(AbstractSettingsHandler):
             return ConversationState.IDLE.value
 
     async def _update_timezone(
-        self, timezone_value: str, user_id: int, lang: str, query=None, message=None
+        self,
+        timezone_value: str,
+        user_id: int,
+        lang: str,
+        query: Optional[CallbackQuery] = None,
+        message: Optional[Message] = None,
     ) -> Optional[str]:
         """Update the timezone in the database and notify the user.
 

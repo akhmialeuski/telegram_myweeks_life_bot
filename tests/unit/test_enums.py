@@ -102,6 +102,8 @@ class TestSupportedLanguage:
         assert SupportedLanguage.EN == "en"
         assert SupportedLanguage.UA == "ua"
         assert SupportedLanguage.BY == "by"
+        assert SupportedLanguage.BE == "be"
+        assert SupportedLanguage.UK == "uk"
 
     def test_supported_language_count(self) -> None:
         """Test that SupportedLanguage has expected number of members.
@@ -109,4 +111,4 @@ class TestSupportedLanguage:
         This test verifies that the SupportedLanguage enum has
         the expected number of language options.
         """
-        assert len(SupportedLanguage) == 4
+        assert len(SupportedLanguage) == 6

@@ -82,7 +82,10 @@ class TestStartHandler:
         assert event.new_value is True
 
         handler.services.user_service.create_user_profile.assert_called_once_with(
-            user_info=mock_update.effective_user, birth_date=birth_date, language="en"
+            user_info=mock_update.effective_user,
+            birth_date=birth_date,
+            language="en",
+            timezone="UTC",
         )
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args
@@ -293,7 +296,10 @@ class TestStartHandler:
 
         handler.services.event_bus.publish.assert_called_once()
         handler.services.user_service.create_user_profile.assert_called_once_with(
-            user_info=mock_update.effective_user, birth_date=birth_date, language="en"
+            user_info=mock_update.effective_user,
+            birth_date=birth_date,
+            language="en",
+            timezone="UTC",
         )
         mock_update.message.reply_text.assert_called_once()
         call_args = mock_update.message.reply_text.call_args

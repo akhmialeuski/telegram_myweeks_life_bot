@@ -13,7 +13,6 @@ from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.handlers.base_handler import BaseHandler
-from src.enums import SubscriptionType
 from src.i18n import get_localized_language_name, normalize_babel_locale, use_locale
 from src.services.container import ServiceContainer
 from src.utils.config import BOT_NAME
@@ -77,12 +76,7 @@ class SettingsDispatcher(BaseHandler):
 
         try:
             # Determine subscription type
-            is_premium = (
-                profile
-                and profile.subscription
-                and profile.subscription.subscription_type
-                in [SubscriptionType.PREMIUM, SubscriptionType.TRIAL]
-            )
+            is_premium = profile.is_premium if profile else False
 
             birth_date_value = (
                 format_date(

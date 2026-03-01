@@ -18,6 +18,11 @@ from babel.numbers import format_decimal, format_percent
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.bot.constants import (
+    COMMAND_START,
+    DEFAULT_TIMEZONE_MAPPING,
+    FALLBACK_TIMEZONE,
+)
 from src.core.exceptions import ValidationError as CoreValidationError
 from src.enums import SupportedLanguage
 from src.events.domain_events import UserSettingsChangedEvent
@@ -35,7 +40,6 @@ from ...database.service import UserRegistrationError, UserServiceError
 from ...services.container import ServiceContainer
 from ...utils.config import BOT_NAME
 from ...utils.logger import get_logger
-from ..constants import COMMAND_START
 from ..conversations.persistence import TelegramContextPersistence
 from ..conversations.states import ConversationState
 from .base_handler import BaseHandler, CommandContext
@@ -256,11 +260,15 @@ class StartHandler(BaseHandler):
         user_id = cmd_context.user_id
         user = cmd_context.user
 
-        # Create user profile with language preference
+        # Estimate default timezone from language
+        default_timezone = self._guess_timezone_from_language(lang_code=lang)
+
+        # Create user profile with language preference and timezone
         await self.services.user_service.create_user_profile(
             user_info=user,
             birth_date=birth_date,
             language=lang,
+            timezone=default_timezone,
         )
 
         # Add user to notification scheduler
@@ -424,6 +432,17 @@ class StartHandler(BaseHandler):
                 life_percentage=formatted_percent,
             ),
         )
+
+    def _guess_timezone_from_language(self, lang_code: str) -> str:
+        """Guess the user's default timezone based on their language code.
+
+        :param lang_code: The 2-letter language code (e.g., 'ru', 'en')
+        :type lang_code: str
+        :returns: A valid IANA timezone string
+        :rtype: str
+        """
+        # default to fallback timezone if no mapping is found
+        return DEFAULT_TIMEZONE_MAPPING.get(lang_code[:2].lower(), FALLBACK_TIMEZONE)
 
     async def _send_date_format_error(self, update: Update, lang: str) -> None:
         """Send date format error message.

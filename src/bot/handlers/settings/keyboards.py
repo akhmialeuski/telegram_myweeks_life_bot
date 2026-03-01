@@ -1,3 +1,5 @@
+from typing import Callable
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -37,15 +39,17 @@ def get_settings_keyboard(
                 callback_data="settings_life_expectancy",
             )
         ],
-        [
-            InlineKeyboardButton(
-                text=pgettext("buttons.change_timezone", "🌍 Change timezone"),
-                callback_data="settings_timezone",
-            )
-        ],
     ]
 
     if is_premium:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=pgettext("buttons.change_timezone", "🌍 Change timezone"),
+                    callback_data="settings_timezone",
+                )
+            ]
+        )
         keyboard.append(
             [
                 InlineKeyboardButton(
@@ -67,13 +71,12 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="language_ru")],
         [InlineKeyboardButton("🇺🇸 English", callback_data="language_en")],
         [InlineKeyboardButton("🇺🇦 Українська", callback_data="language_ua")],
-        [InlineKeyboardButton("🇺🇦 Українська", callback_data="language_ua")],
         [InlineKeyboardButton("🇧🇾 Беларуская", callback_data="language_by")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def get_timezone_keyboard(pgettext) -> InlineKeyboardMarkup:
+def get_timezone_keyboard(pgettext: Callable[[str, str], str]) -> InlineKeyboardMarkup:
     """Get the timezone selection keyboard.
 
     :param pgettext: Localized pgettext translation function

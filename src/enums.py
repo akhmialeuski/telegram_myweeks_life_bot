@@ -65,6 +65,8 @@ class SupportedLanguage(StrEnum):
     EN = "en"
     UA = "ua"
     BY = "by"
+    BE = "be"
+    UK = "uk"
 
 
 class NotificationFrequency(StrEnum):

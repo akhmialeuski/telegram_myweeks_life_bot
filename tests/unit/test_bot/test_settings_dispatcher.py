@@ -66,6 +66,7 @@ class TestSettingsDispatcher:
         from src.bot.handlers.base_handler import CommandContext
 
         mock_profile = MagicMock()
+        mock_profile.is_premium = False
         mock_profile.subscription.subscription_type = SubscriptionType.BASIC
         mock_profile.settings.language = "en"
         mock_profile.settings.life_expectancy = 80
@@ -131,6 +132,7 @@ class TestSettingsDispatcher:
         from src.bot.handlers.base_handler import CommandContext
 
         mock_profile = MagicMock()
+        mock_profile.is_premium = True
         mock_profile.subscription.subscription_type = SubscriptionType.PREMIUM
         mock_profile.settings.language = "en"
         mock_profile.settings.life_expectancy = 80
