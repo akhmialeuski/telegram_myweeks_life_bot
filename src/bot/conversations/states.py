@@ -20,6 +20,7 @@ class ConversationState(str, Enum):
     :cvar AWAITING_SETTINGS_LIFE_EXPECTANCY: Waiting for life expectancy input
     :cvar AWAITING_SETTINGS_LANGUAGE: Waiting for language selection (callback-based)
     :cvar AWAITING_SETTINGS_NOTIFICATION_SCHEDULE: Waiting for notification schedule input
+    :cvar AWAITING_SETTINGS_TIMEZONE: Waiting for timezone input
     """
 
     IDLE = "idle"
@@ -28,6 +29,7 @@ class ConversationState(str, Enum):
     AWAITING_SETTINGS_LIFE_EXPECTANCY = "settings_life_expectancy"
     AWAITING_SETTINGS_LANGUAGE = "settings_language"
     AWAITING_SETTINGS_NOTIFICATION_SCHEDULE = "settings_notification_schedule"
+    AWAITING_SETTINGS_TIMEZONE = "settings_timezone"
 
     @classmethod
     def from_string(cls, value: str | None) -> "ConversationState":
@@ -61,6 +63,7 @@ TEXT_INPUT_STATES: frozenset[ConversationState] = frozenset(
         ConversationState.AWAITING_SETTINGS_BIRTH_DATE,
         ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY,
         ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE,
+        ConversationState.AWAITING_SETTINGS_TIMEZONE,
     ]
 )
 
@@ -77,4 +80,5 @@ STATE_TO_COMMAND: dict[ConversationState, str] = {
     ConversationState.AWAITING_SETTINGS_LIFE_EXPECTANCY: "settings_life_expectancy",
     ConversationState.AWAITING_SETTINGS_LANGUAGE: "settings_language",
     ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE: "settings_notification_schedule",
+    ConversationState.AWAITING_SETTINGS_TIMEZONE: "settings_timezone",
 }

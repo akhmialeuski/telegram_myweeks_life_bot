@@ -540,6 +540,7 @@ class UserService:
         notifications_time: Optional[time] = None,
         notification_frequency: Optional[NotificationFrequency] = None,
         notifications_month_day: Optional[int] = None,
+        timezone: Optional[str] = None,
     ) -> None:
         """Update user settings.
 
@@ -580,6 +581,7 @@ class UserService:
                 notifications_time=notifications_time,
                 notification_frequency=notification_frequency,
                 notifications_month_day=notifications_month_day,
+                timezone=timezone,
                 telegram_id=telegram_id,
             )
 
@@ -737,6 +739,7 @@ class UserService:
         notifications_time: Optional[time],
         notification_frequency: Optional[NotificationFrequency],
         notifications_month_day: Optional[int],
+        timezone: Optional[str],
         telegram_id: int,
     ) -> None:
         """Apply individual field updates to user settings.
@@ -800,6 +803,10 @@ class UserService:
             logger.info(
                 f"Updated notifications month day for user {telegram_id} to {notifications_month_day}"
             )
+
+        if timezone is not None:
+            settings.timezone = timezone
+            logger.info(f"Updated timezone for user {telegram_id} to {timezone}")
 
 
 # Global service instance

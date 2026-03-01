@@ -1362,7 +1362,7 @@ class TestNotificationScheduleBasicUser:
     ) -> NotificationScheduleHandler:
         return NotificationScheduleHandler(services=test_service_container)
 
-    async def test_basic_user_cannot_access_schedule_setting(
+    async def test_basic_user_sees_schedule_prompt_when_accessing_handler(
         self,
         handler: NotificationScheduleHandler,
         mock_update: MagicMock,
@@ -1370,17 +1370,22 @@ class TestNotificationScheduleBasicUser:
         mock_telegram_user: MagicMock,
         test_service_container: ServiceContainer,
     ) -> None:
-        """TC-FULL-5: Non-premium user cannot change schedule.
+        """TC-FULL-5: Basic user sees schedule prompt if reaching handler.
+
+        Premium access control is now handled by the keyboard
+        (buttons are hidden for non-premium users) and the dispatcher,
+        not by the handler itself. If a basic user somehow reaches
+        the handler directly, they will see the schedule format prompt.
 
         Preconditions:
             - User is registered with BASIC subscription
 
         Test Steps:
-            1. User presses "Change reminder schedule" button
-               Expected: Access denied message shown
+            1. User directly calls handle_callback
+               Expected: Schedule format prompt shown
 
         Post-conditions:
-            - Response contains "only for Premium"
+            - Response contains schedule format instructions
 
         :param handler: NotificationScheduleHandler instance
         :param mock_update: Mock Telegram Update
@@ -1398,7 +1403,7 @@ class TestNotificationScheduleBasicUser:
         called_text = mock_update.callback_query.edit_message_text.call_args.kwargs[
             "text"
         ]
-        assert "only for Premium" in called_text
+        assert "daily" in called_text.lower() or "weekly" in called_text.lower()
 
 
 @pytest.mark.integration

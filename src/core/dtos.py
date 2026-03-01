@@ -75,3 +75,17 @@ class UserProfileDTO:
     created_at: datetime
     settings: UserSettingsDTO
     subscription: UserSubscriptionDTO
+
+    @property
+    def is_premium(self) -> bool:
+        """Check if the user has an active premium subscription.
+
+        :returns: True if the user has an active premium or trial subscription
+        :rtype: bool
+        """
+        return bool(
+            self.subscription
+            and self.subscription.subscription_type
+            in (SubscriptionType.PREMIUM, SubscriptionType.TRIAL)
+            and self.subscription.is_active
+        )

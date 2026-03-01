@@ -10,7 +10,7 @@ from telegram.ext import ContextTypes
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.conversations.states import ConversationState
 from src.database.service import UserNotFoundError, UserSettingsUpdateError
-from src.enums import NotificationFrequency, SubscriptionType, WeekDay
+from src.enums import NotificationFrequency, WeekDay
 from src.events.domain_events import UserSettingsChangedEvent
 from src.i18n import use_locale
 from src.services.container import ServiceContainer
@@ -30,11 +30,6 @@ WEEKDAY_BY_NAME: dict[str, WeekDay] = {
     "saturday": WeekDay.SATURDAY,
     "sunday": WeekDay.SUNDAY,
 }
-
-ALLOWED_PREMIUM_TYPES: tuple[SubscriptionType, ...] = (
-    SubscriptionType.PREMIUM,
-    SubscriptionType.TRIAL,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,16 +63,6 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
 
         await query.answer()
 
-        if not self._is_premium(cmd_context.user_profile):
-            await self.edit_message(
-                query=query,
-                message_text=pgettext(
-                    "settings.notification_schedule.premium_only",
-                    "🔒 This setting is available only for Premium subscription.",
-                ),
-            )
-            return
-
         await self.edit_message(
             query=query,
             message_text=pgettext(
@@ -103,17 +88,6 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
         user_id = cmd_context.user_id
         _, _, pgettext = use_locale(lang=cmd_context.language)
 
-        if not self._is_premium(cmd_context.user_profile):
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "settings.notification_schedule.premium_only",
-                    "🔒 This setting is available only for Premium subscription.",
-                ),
-            )
-            await self._clear_waiting_state(user_id=user_id, context=context)
-            return
-
         if not await self._is_valid_waiting_state(
             user_id=user_id,
             expected_state=ConversationState.AWAITING_SETTINGS_NOTIFICATION_SCHEDULE,
@@ -137,39 +111,40 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
             return
 
         try:
-            await self.services.user_service.update_user_settings(
-                telegram_id=user_id,
-                notification_frequency=parsed.frequency,
-                notifications_day=parsed.notifications_day,
-                notifications_time=parsed.notifications_time,
-                notifications_month_day=parsed.notifications_month_day,
-            )
-
-            await self.services.event_bus.publish(
-                UserSettingsChangedEvent(
-                    user_id=user_id,
-                    setting_name="notification_schedule",
-                    new_value=raw_text,
-                    old_value=None,
+            try:
+                await self.services.user_service.update_user_settings(
+                    telegram_id=user_id,
+                    notification_frequency=parsed.frequency,
+                    notifications_day=parsed.notifications_day,
+                    notifications_time=parsed.notifications_time,
+                    notifications_month_day=parsed.notifications_month_day,
                 )
-            )
-        except (UserNotFoundError, UserSettingsUpdateError) as error:
-            logger.error(
-                "%s: [%s]: failed to update schedule: %s",
-                COMMAND_SETTINGS,
-                user_id,
-                error,
-            )
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "settings.error",
-                    "❌ An error occurred while updating settings.\nPlease try again later.",
-                ),
-            )
-            return
 
-        await self._clear_waiting_state(user_id=user_id, context=context)
+                await self.services.event_bus.publish(
+                    UserSettingsChangedEvent(
+                        user_id=user_id,
+                        setting_name="notification_schedule",
+                        new_value=raw_text,
+                        old_value=None,
+                    )
+                )
+            except (UserNotFoundError, UserSettingsUpdateError) as error:
+                logger.error(
+                    "%s: [%s]: failed to update schedule: %s",
+                    COMMAND_SETTINGS,
+                    user_id,
+                    error,
+                )
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "settings.error",
+                        "❌ An error occurred while updating settings.\nPlease try again later.",
+                    ),
+                )
+                return
+        finally:
+            await self._clear_waiting_state(user_id=user_id, context=context)
         await self.send_message(
             update=update,
             message_text=pgettext(
@@ -216,12 +191,3 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
             return datetime.strptime(value, "%H:%M").time()
         except ValueError as error:
             raise ValueError("Invalid time format") from error
-
-    @staticmethod
-    def _is_premium(profile) -> bool:
-        return bool(
-            profile
-            and profile.subscription
-            and profile.subscription.subscription_type in ALLOWED_PREMIUM_TYPES
-            and profile.subscription.is_active
-        )

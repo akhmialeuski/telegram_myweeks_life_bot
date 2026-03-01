@@ -13,7 +13,6 @@ from telegram.ext import ContextTypes
 
 from src.bot.constants import COMMAND_SETTINGS
 from src.bot.handlers.base_handler import BaseHandler
-from src.enums import SubscriptionType
 from src.i18n import get_localized_language_name, normalize_babel_locale, use_locale
 from src.services.container import ServiceContainer
 from src.utils.config import BOT_NAME
@@ -77,12 +76,7 @@ class SettingsDispatcher(BaseHandler):
 
         try:
             # Determine subscription type
-            is_premium = (
-                profile
-                and profile.subscription
-                and profile.subscription.subscription_type
-                in [SubscriptionType.PREMIUM, SubscriptionType.TRIAL]
-            )
+            is_premium = profile.is_premium if profile else False
 
             birth_date_value = (
                 format_date(
@@ -101,6 +95,9 @@ class SettingsDispatcher(BaseHandler):
                 getattr(getattr(profile, "settings", None), "life_expectancy", None)
                 or 80
             )
+            timezone_val = (
+                getattr(getattr(profile, "settings", None), "timezone", None) or "UTC"
+            )
 
             template = pgettext(
                 "settings.premium" if is_premium else "settings.basic",
@@ -108,13 +105,15 @@ class SettingsDispatcher(BaseHandler):
                     "⚙️ <b>Profile Settings (Premium Subscription)</b>\n\n"
                     "📅 <b>Birth date:</b> {birth_date}\n"
                     "🌍 <b>Language:</b> {language_name}\n"
-                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\n"
+                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n"
+                    "🌐 <b>Timezone:</b> {timezone}\n\n"
                     "Select what you want to change:"
                     if is_premium
                     else "⚙️ <b>Profile Settings (Basic Subscription)</b>\n\n"
                     "📅 <b>Birth date:</b> {birth_date}\n"
                     "🌍 <b>Language:</b> {language_name}\n"
-                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\n"
+                    "⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n"
+                    "🌐 <b>Timezone:</b> {timezone}\n\n"
                     "Select what you want to change:"
                 ),
             ).format(
@@ -123,6 +122,7 @@ class SettingsDispatcher(BaseHandler):
                 life_expectancy=format_decimal(
                     life_expectancy_val, locale=normalize_babel_locale(lang)
                 ),
+                timezone=timezone_val,
             )
 
             await self.send_message(

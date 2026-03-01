@@ -79,13 +79,13 @@ msgstr "❌ Произошла ошибка при изменении подпи
 
 #: dynamic key: settings.basic
 msgctxt "settings.basic"
-msgid "⚙️ <b>Profile Settings (Basic Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\nSelect what you want to change:"
-msgstr "⚙️ <b>Настройки профиля (Базовая подписка)</b>\n\n📅 <b>Дата рождения:</b> {birth_date}\n🌍 <b>Язык:</b> {language_name}\n⏰ <b>Ожидаемая продолжительность жизни:</b> {life_expectancy} лет\n\nВыберите, что хотите изменить:"
+msgid "⚙️ <b>Profile Settings (Basic Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n🌐 <b>Timezone:</b> {timezone}\n\nSelect what you want to change:"
+msgstr "⚙️ <b>Настройки профиля (Базовая подписка)</b>\n\n📅 <b>Дата рождения:</b> {birth_date}\n🌍 <b>Язык:</b> {language_name}\n⏰ <b>Ожидаемая продолжительность жизни:</b> {life_expectancy} лет\n🌐 <b>Часовой пояс:</b> {timezone}\n\nВыберите, что хотите изменить:"
 
 #: dynamic key: settings.premium
 msgctxt "settings.premium"
-msgid "⚙️ <b>Profile Settings (Premium Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n\nSelect what you want to change:"
-msgstr "⚙️ <b>Настройки профиля (Премиум подписка)</b>\n\n📅 <b>Дата рождения:</b> {birth_date}\n🌍 <b>Язык:</b> {language_name}\n⏰ <b>Ожидаемая продолжительность жизни:</b> {life_expectancy} лет\n\nВыберите, что хотите изменить:"
+msgid "⚙️ <b>Profile Settings (Premium Subscription)</b>\n\n📅 <b>Birth date:</b> {birth_date}\n🌍 <b>Language:</b> {language_name}\n⏰ <b>Expected life expectancy:</b> {life_expectancy} years\n🌐 <b>Timezone:</b> {timezone}\n\nSelect what you want to change:"
+msgstr "⚙️ <b>Настройки профиля (Премиум подписка)</b>\n\n📅 <b>Дата рождения:</b> {birth_date}\n🌍 <b>Язык:</b> {language_name}\n⏰ <b>Ожидаемая продолжительность жизни:</b> {life_expectancy} лет\n🌐 <b>Часовой пояс:</b> {timezone}\n\nВыберите, что хотите изменить:"
 
 #: dynamic key: settings.error
 msgctxt "settings.error"
@@ -255,3 +255,33 @@ msgstr "🎉 Достигнута важная отметка!"
 msgctxt "notifications.milestone_body"
 msgid "Congratulations! You've reached a milestone: %(milestone_type)s = %(milestone_value)s"
 msgstr "Поздравляем! Вы достигли важной отметки: %(milestone_type)s = %(milestone_value)s"
+
+#: dynamic key: buttons.change_timezone
+msgctxt "buttons.change_timezone"
+msgid "🌍 Change timezone"
+msgstr "🌍 Изменить часовой пояс"
+
+#: dynamic key: buttons.other_timezone
+msgctxt "buttons.other_timezone"
+msgid "🌐 Other"
+msgstr "🌐 Другой"
+
+#: dynamic key: settings.change_timezone
+msgctxt "settings.change_timezone"
+msgid "🌍 Select your timezone from the list below, or choose 'Other' to enter manually:"
+msgstr "🌍 Выберите часовой пояс из списка или нажмите 'Другой' для ввода вручную:"
+
+#: dynamic key: settings.enter_timezone_manual
+msgctxt "settings.enter_timezone_manual"
+msgid "✍️ Please enter your timezone in IANA format (e.g., Europe/London, America/New_York):"
+msgstr "✍️ Введите часовой пояс в формате IANA (например, Europe/London, America/New_York):"
+
+#: dynamic key: settings.invalid_timezone
+msgctxt "settings.invalid_timezone"
+msgid "⚠️ Invalid timezone format. Please enter a valid IANA timezone identifier (e.g., Europe/London)."
+msgstr "⚠️ Неверный формат часового пояса. Введите корректный идентификатор IANA (например, Europe/London)."
+
+#: dynamic key: settings.timezone_updated
+msgctxt "settings.timezone_updated"
+msgid "✅ <b>Timezone successfully changed!</b>\n\nNew timezone: <b>{new_timezone}</b>\n\nYour notifications will now be sent according to this timezone."
+msgstr "✅ <b>Часовой пояс успешно изменён!</b>\n\nНовый часовой пояс: <b>{new_timezone}</b>\n\nВаши уведомления теперь будут отправляться согласно этому часовому поясу."
