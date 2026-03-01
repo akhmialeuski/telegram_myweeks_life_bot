@@ -1,6 +1,5 @@
-"""Unit tests for notification schedule settings handler."""
-
 from datetime import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -76,3 +75,80 @@ class TestNotificationScheduleHandler:
         from unittest.mock import MagicMock
 
         assert await handler.handle(update=MagicMock(), context=MagicMock()) is None
+
+    @pytest.mark.asyncio
+    @patch("src.bot.handlers.settings.notification_schedule_handler.use_locale")
+    async def test_handle_input_invalid_state(
+        self,
+        mock_use_locale: MagicMock,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test processing input with invalid waiting state."""
+        # Setup mocks
+        mock_pgettext = MagicMock(return_value="Translated message")
+        mock_use_locale.return_value = (None, None, mock_pgettext)
+
+        handler._extract_command_context = AsyncMock()
+        handler._extract_command_context.return_value.user_id = 123
+        handler._extract_command_context.return_value.language = "en"
+
+        handler._is_valid_waiting_state = AsyncMock(return_value=False)
+        handler._clear_waiting_state = AsyncMock()
+
+        result = await handler.handle_input(
+            update=mock_update,
+            context=mock_context,
+        )
+
+        assert result is None
+        handler._clear_waiting_state.assert_called_once_with(
+            user_id=123, context=mock_context
+        )
+
+    @pytest.mark.asyncio
+    @patch("src.bot.handlers.settings.notification_schedule_handler.use_locale")
+    async def test_handle_input_update_error(
+        self,
+        mock_use_locale: MagicMock,
+        handler: NotificationScheduleHandler,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test processing input when settings update fails."""
+        from src.bot.handlers.base_handler import CommandContext
+        from src.database.service import UserNotFoundError
+
+        # Setup mocks
+        mock_pgettext = MagicMock(side_effect=lambda c, m: "error_translated")
+        mock_use_locale.return_value = (None, None, mock_pgettext)
+
+        mock_cmd_context = MagicMock(spec=CommandContext)
+        mock_cmd_context.user_id = 123456
+        mock_cmd_context.language = "en"
+
+        # Mock dependencies
+        handler._extract_command_context = AsyncMock(return_value=mock_cmd_context)
+        handler._is_valid_waiting_state = AsyncMock(return_value=True)
+        handler._clear_waiting_state = AsyncMock()
+        handler.services.user_service.update_user_settings = AsyncMock(
+            side_effect=UserNotFoundError("User not found")
+        )
+
+        # Patch send_message on the class directly before use
+        with patch.object(
+            NotificationScheduleHandler, "send_message", new_callable=AsyncMock
+        ) as mock_send_message:
+            # Set the text on the update message
+            mock_update.message.text = "daily 09:00"
+
+            await handler.handle_input(
+                update=mock_update,
+                context=mock_context,
+            )
+
+            mock_send_message.assert_awaited_once()
+            handler._clear_waiting_state.assert_called_once_with(
+                user_id=123456, context=mock_context
+            )

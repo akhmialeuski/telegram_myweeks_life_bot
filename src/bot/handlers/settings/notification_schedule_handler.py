@@ -111,39 +111,40 @@ class NotificationScheduleHandler(AbstractSettingsHandler):
             return
 
         try:
-            await self.services.user_service.update_user_settings(
-                telegram_id=user_id,
-                notification_frequency=parsed.frequency,
-                notifications_day=parsed.notifications_day,
-                notifications_time=parsed.notifications_time,
-                notifications_month_day=parsed.notifications_month_day,
-            )
-
-            await self.services.event_bus.publish(
-                UserSettingsChangedEvent(
-                    user_id=user_id,
-                    setting_name="notification_schedule",
-                    new_value=raw_text,
-                    old_value=None,
+            try:
+                await self.services.user_service.update_user_settings(
+                    telegram_id=user_id,
+                    notification_frequency=parsed.frequency,
+                    notifications_day=parsed.notifications_day,
+                    notifications_time=parsed.notifications_time,
+                    notifications_month_day=parsed.notifications_month_day,
                 )
-            )
-        except (UserNotFoundError, UserSettingsUpdateError) as error:
-            logger.error(
-                "%s: [%s]: failed to update schedule: %s",
-                COMMAND_SETTINGS,
-                user_id,
-                error,
-            )
-            await self.send_message(
-                update=update,
-                message_text=pgettext(
-                    "settings.error",
-                    "❌ An error occurred while updating settings.\nPlease try again later.",
-                ),
-            )
-            return
 
-        await self._clear_waiting_state(user_id=user_id, context=context)
+                await self.services.event_bus.publish(
+                    UserSettingsChangedEvent(
+                        user_id=user_id,
+                        setting_name="notification_schedule",
+                        new_value=raw_text,
+                        old_value=None,
+                    )
+                )
+            except (UserNotFoundError, UserSettingsUpdateError) as error:
+                logger.error(
+                    "%s: [%s]: failed to update schedule: %s",
+                    COMMAND_SETTINGS,
+                    user_id,
+                    error,
+                )
+                await self.send_message(
+                    update=update,
+                    message_text=pgettext(
+                        "settings.error",
+                        "❌ An error occurred while updating settings.\nPlease try again later.",
+                    ),
+                )
+                return
+        finally:
+            await self._clear_waiting_state(user_id=user_id, context=context)
         await self.send_message(
             update=update,
             message_text=pgettext(

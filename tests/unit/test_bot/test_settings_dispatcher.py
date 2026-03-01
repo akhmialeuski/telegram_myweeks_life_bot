@@ -251,4 +251,52 @@ class TestSettingsDispatcher:
 
                     mock_send_error.assert_called_once()
 
-                mock_send_error.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_handle_settings_internal_error(
+        self,
+        handler: SettingsDispatcher,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test error handling inside _handle_settings method directly.
+
+        :param handler: SettingsDispatcher instance
+        :type handler: SettingsDispatcher
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.bot.handlers.base_handler import CommandContext
+
+        mock_profile = MagicMock()
+        mock_profile.is_premium = False
+        mock_profile.subscription.subscription_type = SubscriptionType.BASIC
+        mock_profile.settings.language = "en"
+        mock_profile.settings.life_expectancy = 80
+        mock_profile.settings.birth_date = None
+
+        mock_cmd_context = CommandContext(
+            user=mock_update.effective_user,
+            user_id=mock_update.effective_user.id,
+            language="en",
+            user_profile=mock_profile,
+        )
+
+        async def mock_extract(*args, **kwargs):
+            return mock_cmd_context
+
+        with patch.object(
+            handler, "_extract_command_context", side_effect=mock_extract
+        ):
+            with patch.object(
+                handler, "send_message", side_effect=Exception("Render error")
+            ):
+                with patch.object(handler, "send_error_message") as mock_send_error:
+                    result = await handler._handle_settings(mock_update, mock_context)
+
+                    assert result is None
+                    mock_send_error.assert_called_once()
+                    args = mock_send_error.call_args.kwargs
+                    assert "pgettext_settings.error_" in args["error_message"]

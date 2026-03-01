@@ -278,3 +278,94 @@ class TestTimezoneHandler:
         assert result == ConversationState.AWAITING_SETTINGS_TIMEZONE.value
         handler.services.user_service.update_user_settings.assert_not_called()
         update_mock.message.reply_text.assert_called_once_with("Invalid")
+
+    @pytest.mark.asyncio
+    @patch("src.bot.handlers.settings.timezone_handler.use_locale")
+    async def test_handle_selection_callback_unexpected_error(
+        self,
+        mock_use_locale: MagicMock,
+        handler: TimezoneHandler,
+        update_mock: MagicMock,
+        context_mock: MagicMock,
+    ) -> None:
+        """Test outer exception handling during timezone selection."""
+        # Setup mocks
+        mock_pgettext = MagicMock(return_value="Outer Error")
+        mock_use_locale.return_value = (None, None, mock_pgettext)
+
+        update_mock.callback_query.data = "timezone_other"
+
+        handler._extract_command_context = AsyncMock()
+        handler._extract_command_context.return_value.user_id = 123
+        handler._extract_command_context.return_value.language = "en"
+
+        # Raise unexpected error inside try block
+        update_mock.callback_query.answer.side_effect = Exception("Outer Error")
+
+        handler.edit_message = AsyncMock()
+
+        result = await handler.handle_selection_callback(update_mock, context_mock)
+
+        # Verify
+        assert result is None
+        handler.edit_message.assert_called_once_with(
+            query=update_mock.callback_query,
+            message_text="Outer Error",
+        )
+
+    @pytest.mark.asyncio
+    @patch("src.bot.handlers.settings.timezone_handler.use_locale")
+    async def test_handle_input_unexpected_error(
+        self,
+        mock_use_locale: MagicMock,
+        handler: TimezoneHandler,
+        update_mock: MagicMock,
+        context_mock: MagicMock,
+    ) -> None:
+        """Test outer exception handling during manual input."""
+        # Setup mocks
+        mock_pgettext = MagicMock(return_value="Outer Input Error")
+        mock_use_locale.return_value = (None, None, mock_pgettext)
+
+        update_mock.message.text = "UTC"
+
+        handler._extract_command_context = AsyncMock()
+        handler._extract_command_context.return_value.user_id = 123
+        handler._extract_command_context.return_value.language = "en"
+
+        handler._update_timezone = AsyncMock(side_effect=Exception("Outer Input Error"))
+
+        result = await handler.handle_input(update_mock, context_mock)
+
+        # Verify
+        assert result == ConversationState.IDLE.value
+        update_mock.message.reply_text.assert_called_once_with("Outer Input Error")
+
+    @pytest.mark.asyncio
+    @patch("src.bot.handlers.settings.timezone_handler.use_locale")
+    async def test_update_timezone_error_with_message(
+        self,
+        mock_use_locale: MagicMock,
+        handler: TimezoneHandler,
+        update_mock: MagicMock,
+    ) -> None:
+        """Test missing update error handling when replying via message instead of callback query."""
+        # Setup mocks
+        mock_pgettext = MagicMock(return_value="Update Fallback Error")
+        mock_use_locale.return_value = (None, None, mock_pgettext)
+
+        handler.services.user_service.update_user_settings.side_effect = (
+            UserSettingsUpdateError("DB Update Error")
+        )
+
+        result = await handler._update_timezone(
+            timezone_value="UTC",
+            user_id=123,
+            lang="en",
+            query=None,
+            message=update_mock.message,
+        )
+
+        # Verify
+        assert result is None
+        update_mock.message.reply_text.assert_called_once_with("Update Fallback Error")
