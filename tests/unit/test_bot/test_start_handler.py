@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.bot.constants import DEFAULT_TIMEZONE_MAPPING, FALLBACK_TIMEZONE
 from src.bot.handlers.start_handler import StartHandler
 from src.database.service import UserRegistrationError, UserServiceError
 from src.events.domain_events import UserSettingsChangedEvent
@@ -613,3 +614,112 @@ class TestStartHandler:
 
         # Verify state cleared
         assert "waiting_for" not in mock_context.user_data
+
+
+class TestStartHandlerGuessTimezoneFromLanguage:
+    """Test suite for StartHandler._guess_timezone_from_language method.
+
+    Covers timezone mapping by language code and fallback for unknown languages.
+    """
+
+    @pytest.fixture
+    def handler(self) -> StartHandler:
+        """Create StartHandler instance with fake container.
+
+        :returns: StartHandler instance
+        :rtype: StartHandler
+        """
+        return StartHandler(FakeServiceContainer())
+
+    def test_guess_timezone_ru(self, handler: StartHandler) -> None:
+        """Test timezone for Russian language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("ru")
+            == DEFAULT_TIMEZONE_MAPPING["ru"]
+        )
+
+    def test_guess_timezone_en(self, handler: StartHandler) -> None:
+        """Test timezone for English language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("en")
+            == DEFAULT_TIMEZONE_MAPPING["en"]
+        )
+
+    def test_guess_timezone_ua(self, handler: StartHandler) -> None:
+        """Test timezone for Ukrainian language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("ua")
+            == DEFAULT_TIMEZONE_MAPPING["ua"]
+        )
+
+    def test_guess_timezone_by(self, handler: StartHandler) -> None:
+        """Test timezone for Belarusian (by) language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("by")
+            == DEFAULT_TIMEZONE_MAPPING["by"]
+        )
+
+    def test_guess_timezone_be(self, handler: StartHandler) -> None:
+        """Test timezone for Belarusian (be) language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("be")
+            == DEFAULT_TIMEZONE_MAPPING["be"]
+        )
+
+    def test_guess_timezone_uk(self, handler: StartHandler) -> None:
+        """Test timezone for Ukrainian (uk) language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("uk")
+            == DEFAULT_TIMEZONE_MAPPING["uk"]
+        )
+
+    def test_guess_timezone_unknown_fallback(self, handler: StartHandler) -> None:
+        """Test fallback timezone for unknown language code.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert handler._guess_timezone_from_language("xx") == FALLBACK_TIMEZONE
+
+    def test_guess_timezone_lang_code_with_region(self, handler: StartHandler) -> None:
+        """Test that lang_code with region uses first 2 chars.
+
+        :param handler: StartHandler instance
+        :type handler: StartHandler
+        :returns: None
+        """
+        assert (
+            handler._guess_timezone_from_language("ru-RU")
+            == DEFAULT_TIMEZONE_MAPPING["ru"]
+        )

@@ -1289,6 +1289,41 @@ class TestUserServiceUpdateSettings:
         )
 
     @pytest.mark.asyncio
+    async def test_update_user_settings_timezone_success(self) -> None:
+        """Test successful settings update with timezone field.
+
+        This test verifies that update_user_settings correctly
+        updates the timezone field via _apply_settings_updates.
+
+        :returns: None
+        :rtype: None
+        """
+        from tests.constants import TIMEZONE_EUROPE_MOSCOW
+
+        user_service = UserService()
+        settings = MagicMock()
+        settings.birth_date = date(1990, 1, 1)
+        settings.life_expectancy = 75
+        settings.language = SupportedLanguage.EN.value
+        settings.timezone = "UTC"
+
+        user_service.settings_repository = MagicMock()
+        user_service.settings_repository.get_user_settings = AsyncMock()
+        user_service.settings_repository.update_user_settings = AsyncMock()
+        user_service.settings_repository.delete_user_settings = AsyncMock()
+        user_service.settings_repository.get_user_settings.return_value = settings
+        user_service.settings_repository.update_user_settings.return_value = True
+
+        await user_service.update_user_settings(
+            123456789, timezone=TIMEZONE_EUROPE_MOSCOW
+        )
+
+        assert settings.timezone == TIMEZONE_EUROPE_MOSCOW
+        user_service.settings_repository.update_user_settings.assert_called_once_with(
+            settings=settings
+        )
+
+    @pytest.mark.asyncio
     async def test_update_user_settings_not_found(self) -> None:
         """Test update_user_settings when settings not found.
 
