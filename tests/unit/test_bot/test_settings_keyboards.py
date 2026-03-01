@@ -12,6 +12,15 @@ from src.bot.handlers.settings.keyboards import (
     get_settings_keyboard,
     get_timezone_keyboard,
 )
+from tests.constants import (
+    CALLBACK_SETTINGS_TIMEZONE,
+    CALLBACK_TIMEZONE_MINSK,
+    CALLBACK_TIMEZONE_MOSCOW,
+    CALLBACK_TIMEZONE_NEW_YORK,
+    CALLBACK_TIMEZONE_OTHER,
+    CALLBACK_TIMEZONE_UTC,
+    CALLBACK_TIMEZONE_WARSAW,
+)
 
 
 class TestSettingsKeyboards:
@@ -35,7 +44,7 @@ class TestSettingsKeyboards:
         callback_data = [
             btn.callback_data for row in keyboard.inline_keyboard for btn in row
         ]
-        assert "settings_timezone" not in callback_data
+        assert CALLBACK_SETTINGS_TIMEZONE not in callback_data
         assert "settings_notification_schedule" not in callback_data
 
     def test_get_settings_keyboard_premium(self) -> None:
@@ -48,7 +57,7 @@ class TestSettingsKeyboards:
         callback_data = [
             btn.callback_data for row in keyboard.inline_keyboard for btn in row
         ]
-        assert "settings_timezone" in callback_data
+        assert CALLBACK_SETTINGS_TIMEZONE in callback_data
         assert "settings_notification_schedule" in callback_data
 
     def test_get_timezone_keyboard(self) -> None:
@@ -62,11 +71,11 @@ class TestSettingsKeyboards:
             btn.callback_data for row in keyboard.inline_keyboard for btn in row
         ]
         expected_callbacks = [
-            "timezone_UTC",
-            "timezone_Europe/Moscow",
-            "timezone_Europe/Warsaw",
-            "timezone_Europe/Minsk",
-            "timezone_America/New_York",
-            "timezone_other",
+            CALLBACK_TIMEZONE_UTC,
+            CALLBACK_TIMEZONE_MOSCOW,
+            CALLBACK_TIMEZONE_WARSAW,
+            CALLBACK_TIMEZONE_MINSK,
+            CALLBACK_TIMEZONE_NEW_YORK,
+            CALLBACK_TIMEZONE_OTHER,
         ]
         assert callback_data == expected_callbacks

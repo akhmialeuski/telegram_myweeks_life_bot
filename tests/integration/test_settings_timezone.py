@@ -13,8 +13,6 @@ Test Groups:
     - TestTimezoneOutputAllLanguages: Output verification per language
 """
 
-import time
-import uuid
 from datetime import time as datetime_time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -27,9 +25,26 @@ from src.bot.event_listeners import register_event_listeners
 from src.bot.handlers.settings.dispatcher import SettingsDispatcher
 from src.bot.handlers.settings.timezone_handler import TimezoneHandler
 from src.bot.handlers.start_handler import StartHandler
+from src.bot.notification_schedule import WEEKDAY_MAP
 from src.constants import DEFAULT_TIMEZONE
 from src.enums import NotificationFrequency, SupportedLanguage, WeekDay
 from src.services.container import ServiceContainer
+from tests.constants import (
+    CALLBACK_TIMEZONE_MINSK,
+    CALLBACK_TIMEZONE_MOSCOW,
+    CALLBACK_TIMEZONE_NEW_YORK,
+    CALLBACK_TIMEZONE_OTHER,
+    CALLBACK_TIMEZONE_UTC,
+    CALLBACK_TIMEZONE_WARSAW,
+    TEST_STATE_ID,
+    TEST_STATE_TIMESTAMP,
+    TIMEZONE_AMERICA_NEW_YORK,
+    TIMEZONE_EUROPE_LONDON,
+    TIMEZONE_EUROPE_MINSK,
+    TIMEZONE_EUROPE_MOSCOW,
+    TIMEZONE_EUROPE_WARSAW,
+    TIMEZONE_INVALID,
+)
 from tests.integration.conftest import (
     TEST_USER_ID,
     get_reply_text,
@@ -39,18 +54,6 @@ from tests.integration.conftest import (
     set_message_text,
     setup_timezone_callback,
 )
-
-# Timezone callback constants (from keyboards.py)
-CALLBACK_TIMEZONE_UTC: str = "timezone_UTC"
-CALLBACK_TIMEZONE_MOSCOW: str = "timezone_Europe/Moscow"
-CALLBACK_TIMEZONE_WARSAW: str = "timezone_Europe/Warsaw"
-CALLBACK_TIMEZONE_MINSK: str = "timezone_Europe/Minsk"
-CALLBACK_TIMEZONE_NEW_YORK: str = "timezone_America/New_York"
-CALLBACK_TIMEZONE_OTHER: str = "timezone_other"
-
-# IANA timezone identifiers
-TIMEZONE_EUROPE_LONDON: str = "Europe/London"
-TIMEZONE_INVALID: str = "Invalid/Timezone"
 
 
 def setup_awaiting_timezone_state(mock_context: MagicMock) -> None:
@@ -62,8 +65,8 @@ def setup_awaiting_timezone_state(mock_context: MagicMock) -> None:
     """
     mock_context.user_data = {
         STATE_KEY: ConversationState.AWAITING_SETTINGS_TIMEZONE.value,
-        TIMESTAMP_KEY: time.time(),
-        STATE_ID_KEY: str(uuid.uuid4()),
+        TIMESTAMP_KEY: TEST_STATE_TIMESTAMP,
+        STATE_ID_KEY: TEST_STATE_ID,
     }
 
 
@@ -122,8 +125,8 @@ class TestTimezoneRegistrationDefaults:
         mock_telegram_user.language_code = language.value
         mock_context.user_data = {
             STATE_KEY: ConversationState.AWAITING_START_BIRTH_DATE.value,
-            TIMESTAMP_KEY: time.time(),
-            STATE_ID_KEY: str(uuid.uuid4()),
+            TIMESTAMP_KEY: TEST_STATE_TIMESTAMP,
+            STATE_ID_KEY: TEST_STATE_ID,
         }
         set_message_text(mock_update=mock_update, text="01.01.1995")
 
@@ -184,10 +187,10 @@ class TestTimezoneHandlerPremiumUser:
         "callback_data,expected_tz",
         [
             (CALLBACK_TIMEZONE_UTC, "UTC"),
-            (CALLBACK_TIMEZONE_MOSCOW, "Europe/Moscow"),
-            (CALLBACK_TIMEZONE_WARSAW, "Europe/Warsaw"),
-            (CALLBACK_TIMEZONE_MINSK, "Europe/Minsk"),
-            (CALLBACK_TIMEZONE_NEW_YORK, "America/New_York"),
+            (CALLBACK_TIMEZONE_MOSCOW, TIMEZONE_EUROPE_MOSCOW),
+            (CALLBACK_TIMEZONE_WARSAW, TIMEZONE_EUROPE_WARSAW),
+            (CALLBACK_TIMEZONE_MINSK, TIMEZONE_EUROPE_MINSK),
+            (CALLBACK_TIMEZONE_NEW_YORK, TIMEZONE_AMERICA_NEW_YORK),
         ],
     )
     async def test_premium_select_from_keyboard_updates_timezone(
@@ -371,7 +374,7 @@ class TestTimezoneHandlerTrialUser:
             TEST_USER_ID
         )
         assert profile is not None
-        assert profile.settings.timezone == "Europe/Moscow"
+        assert profile.settings.timezone == TIMEZONE_EUROPE_MOSCOW
 
 
 @pytest.mark.integration
@@ -480,7 +483,7 @@ class TestTimezoneSchedulerApplication:
         scheduler_client.schedule_job.assert_awaited_once()
         call_kwargs = scheduler_client.schedule_job.call_args.kwargs
         trigger = call_kwargs["trigger"]
-        assert trigger.timezone == "Europe/Moscow"
+        assert trigger.timezone == TIMEZONE_EUROPE_MOSCOW
         assert trigger.hour == 10
         assert trigger.minute == 0
 
@@ -509,7 +512,7 @@ class TestTimezoneSchedulerApplication:
             notification_frequency=NotificationFrequency.WEEKLY,
             notifications_day=WeekDay.FRIDAY,
             notifications_time=datetime_time(14, 30),
-            timezone="Europe/Warsaw",
+            timezone=TIMEZONE_EUROPE_WARSAW,
         )
 
         scheduler_client = AsyncMock()
@@ -533,10 +536,10 @@ class TestTimezoneSchedulerApplication:
         scheduler_client.schedule_job.assert_awaited_once()
         call_kwargs = scheduler_client.schedule_job.call_args.kwargs
         trigger = call_kwargs["trigger"]
-        assert trigger.timezone == "Europe/Moscow"
+        assert trigger.timezone == TIMEZONE_EUROPE_MOSCOW
         assert trigger.hour == 14
         assert trigger.minute == 30
-        assert trigger.day_of_week == 4  # Friday
+        assert trigger.day_of_week == WEEKDAY_MAP[WeekDay.FRIDAY]
 
 
 @pytest.mark.integration
@@ -581,7 +584,7 @@ class TestTimezoneOutputAllLanguages:
 
         call_kwargs = mock_update.callback_query.edit_message_text.call_args.kwargs
         text = call_kwargs["text"]
-        assert "Europe/Moscow" in text
+        assert TIMEZONE_EUROPE_MOSCOW in text
         assert text  # Non-empty response
 
     @pytest.mark.parametrize("language", list(SupportedLanguage))

@@ -8,10 +8,18 @@ from telegram.ext import ContextTypes
 
 from src.bot.conversations.states import ConversationState
 from src.bot.handlers.settings.timezone_handler import TimezoneHandler
+from src.constants import DEFAULT_TIMEZONE
 from src.core.dtos import UserProfileDTO, UserSettingsDTO
 from src.database.service import UserSettingsUpdateError
 from src.enums import NotificationFrequency
 from src.events.domain_events import UserSettingsChangedEvent
+from tests.constants import (
+    CALLBACK_TIMEZONE_EUROPE_LONDON,
+    CALLBACK_TIMEZONE_OTHER,
+    TIMEZONE_AMERICA_NEW_YORK,
+    TIMEZONE_EUROPE_LONDON,
+    TIMEZONE_INVALID,
+)
 from tests.unit.utils.fake_container import FakeServiceContainer
 
 
@@ -43,7 +51,7 @@ class TestTimezoneHandler:
                     notification_frequency=NotificationFrequency.DAILY,
                     notifications_month_day=None,
                     life_expectancy=None,
-                    timezone="UTC",
+                    timezone=DEFAULT_TIMEZONE,
                     language="en",
                 ),
                 subscription=None,
@@ -132,7 +140,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Enter timezone")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.callback_query.data = "timezone_other"
+        update_mock.callback_query.data = CALLBACK_TIMEZONE_OTHER
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -162,7 +170,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Success")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.callback_query.data = "timezone_Europe/London"
+        update_mock.callback_query.data = CALLBACK_TIMEZONE_EUROPE_LONDON
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -174,13 +182,13 @@ class TestTimezoneHandler:
         # Verify
         assert result is None
         handler.services.user_service.update_user_settings.assert_called_once_with(
-            telegram_id=123, timezone="Europe/London"
+            telegram_id=123, timezone=TIMEZONE_EUROPE_LONDON
         )
         handler.services.event_bus.publish.assert_called_once()
         event = handler.services.event_bus.publish.call_args[0][0]
         assert isinstance(event, UserSettingsChangedEvent)
         assert event.setting_name == "timezone"
-        assert event.new_value == "Europe/London"
+        assert event.new_value == TIMEZONE_EUROPE_LONDON
 
         handler.edit_message.assert_called_once_with(
             query=update_mock.callback_query,
@@ -201,7 +209,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Error")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.callback_query.data = "timezone_Europe/London"
+        update_mock.callback_query.data = CALLBACK_TIMEZONE_EUROPE_LONDON
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -235,7 +243,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Success")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.message.text = "America/New_York"
+        update_mock.message.text = TIMEZONE_AMERICA_NEW_YORK
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -246,7 +254,7 @@ class TestTimezoneHandler:
         # Verify
         assert result == ConversationState.IDLE.value
         handler.services.user_service.update_user_settings.assert_called_once_with(
-            telegram_id=123, timezone="America/New_York"
+            telegram_id=123, timezone=TIMEZONE_AMERICA_NEW_YORK
         )
         update_mock.message.reply_text.assert_called_once_with(
             "Success", parse_mode="HTML"
@@ -266,7 +274,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Invalid")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.message.text = "Invalid/Timezone"
+        update_mock.message.text = TIMEZONE_INVALID
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -293,7 +301,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Outer Error")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.callback_query.data = "timezone_other"
+        update_mock.callback_query.data = CALLBACK_TIMEZONE_OTHER
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -327,7 +335,7 @@ class TestTimezoneHandler:
         mock_pgettext = MagicMock(return_value="Outer Input Error")
         mock_use_locale.return_value = (None, None, mock_pgettext)
 
-        update_mock.message.text = "UTC"
+        update_mock.message.text = DEFAULT_TIMEZONE
 
         handler._extract_command_context = AsyncMock()
         handler._extract_command_context.return_value.user_id = 123
@@ -359,7 +367,7 @@ class TestTimezoneHandler:
         )
 
         result = await handler._update_timezone(
-            timezone_value="UTC",
+            timezone_value=DEFAULT_TIMEZONE,
             user_id=123,
             lang="en",
             query=None,

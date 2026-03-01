@@ -9,6 +9,7 @@ import pytest
 
 from src.bot.handlers.settings.dispatcher import SettingsDispatcher
 from src.enums import SubscriptionType
+from tests.constants import TIMEZONE_EUROPE_MOSCOW
 from tests.unit.utils.fake_container import FakeServiceContainer
 
 
@@ -300,3 +301,135 @@ class TestSettingsDispatcher:
                     mock_send_error.assert_called_once()
                     args = mock_send_error.call_args.kwargs
                     assert "pgettext_settings.error_" in args["error_message"]
+
+
+class TestSettingsDispatcherTimezoneDisplay:
+    """Test suite for timezone display in settings menu.
+
+    Covers timezone_val logic: profile.settings.timezone or UTC fallback.
+    """
+
+    @pytest.fixture
+    def handler(self) -> SettingsDispatcher:
+        """Create SettingsDispatcher instance for testing.
+
+        :returns: Configured SettingsDispatcher instance
+        :rtype: SettingsDispatcher
+        """
+        services = FakeServiceContainer()
+        services.user_service = MagicMock()
+        return SettingsDispatcher(services)
+
+    @pytest.fixture(autouse=True)
+    def mock_use_locale(self, mocker) -> MagicMock:
+        """Mock use_locale to control translations.
+
+        :param mocker: pytest-mock fixture
+        :type mocker: pytest_mock.MockerFixture
+        :returns: Mocked pgettext function
+        :rtype: MagicMock
+        """
+        mock_pgettext = MagicMock(side_effect=lambda c, m: f"pgettext_{c}_{m}")
+        mocker.patch(
+            "src.bot.handlers.settings.dispatcher.use_locale",
+            return_value=(None, None, mock_pgettext),
+        )
+        return mock_pgettext
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_displays_timezone_when_set(
+        self,
+        handler: SettingsDispatcher,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test that settings menu displays user timezone when set.
+
+        :param handler: SettingsDispatcher instance
+        :type handler: SettingsDispatcher
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.bot.handlers.base_handler import CommandContext
+
+        mock_profile = MagicMock()
+        mock_profile.is_premium = True
+        mock_profile.subscription.subscription_type = SubscriptionType.PREMIUM
+        mock_profile.settings.language = "en"
+        mock_profile.settings.life_expectancy = 80
+        mock_profile.settings.birth_date = None
+        mock_profile.settings.timezone = TIMEZONE_EUROPE_MOSCOW
+
+        mock_cmd_context = CommandContext(
+            user=mock_update.effective_user,
+            user_id=mock_update.effective_user.id,
+            language="en",
+            user_profile=mock_profile,
+        )
+
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
+        with patch.object(
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+            with patch.object(handler, "send_message") as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ):
+                await handler._handle_settings(mock_update, mock_context)
+
+                mock_send_message.assert_called_once()
+                args = mock_send_message.call_args.kwargs
+                assert TIMEZONE_EUROPE_MOSCOW in args["message_text"]
+
+    @pytest.mark.asyncio
+    async def test_handle_settings_displays_utc_when_timezone_none(
+        self,
+        handler: SettingsDispatcher,
+        mock_update: MagicMock,
+        mock_context: MagicMock,
+    ) -> None:
+        """Test that settings menu displays UTC when timezone is None.
+
+        :param handler: SettingsDispatcher instance
+        :type handler: SettingsDispatcher
+        :param mock_update: Mocked update
+        :type mock_update: MagicMock
+        :param mock_context: Mocked context
+        :type mock_context: MagicMock
+        :returns: None
+        """
+        from src.bot.handlers.base_handler import CommandContext
+
+        mock_profile = MagicMock()
+        mock_profile.is_premium = True
+        mock_profile.subscription.subscription_type = SubscriptionType.PREMIUM
+        mock_profile.settings.language = "en"
+        mock_profile.settings.life_expectancy = 80
+        mock_profile.settings.birth_date = None
+        mock_profile.settings.timezone = None
+
+        mock_cmd_context = CommandContext(
+            user=mock_update.effective_user,
+            user_id=mock_update.effective_user.id,
+            language="en",
+            user_profile=mock_profile,
+        )
+
+        async def mock_extract_fn(*args, **kwargs):
+            return mock_cmd_context
+
+        with patch.object(
+            handler, "_extract_command_context", side_effect=mock_extract_fn
+        ):
+            with patch.object(handler, "send_message") as mock_send_message, patch(
+                "src.bot.handlers.settings.dispatcher.get_settings_keyboard"
+            ):
+                await handler._handle_settings(mock_update, mock_context)
+
+                mock_send_message.assert_called_once()
+                args = mock_send_message.call_args.kwargs
+                assert "UTC" in args["message_text"]
